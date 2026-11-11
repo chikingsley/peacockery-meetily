@@ -1,0 +1,6769 @@
+[
+ {
+  "language": "en",
+  "model": "mistral-voxtral-mini-transcribe-realtime-3",
+  "protocol_version": 1,
+  "sequence": 1,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "type": "session.started",
+  "_t": 0.72
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 2,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 0,
+  "type": "turn.start",
+  "_t": 1.718
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 3,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "I",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 1.848
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 4,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " thanks",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 2.896
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 5,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " for",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 3.085
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 6,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " calling",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 3.299
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 7,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " P",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 3.904
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 8,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "ik",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 4.006
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 9,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "ach",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 4.112
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 10,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "ari",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 4.199
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 11,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 2.72,
+  "type": "turn.eager_end",
+  "_t": 4.253
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 12,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 2.8,
+  "type": "turn.resume",
+  "_t": 4.303
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 13,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Studio",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 4.397
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 14,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 4.497
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 15,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " This",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 5.083
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 16,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " is",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 5.191
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 17,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 3.92,
+  "type": "turn.eager_end",
+  "_t": 5.437
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 18,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 4,
+  "type": "turn.resume",
+  "_t": 5.5
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 19,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Simon",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 5.814
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 20,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 5.871
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 21,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " How",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 6.317
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 22,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " can",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 6.637
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 23,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " I",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 6.714
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 24,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " help",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 7.024
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 25,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " you",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 7.061
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 26,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 5.6,
+  "type": "turn.eager_end",
+  "_t": 7.118
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 27,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 6.16,
+  "type": "turn.end",
+  "end_reason": "threshold",
+  "_t": 7.619
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 28,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " today",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 7.619
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 29,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "?",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 7.705
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 30,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 6.56,
+  "type": "turn.start",
+  "_t": 8.14
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 31,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Good",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 8.828
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 32,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " morning",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 9.218
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 33,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ",",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 9.329
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 34,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Simon",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 9.833
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 35,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 9.895
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 36,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " My",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 10.323
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 37,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " name",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 10.618
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 38,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " is",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 10.675
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 39,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Dana",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 11.042
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 40,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Reyes",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 11.437
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 41,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ",",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 11.469
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 42,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " and",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 11.838
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 43,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " I",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 11.89
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 44,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " am",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 12.144
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 45,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " calling",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 12.557
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 46,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " about",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 12.841
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 47,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 12.936
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 48,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " quote",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 13.46
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 49,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " for",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 13.667
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 50,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 13.757
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 51,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " warehouse",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 14.316
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 52,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " project",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 14.769
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 53,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " in",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 14.87
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 54,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 13.6,
+  "type": "turn.eager_end",
+  "_t": 15.177
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 55,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 13.68,
+  "type": "turn.resume",
+  "_t": 15.25
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 56,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Phoenix",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 15.355
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 57,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 13.84,
+  "type": "turn.eager_end",
+  "_t": 15.471
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 58,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 15.471
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 59,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 14.24,
+  "type": "turn.resume",
+  "_t": 15.856
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 60,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Sure",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 16.913
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 61,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ",",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 17.016
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 62,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " I",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 17.115
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 63,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " remember",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 17.675
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 64,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 16.32,
+  "type": "turn.eager_end",
+  "_t": 17.909
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 65,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 16.4,
+  "type": "turn.resume",
+  "_t": 17.977
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 66,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " that",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 17.978
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 67,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " one",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 18.28
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 68,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 18.297
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 69,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " We",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 18.81
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 70,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " sent",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 19.124
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 71,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 19.177
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 72,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " revised",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 19.896
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 73,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " pricing",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 20.341
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 74,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " last",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 20.7
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 75,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Thursday",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 21.296
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 76,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 21.407
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 77,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Did",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 21.914
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 78,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " you",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 21.97
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 79,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " get",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 22.351
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 80,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " a",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 22.384
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 81,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " chance",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 22.735
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 82,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " to",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 22.81
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 83,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 21.28,
+  "type": "turn.eager_end",
+  "_t": 22.909
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 84,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 21.36,
+  "type": "turn.resume",
+  "_t": 23.056
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 85,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 21.52,
+  "type": "turn.eager_end",
+  "_t": 23.135
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 86,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " review",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 23.135
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 87,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " it",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 23.406
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 88,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "?",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 23.514
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 89,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 22.08,
+  "type": "turn.end",
+  "end_reason": "threshold",
+  "_t": 23.634
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 90,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 22.16,
+  "type": "turn.start",
+  "_t": 23.814
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 91,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " We",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 24.523
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 92,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " did",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 24.795
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 93,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 24.926
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 94,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " The",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 25.418
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 95,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " numbers",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 25.927
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 96,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " look",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 25.981
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 97,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " reasonable",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 26.753
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 98,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ",",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 26.854
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 99,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " but",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 27.176
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 100,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " our",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 27.419
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 101,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " team",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 27.635
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 102,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " has",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 28.559
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 103,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " a",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 28.696
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 104,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " question",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 28.932
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 105,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " about",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 29.166
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 106,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 29.234
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 107,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " delivery",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 29.639
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 108,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " schedule",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 29.995
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 109,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " for",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 30.063
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 110,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 30.489
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 111,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " steel",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 30.67
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 112,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 29.2,
+  "type": "turn.eager_end",
+  "_t": 30.848
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 113,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 29.28,
+  "type": "turn.resume",
+  "_t": 30.963
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 114,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " frames",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 31.215
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 115,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 29.6,
+  "type": "turn.eager_end",
+  "_t": 31.267
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 116,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 31.267
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 117,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 29.92,
+  "type": "turn.resume",
+  "_t": 31.611
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 118,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Okay",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 32.666
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 119,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 32.764
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 120,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " The",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 33.206
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 121,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " current",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 33.642
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 122,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " plan",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 34
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 123,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " is",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 34.057
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 124,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " to",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 34.309
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 125,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " deliver",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 34.659
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 126,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 34.779
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 127,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " frames",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 35.236
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 128,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " in",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 35.299
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 129,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " two",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 35.561
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 130,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " batches",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 36.185
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 131,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ",",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 36.279
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 132,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 36.509
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 133,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " first",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 36.95
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 134,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " on",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 37.102
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 135,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " December",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 37.61
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 136,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " ",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 37.98
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 137,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "4",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 38.035
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 138,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "th",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 38.097
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 139,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " and",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 38.346
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 140,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 38.383
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 141,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " second",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 38.897
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 142,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " around",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 39.307
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 143,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " December",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 39.917
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 144,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " ",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 40.413
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 145,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "1",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 40.467
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 146,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "8",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 40.525
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 147,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 38.88,
+  "type": "turn.eager_end",
+  "_t": 40.586
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 148,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "th",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 40.587
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 149,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 40.683
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 150,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 39.04,
+  "type": "turn.resume",
+  "_t": 40.801
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 151,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " That",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 41.645
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 152,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " works",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 42.094
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 153,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " for",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 42.409
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 154,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " us",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 42.461
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 155,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 42.809
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 156,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Could",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 43.214
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 157,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " you",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 43.263
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 158,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " also",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 43.633
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 159,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " send",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 44.063
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 160,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 44.098
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 161,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " updated",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 44.818
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 162,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " insurance",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 45.453
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 163,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " certificate",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 46.11
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 164,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " before",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 46.515
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 165,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 46.614
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 166,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " end",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 46.925
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 167,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 45.28,
+  "type": "turn.eager_end",
+  "_t": 47.018
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 168,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " of",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 47.019
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 169,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 47.163
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 170,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 45.52,
+  "type": "turn.resume",
+  "_t": 47.328
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 171,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 45.6,
+  "type": "turn.eager_end",
+  "_t": 47.393
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 172,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " week",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 47.527
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 173,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "?",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 47.624
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 174,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 46.16,
+  "type": "turn.end",
+  "end_reason": "threshold",
+  "_t": 47.826
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 175,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 46.16,
+  "type": "turn.start",
+  "_t": 47.904
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 176,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Abs",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 49.312
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 177,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "olutely",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 49.367
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 178,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 49.431
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 179,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " I",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 49.744
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 180,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " will",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 50.807
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 181,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " email",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 50.961
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 182,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 51.006
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 183,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " certificate",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 51.602
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 184,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 49.84,
+  "type": "turn.eager_end",
+  "_t": 51.908
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 185,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " tomorrow",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 51.908
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 186,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 49.92,
+  "type": "turn.resume",
+  "_t": 51.937
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 187,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " morning",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 52.199
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 188,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ",",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 52.221
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 189,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " and",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 52.542
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 190,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " I",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 52.591
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 191,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " will",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 52.864
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 192,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " copy",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 53.259
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 193,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " your",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 53.317
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 194,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " project",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 53.944
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 195,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 52.64,
+  "type": "turn.eager_end",
+  "_t": 54.467
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 196,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " manager",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 54.467
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 197,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 52.72,
+  "type": "turn.resume",
+  "_t": 54.529
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 198,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " as",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 54.529
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 199,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 52.88,
+  "type": "turn.eager_end",
+  "_t": 55.015
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 200,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 53.04,
+  "type": "turn.resume",
+  "_t": 55.073
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 201,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " well",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 55.153
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 202,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 53.28,
+  "type": "turn.eager_end",
+  "_t": 55.224
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 203,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 55.224
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 204,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 53.6,
+  "type": "turn.resume",
+  "_t": 55.383
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 205,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Perfect",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 56.514
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 206,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 56.571
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 207,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " One",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 57.219
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 208,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " more",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 57.39
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 209,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " thing",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 57.806
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 210,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 57.883
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 211,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Can",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 58.496
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 212,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " we",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 58.554
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 213,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " schedule",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 58.982
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 214,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " a",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 59.072
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 215,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " site",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 59.493
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 216,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " visit",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 59.892
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 217,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " for",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 60.135
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 218,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " next",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 60.58
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 219,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Tuesday",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 61.124
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 220,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " at",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 61.203
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 221,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " ",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 61.342
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 222,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "1",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 61.395
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 223,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "0",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 61.469
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 224,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " in",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 61.606
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 225,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 61.705
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 226,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 59.92,
+  "type": "turn.eager_end",
+  "_t": 61.758
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 227,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " morning",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 62.216
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 228,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 60.48,
+  "type": "turn.end",
+  "end_reason": "threshold",
+  "_t": 62.231
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 229,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "?",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 62.231
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 230,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 60.8,
+  "type": "turn.start",
+  "_t": 62.614
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 231,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Tuesday",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 63.711
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 232,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " at",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 63.809
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 233,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " ",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 64.118
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 234,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "1",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 64.12
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 235,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": "0",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 64.197
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 236,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " works",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 64.571
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 237,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 64.628
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 238,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " I",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 65.104
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 239,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " will",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 65.308
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 240,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " send",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 65.627
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 241,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " a",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 65.715
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 242,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " calendar",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 66.201
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 243,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " invite",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 66.945
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 244,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " with",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 67.013
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 245,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 67.225
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 246,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " address",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 67.494
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 247,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " and",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 67.723
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 248,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " the",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 67.783
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 249,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " parking",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 68.323
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 250,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 66.8,
+  "type": "turn.eager_end",
+  "_t": 68.625
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 251,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 66.96,
+  "type": "turn.resume",
+  "_t": 68.833
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 252,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 67.12,
+  "type": "turn.eager_end",
+  "_t": 68.997
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 253,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " details",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 68.998
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 254,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 69.059
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 255,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 67.52,
+  "type": "turn.resume",
+  "_t": 69.411
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 256,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Great",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 70.273
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 257,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 70.337
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 258,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Thank",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 71.012
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 259,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " you",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 71.24
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 260,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " so",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 71.487
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 261,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " much",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 71.734
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 262,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " for",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 71.952
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 263,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 70.16,
+  "type": "turn.eager_end",
+  "_t": 72.032
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 264,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " your",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 72.032
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 265,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 70.32,
+  "type": "turn.resume",
+  "_t": 72.167
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 266,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " help",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 72.55
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 267,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ",",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 72.624
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 268,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 70.88,
+  "type": "turn.eager_end",
+  "_t": 72.743
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 269,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 71.2,
+  "type": "turn.resume",
+  "_t": 73.099
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 270,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Simon",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 73.303
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 271,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 73.412
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 272,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Have",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 73.883
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 273,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 72.08,
+  "type": "turn.eager_end",
+  "_t": 73.961
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 274,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " a",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 73.961
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 275,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " good",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 74.241
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 276,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 72.64,
+  "type": "turn.end",
+  "end_reason": "threshold",
+  "_t": 75.174
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 277,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " day",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 75.246
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 278,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 75.296
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 279,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 73.04,
+  "type": "turn.start",
+  "_t": 75.498
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 280,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 73.6,
+  "type": "turn.eager_end",
+  "_t": 75.902
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 281,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 73.68,
+  "type": "turn.resume",
+  "_t": 75.964
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 282,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " You",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 76.021
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 283,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " too",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 76.18
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 284,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ",",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 76.223
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 285,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 74.16,
+  "type": "turn.eager_end",
+  "_t": 76.264
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 286,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 74.48,
+  "type": "turn.resume",
+  "_t": 76.51
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 287,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Dana",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 76.613
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 288,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 76.654
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 289,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 75.28,
+  "type": "turn.eager_end",
+  "_t": 77.212
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 290,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Talk",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 77.27
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 291,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 75.6,
+  "type": "turn.resume",
+  "_t": 77.5
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 292,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " soon",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 77.677
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 293,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 77.781
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 294,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 76.16,
+  "type": "turn.eager_end",
+  "_t": 78.068
+ },
+ {
+  "protocol_version": 1,
+  "sequence": 295,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "time_seconds": 76.72,
+  "type": "turn.end",
+  "end_reason": "threshold",
+  "_t": 78.576
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 296,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": " Goodbye",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 78.576
+ },
+ {
+  "protocol_version": 1,
+  "segments": [],
+  "sequence": 297,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "speaker_turns": [],
+  "text": ".",
+  "type": "transcript.delta",
+  "words": [],
+  "_t": 78.669
+ },
+ {
+  "protocol_version": 1,
+  "result": {
+   "content": {
+    "audio_events": {
+     "availability": "provider_omitted",
+     "source": null,
+     "items": []
+    },
+    "segments": {
+     "availability": "provider_omitted",
+     "source": null,
+     "items": []
+    },
+    "speaker_turns": {
+     "availability": "provider_omitted",
+     "source": null,
+     "items": []
+    },
+    "tokens": {
+     "availability": "unsupported",
+     "source": null,
+     "items": []
+    },
+    "words": {
+     "availability": "provider_omitted",
+     "source": null,
+     "items": []
+    }
+   },
+   "language": {
+    "confidence": null,
+    "detected": "en",
+    "requested": "en"
+   },
+   "metrics": {
+    "audio_duration_seconds": 79.595125,
+    "decoder_seconds": null,
+    "encoder_seconds": null,
+    "first_result_latency_ms": 1159,
+    "gpu_utilization": null,
+    "normalization_latency_ms": null,
+    "peak_memory_mb": null,
+    "preprocessor_seconds": null,
+    "processing_seconds": null,
+    "provider_latency_ms": null,
+    "queue_delay_ms": null,
+    "realtime_speed_factor": 0.978536346983686,
+    "tokens_per_second": null,
+    "usage": {
+     "input_tokens": null,
+     "output_tokens": null,
+     "total_tokens": null
+    },
+    "wall_latency_ms": 81341
+   },
+   "provenance": {
+    "completed_at": "2026-11-09T11:09:48.514Z",
+    "executor": "cloud",
+    "library_name": "AI SDK",
+    "library_version": "7.0.26",
+    "model": "mistral-voxtral-mini-transcribe-realtime-3",
+    "provider": "mistral",
+    "provider_request_id": null,
+    "run_id": "rt_414065427969407b968128005be35c34",
+    "started_at": "2026-11-09T11:08:27.173Z",
+    "transport": "realtime",
+    "upstream_model": "voxtral-mini-transcribe-realtime-3"
+   },
+   "provider_capture": {
+    "metadata": {
+     "ai_sdk_provider_metadata": {},
+     "audio_bytes": 2547044,
+     "message_count": 778,
+     "responses": [
+      {
+       "timestamp": "2026-11-09T11:08:27.962Z",
+       "modelId": "mistral-voxtral-mini-transcribe-realtime-3"
+      }
+     ]
+    },
+    "response": {
+     "media_type": "application/json",
+     "payload": {
+      "protocol_events": [
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "I",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " thanks",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " for",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " calling",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " P",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "ik",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "ach",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "ari",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Studio",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " This",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " is",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Simon",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " How",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " can",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " I",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " help",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " you",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " today",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "?",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Good",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " morning",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ",",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Simon",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " My",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " name",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " is",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Dana",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Reyes",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ",",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " and",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " I",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " am",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " calling",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " about",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " quote",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " for",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " warehouse",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " project",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " in",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Phoenix",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Sure",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ",",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " I",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " remember",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " that",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " one",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " We",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " sent",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " revised",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " pricing",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " last",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Thursday",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Did",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " you",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " get",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " a",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " chance",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " to",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " review",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " it",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "?",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " We",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " did",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " The",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " numbers",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " look",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " reasonable",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ",",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " but",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " our",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " team",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " has",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " a",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " question",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " about",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " delivery",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " schedule",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " for",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " steel",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " frames",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Okay",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " The",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " current",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " plan",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " is",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " to",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " deliver",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " frames",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " in",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " two",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " batches",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ",",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " first",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " on",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " December",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " ",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "4",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "th",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " and",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " second",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " around",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " December",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " ",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "1",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "8",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "th",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " That",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " works",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " for",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " us",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Could",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " you",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " also",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " send",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " updated",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " insurance",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " certificate",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " before",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " end",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " of",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " week",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "?",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Abs",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "olutely",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " I",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " will",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " email",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " certificate",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " tomorrow",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " morning",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ",",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " and",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " I",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " will",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " copy",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " your",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " project",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " manager",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " as",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " well",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Perfect",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " One",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " more",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " thing",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Can",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " we",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " schedule",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " a",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " site",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " visit",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " for",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " next",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Tuesday",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " at",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " ",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "1",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "0",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " in",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " morning",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "?",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Tuesday",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " at",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " ",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "1",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": "0",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " works",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " I",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " will",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " send",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " a",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " calendar",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " invite",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " with",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " address",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " and",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " the",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " parking",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " details",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Great",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Thank",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " you",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " so",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " much",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " for",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " your",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " help",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ",",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Simon",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Have",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " a",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " good",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " day",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " You",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " too",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ",",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Dana",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Talk",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " soon",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": " Goodbye",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "delta",
+        "isFinal": false,
+        "providerEvent": null,
+        "segments": [],
+        "speakerTurns": [],
+        "text": ".",
+        "type": "transcript",
+        "words": []
+       },
+       {
+        "delivery": "complete",
+        "isFinal": true,
+        "providerEvent": {
+         "model": "voxtral-mini-transcribe-realtime-3"
+        },
+        "segments": [],
+        "speakerTurns": [],
+        "text": "I thanks for calling Pikachari Studio. This is Simon. How can I help you today? Good morning, Simon. My name is Dana Reyes, and I am calling about the quote for the warehouse project in Phoenix. Sure, I remember that one. We sent the revised pricing last Thursday. Did you get a chance to review it? We did. The numbers look reasonable, but our team has a question about the delivery schedule for the steel frames. Okay. The current plan is to deliver the frames in two batches, the first on December 4th and the second around December 18th. That works for us. Could you also send the updated insurance certificate before the end of the week? Absolutely. I will email the certificate tomorrow morning, and I will copy your project manager as well. Perfect. One more thing. Can we schedule a site visit for next Tuesday at 10 in the morning? Tuesday at 10 works. I will send a calendar invite with the address and the parking details. Great. Thank you so much for your help, Simon. Have a good day. You too, Dana. Talk soon. Goodbye.",
+        "type": "transcript",
+        "words": []
+       }
+      ],
+      "provider_events": [
+       {
+        "time_s": 0,
+        "type": "turn.start"
+       },
+       {
+        "text": "I",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " thanks",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " for",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " calling",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " P",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "ik",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "ach",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "ari",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 2.72,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 2.8,
+        "type": "turn.resume"
+       },
+       {
+        "text": " Studio",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " This",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " is",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 3.92,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 4,
+        "type": "turn.resume"
+       },
+       {
+        "text": " Simon",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " How",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " can",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " I",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " help",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " you",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 5.6,
+        "type": "turn.eager_end"
+       },
+       {
+        "end_reason": "threshold",
+        "time_s": 6.16,
+        "type": "turn.end"
+       },
+       {
+        "text": " today",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "?",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 6.56,
+        "type": "turn.start"
+       },
+       {
+        "text": " Good",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " morning",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ",",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " Simon",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " My",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " name",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " is",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " Dana",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " Reyes",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ",",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " and",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " I",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " am",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " calling",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " about",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " quote",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " for",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " warehouse",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " project",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " in",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 13.6,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 13.68,
+        "type": "turn.resume"
+       },
+       {
+        "text": " Phoenix",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 13.84,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 14.24,
+        "type": "turn.resume"
+       },
+       {
+        "text": " Sure",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ",",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " I",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " remember",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 16.32,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 16.4,
+        "type": "turn.resume"
+       },
+       {
+        "text": " that",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " one",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " We",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " sent",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " revised",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " pricing",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " last",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " Thursday",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " Did",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " you",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " get",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " a",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " chance",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " to",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 21.28,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 21.36,
+        "type": "turn.resume"
+       },
+       {
+        "time_s": 21.52,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": " review",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " it",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "?",
+        "type": "transcription.text.delta"
+       },
+       {
+        "end_reason": "threshold",
+        "time_s": 22.08,
+        "type": "turn.end"
+       },
+       {
+        "time_s": 22.16,
+        "type": "turn.start"
+       },
+       {
+        "text": " We",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " did",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " The",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " numbers",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " look",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " reasonable",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ",",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " but",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " our",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " team",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " has",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " a",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " question",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " about",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " delivery",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " schedule",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " for",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " steel",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 29.2,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 29.28,
+        "type": "turn.resume"
+       },
+       {
+        "text": " frames",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 29.6,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 29.92,
+        "type": "turn.resume"
+       },
+       {
+        "text": " Okay",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " The",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " current",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " plan",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " is",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " to",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " deliver",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " frames",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " in",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " two",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " batches",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ",",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " first",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " on",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " December",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " ",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "4",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "th",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " and",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " second",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " around",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " December",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " ",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "1",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "8",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 38.88,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": "th",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 39.04,
+        "type": "turn.resume"
+       },
+       {
+        "text": " That",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " works",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " for",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " us",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " Could",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " you",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " also",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " send",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " updated",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " insurance",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " certificate",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " before",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " end",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 45.28,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": " of",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 45.52,
+        "type": "turn.resume"
+       },
+       {
+        "time_s": 45.6,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": " week",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "?",
+        "type": "transcription.text.delta"
+       },
+       {
+        "end_reason": "threshold",
+        "time_s": 46.16,
+        "type": "turn.end"
+       },
+       {
+        "time_s": 46.16,
+        "type": "turn.start"
+       },
+       {
+        "text": " Abs",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "olutely",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " I",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " will",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " email",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " certificate",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 49.84,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": " tomorrow",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 49.92,
+        "type": "turn.resume"
+       },
+       {
+        "text": " morning",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ",",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " and",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " I",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " will",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " copy",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " your",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " project",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 52.64,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": " manager",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 52.72,
+        "type": "turn.resume"
+       },
+       {
+        "text": " as",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 52.88,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 53.04,
+        "type": "turn.resume"
+       },
+       {
+        "text": " well",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 53.28,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 53.6,
+        "type": "turn.resume"
+       },
+       {
+        "text": " Perfect",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " One",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " more",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " thing",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " Can",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " we",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " schedule",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " a",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " site",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " visit",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " for",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " next",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " Tuesday",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " at",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " ",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "1",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "0",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " in",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 59.92,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": " morning",
+        "type": "transcription.text.delta"
+       },
+       {
+        "end_reason": "threshold",
+        "time_s": 60.48,
+        "type": "turn.end"
+       },
+       {
+        "text": "?",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 60.8,
+        "type": "turn.start"
+       },
+       {
+        "text": " Tuesday",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " at",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " ",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "1",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": "0",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " works",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " I",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " will",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " send",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " a",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " calendar",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " invite",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " with",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " address",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " and",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " the",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " parking",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 66.8,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 66.96,
+        "type": "turn.resume"
+       },
+       {
+        "time_s": 67.12,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": " details",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 67.52,
+        "type": "turn.resume"
+       },
+       {
+        "text": " Great",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " Thank",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " you",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " so",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " much",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " for",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 70.16,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": " your",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 70.32,
+        "type": "turn.resume"
+       },
+       {
+        "text": " help",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ",",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 70.88,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 71.2,
+        "type": "turn.resume"
+       },
+       {
+        "text": " Simon",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " Have",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 72.08,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": " a",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " good",
+        "type": "transcription.text.delta"
+       },
+       {
+        "end_reason": "threshold",
+        "time_s": 72.64,
+        "type": "turn.end"
+       },
+       {
+        "text": " day",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 73.04,
+        "type": "turn.start"
+       },
+       {
+        "time_s": 73.6,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 73.68,
+        "type": "turn.resume"
+       },
+       {
+        "text": " You",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": " too",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ",",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 74.16,
+        "type": "turn.eager_end"
+       },
+       {
+        "time_s": 74.48,
+        "type": "turn.resume"
+       },
+       {
+        "text": " Dana",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 75.28,
+        "type": "turn.eager_end"
+       },
+       {
+        "text": " Talk",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 75.6,
+        "type": "turn.resume"
+       },
+       {
+        "text": " soon",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "time_s": 76.16,
+        "type": "turn.eager_end"
+       },
+       {
+        "end_reason": "threshold",
+        "time_s": 76.72,
+        "type": "turn.end"
+       },
+       {
+        "text": " Goodbye",
+        "type": "transcription.text.delta"
+       },
+       {
+        "text": ".",
+        "type": "transcription.text.delta"
+       },
+       {
+        "language": null,
+        "model": "voxtral-mini-transcribe-realtime-3-0-4",
+        "text": "I thanks for calling Pikachari Studio. This is Simon. How can I help you today? Good morning, Simon. My name is Dana Reyes, and I am calling about the quote for the warehouse project in Phoenix. Sure, I remember that one. We sent the revised pricing last Thursday. Did you get a chance to review it? We did. The numbers look reasonable, but our team has a question about the delivery schedule for the steel frames. Okay. The current plan is to deliver the frames in two batches, the first on December 4th and the second around December 18th. That works for us. Could you also send the updated insurance certificate before the end of the week? Absolutely. I will email the certificate tomorrow morning, and I will copy your project manager as well. Perfect. One more thing. Can we schedule a site visit for next Tuesday at 10 in the morning? Tuesday at 10 works. I will send a calendar invite with the address and the parking details. Great. Thank you so much for your help, Simon. Have a good day. You too, Dana. Talk soon. Goodbye.",
+        "type": "transcription.done",
+        "segments": [],
+        "usage": {
+         "prompt_audio_seconds": 79,
+         "prompt_tokens": 40,
+         "total_tokens": 1045,
+         "completion_tokens": 1005
+        }
+       }
+      ]
+     }
+    }
+   },
+   "schema_version": 2,
+   "text": "I thanks for calling Pikachari Studio. This is Simon. How can I help you today? Good morning, Simon. My name is Dana Reyes, and I am calling about the quote for the warehouse project in Phoenix. Sure, I remember that one. We sent the revised pricing last Thursday. Did you get a chance to review it? We did. The numbers look reasonable, but our team has a question about the delivery schedule for the steel frames. Okay. The current plan is to deliver the frames in two batches, the first on December 4th and the second around December 18th. That works for us. Could you also send the updated insurance certificate before the end of the week? Absolutely. I will email the certificate tomorrow morning, and I will copy your project manager as well. Perfect. One more thing. Can we schedule a site visit for next Tuesday at 10 in the morning? Tuesday at 10 works. I will send a calendar invite with the address and the parking details. Great. Thank you so much for your help, Simon. Have a good day. You too, Dana. Talk soon. Goodbye.",
+   "warnings": []
+  },
+  "sequence": 298,
+  "session_id": "rt_414065427969407b968128005be35c34",
+  "status": "succeeded",
+  "type": "session.completed",
+  "_t": 82.76
+ }
+]

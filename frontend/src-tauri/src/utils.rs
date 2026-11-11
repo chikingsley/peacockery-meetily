@@ -1,25 +1,36 @@
+use std::path::Path;
+
+/// `hh:mm:ss` for a recording-relative time in seconds.
 pub fn format_timestamp(seconds: f64) -> String {
-    let total_seconds = seconds as u64;
+    let total_seconds = seconds.max(0.0) as u64;
     let hours = total_seconds / 3600;
     let minutes = (total_seconds % 3600) / 60;
     let secs = total_seconds % 60;
     format!("{:02}:{:02}:{:02}", hours, minutes, secs)
 }
 
-/// Opens macOS System Settings to a specific privacy preference pane
-#[cfg(target_os = "macos")]
-#[tauri::command]
-pub async fn open_system_settings(preference_pane: String) -> Result<(), String> {
-    use std::process::Command;
+/// Open a folder in the platform file manager.
+pub fn open_folder(path: &Path) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    let program = "explorer";
+    #[cfg(not(target_os = "windows"))]
+    let program = "xdg-open";
 
-    // Construct the URL for System Settings
-    let url = format!("x-apple.systempreferences:com.apple.preference.security?{}", preference_pane);
-
-    // Use the 'open' command on macOS to open the URL
-    Command::new("open")
-        .arg(&url)
+    std::process::Command::new(program)
+        .arg(path)
         .spawn()
-        .map_err(|e| format!("Failed to open system settings: {}", e))?;
+        .map(|_| ())
+        .map_err(|e| format!("Failed to open folder {}: {}", path.display(), e))
+}
 
-    Ok(())
-} 
+#[cfg(test)]
+mod tests {
+    use super::format_timestamp;
+
+    #[test]
+    fn formats_hours_minutes_seconds() {
+        assert_eq!(format_timestamp(0.0), "00:00:00");
+        assert_eq!(format_timestamp(3725.9), "01:02:05");
+        assert_eq!(format_timestamp(-3.0), "00:00:00");
+    }
+}

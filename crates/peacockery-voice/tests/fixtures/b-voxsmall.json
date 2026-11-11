@@ -1,0 +1,846 @@
+{
+ "completed_at": "2026-11-09T11:08:32.224Z",
+ "created_at": "2026-11-09T11:08:27.680Z",
+ "error": null,
+ "error_details": null,
+ "job_id": "job_2199aea539a34e8ca390d803ab3758d2",
+ "kind": "transcription",
+ "progress": 1,
+ "queued_at": "2026-11-09T11:08:27.680Z",
+ "started_at": "2026-11-09T11:08:28.588Z",
+ "status": "succeeded",
+ "updated_at": "2026-11-09T11:08:32.224Z",
+ "result": {
+  "content": {
+   "audio_events": {
+    "availability": "unsupported",
+    "source": null,
+    "items": []
+   },
+   "segments": {
+    "availability": "available",
+    "source": "provider",
+    "items": [
+     {
+      "end_seconds": 2.8,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 0,
+      "text": "Hi, thanks for calling Pecos Curry Studio."
+     },
+     {
+      "end_seconds": 4.1,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 3.3,
+      "text": " This is Simon."
+     },
+     {
+      "end_seconds": 6,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 4.5,
+      "text": " How can I help you today?"
+     },
+     {
+      "end_seconds": 8.1,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 7,
+      "text": " Good morning, Simon."
+     },
+     {
+      "end_seconds": 13.7,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 8.5,
+      "text": " My name is Dana Reyes, and I am calling about the quote for the warehouse project in Phoenix."
+     },
+     {
+      "end_seconds": 16.6,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 14.8,
+      "text": " Sure, I remember that one."
+     },
+     {
+      "end_seconds": 19.6,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 16.9,
+      "text": " We sent the revised pricing last Thursday."
+     },
+     {
+      "end_seconds": 21.6,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 19.9,
+      "text": " Did you get a chance to review it?"
+     },
+     {
+      "end_seconds": 23.1,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 22.6,
+      "text": " We did."
+     },
+     {
+      "end_seconds": 29.4,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 23.5,
+      "text": " The numbers look reasonable, but our team has a question about the delivery schedule for the steel frames."
+     },
+     {
+      "end_seconds": 30.8,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 30.4,
+      "text": " Okay."
+     },
+     {
+      "end_seconds": 38.5,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 31.2,
+      "text": " The current plan is to deliver the frames in two batches, the first on December 4th and the second around December 18th."
+     },
+     {
+      "end_seconds": 40.7,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 39.5,
+      "text": " That works for us."
+     },
+     {
+      "end_seconds": 45.7,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 41.1,
+      "text": " Could you also send the updated insurance certificate before the end of the week?"
+     },
+     {
+      "end_seconds": 47.4,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 46.7,
+      "text": " Absolutely."
+     },
+     {
+      "end_seconds": 53,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 47.7,
+      "text": " I will email the certificate tomorrow morning, and I will copy your project manager as well."
+     },
+     {
+      "end_seconds": 54.6,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 54.1,
+      "text": " Perfect."
+     },
+     {
+      "end_seconds": 55.9,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 55,
+      "text": " One more thing."
+     },
+     {
+      "end_seconds": 60.2,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 56.3,
+      "text": " Can we schedule a site visit for next Tuesday at 10:00 in the morning?"
+     },
+     {
+      "end_seconds": 62.6,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 61.3,
+      "text": " Tuesday at 10 works."
+     },
+     {
+      "end_seconds": 67,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 62.9,
+      "text": " I will send a calendar invite with the address and the parking details."
+     },
+     {
+      "end_seconds": 68.3,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 68,
+      "text": " Great."
+     },
+     {
+      "end_seconds": 71.3,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 68.8,
+      "text": " Thank you so much for your help, Simon."
+     },
+     {
+      "end_seconds": 72.5,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 71.7,
+      "text": " Have a good day."
+     },
+     {
+      "end_seconds": 74.5,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 73.5,
+      "text": " You too, Dana."
+     },
+     {
+      "end_seconds": 75.6,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 75,
+      "text": " Talk soon."
+     },
+     {
+      "end_seconds": 76.6,
+      "scores": {
+       "confidence": null,
+       "log_probability": null,
+       "probability": null,
+       "score": null,
+       "speaker_confidence": null
+      },
+      "speaker": "speaker_1",
+      "start_seconds": 76.1,
+      "text": " Goodbye."
+     }
+    ]
+   },
+   "speaker_turns": {
+    "availability": "available",
+    "source": "derived",
+    "items": [
+     {
+      "end_seconds": 2.8,
+      "speaker": "speaker_1",
+      "start_seconds": 0,
+      "text": "Hi, thanks for calling Pecos Curry Studio.",
+      "scores": null
+     },
+     {
+      "end_seconds": 4.1,
+      "speaker": "speaker_1",
+      "start_seconds": 3.3,
+      "text": " This is Simon.",
+      "scores": null
+     },
+     {
+      "end_seconds": 6,
+      "speaker": "speaker_1",
+      "start_seconds": 4.5,
+      "text": " How can I help you today?",
+      "scores": null
+     },
+     {
+      "end_seconds": 8.1,
+      "speaker": "speaker_1",
+      "start_seconds": 7,
+      "text": " Good morning, Simon.",
+      "scores": null
+     },
+     {
+      "end_seconds": 13.7,
+      "speaker": "speaker_1",
+      "start_seconds": 8.5,
+      "text": " My name is Dana Reyes, and I am calling about the quote for the warehouse project in Phoenix.",
+      "scores": null
+     },
+     {
+      "end_seconds": 16.6,
+      "speaker": "speaker_1",
+      "start_seconds": 14.8,
+      "text": " Sure, I remember that one.",
+      "scores": null
+     },
+     {
+      "end_seconds": 19.6,
+      "speaker": "speaker_1",
+      "start_seconds": 16.9,
+      "text": " We sent the revised pricing last Thursday.",
+      "scores": null
+     },
+     {
+      "end_seconds": 21.6,
+      "speaker": "speaker_1",
+      "start_seconds": 19.9,
+      "text": " Did you get a chance to review it?",
+      "scores": null
+     },
+     {
+      "end_seconds": 23.1,
+      "speaker": "speaker_1",
+      "start_seconds": 22.6,
+      "text": " We did.",
+      "scores": null
+     },
+     {
+      "end_seconds": 29.4,
+      "speaker": "speaker_1",
+      "start_seconds": 23.5,
+      "text": " The numbers look reasonable, but our team has a question about the delivery schedule for the steel frames.",
+      "scores": null
+     },
+     {
+      "end_seconds": 30.8,
+      "speaker": "speaker_1",
+      "start_seconds": 30.4,
+      "text": " Okay.",
+      "scores": null
+     },
+     {
+      "end_seconds": 38.5,
+      "speaker": "speaker_1",
+      "start_seconds": 31.2,
+      "text": " The current plan is to deliver the frames in two batches, the first on December 4th and the second around December 18th.",
+      "scores": null
+     },
+     {
+      "end_seconds": 40.7,
+      "speaker": "speaker_1",
+      "start_seconds": 39.5,
+      "text": " That works for us.",
+      "scores": null
+     },
+     {
+      "end_seconds": 45.7,
+      "speaker": "speaker_1",
+      "start_seconds": 41.1,
+      "text": " Could you also send the updated insurance certificate before the end of the week?",
+      "scores": null
+     },
+     {
+      "end_seconds": 47.4,
+      "speaker": "speaker_1",
+      "start_seconds": 46.7,
+      "text": " Absolutely.",
+      "scores": null
+     },
+     {
+      "end_seconds": 53,
+      "speaker": "speaker_1",
+      "start_seconds": 47.7,
+      "text": " I will email the certificate tomorrow morning, and I will copy your project manager as well.",
+      "scores": null
+     },
+     {
+      "end_seconds": 54.6,
+      "speaker": "speaker_1",
+      "start_seconds": 54.1,
+      "text": " Perfect.",
+      "scores": null
+     },
+     {
+      "end_seconds": 55.9,
+      "speaker": "speaker_1",
+      "start_seconds": 55,
+      "text": " One more thing.",
+      "scores": null
+     },
+     {
+      "end_seconds": 60.2,
+      "speaker": "speaker_1",
+      "start_seconds": 56.3,
+      "text": " Can we schedule a site visit for next Tuesday at 10:00 in the morning?",
+      "scores": null
+     },
+     {
+      "end_seconds": 62.6,
+      "speaker": "speaker_1",
+      "start_seconds": 61.3,
+      "text": " Tuesday at 10 works.",
+      "scores": null
+     },
+     {
+      "end_seconds": 67,
+      "speaker": "speaker_1",
+      "start_seconds": 62.9,
+      "text": " I will send a calendar invite with the address and the parking details.",
+      "scores": null
+     },
+     {
+      "end_seconds": 68.3,
+      "speaker": "speaker_1",
+      "start_seconds": 68,
+      "text": " Great.",
+      "scores": null
+     },
+     {
+      "end_seconds": 71.3,
+      "speaker": "speaker_1",
+      "start_seconds": 68.8,
+      "text": " Thank you so much for your help, Simon.",
+      "scores": null
+     },
+     {
+      "end_seconds": 72.5,
+      "speaker": "speaker_1",
+      "start_seconds": 71.7,
+      "text": " Have a good day.",
+      "scores": null
+     },
+     {
+      "end_seconds": 74.5,
+      "speaker": "speaker_1",
+      "start_seconds": 73.5,
+      "text": " You too, Dana.",
+      "scores": null
+     },
+     {
+      "end_seconds": 75.6,
+      "speaker": "speaker_1",
+      "start_seconds": 75,
+      "text": " Talk soon.",
+      "scores": null
+     },
+     {
+      "end_seconds": 76.6,
+      "speaker": "speaker_1",
+      "start_seconds": 76.1,
+      "text": " Goodbye.",
+      "scores": null
+     }
+    ]
+   },
+   "tokens": {
+    "availability": "unsupported",
+    "source": null,
+    "items": []
+   },
+   "words": {
+    "availability": "not_requested",
+    "source": null,
+    "items": []
+   }
+  },
+  "language": {
+   "confidence": null,
+   "detected": null,
+   "requested": "en"
+  },
+  "metrics": {
+   "audio_duration_seconds": 77,
+   "decoder_seconds": null,
+   "encoder_seconds": null,
+   "first_result_latency_ms": null,
+   "gpu_utilization": null,
+   "normalization_latency_ms": null,
+   "peak_memory_mb": null,
+   "preprocessor_seconds": null,
+   "processing_seconds": null,
+   "provider_latency_ms": 3480,
+   "queue_delay_ms": 908,
+   "realtime_speed_factor": 22.126436781609197,
+   "tokens_per_second": 139.08045977011494,
+   "usage": {
+    "input_tokens": 7,
+    "output_tokens": 484,
+    "total_tokens": 1616
+   },
+   "wall_latency_ms": 3539
+  },
+  "provenance": {
+   "completed_at": "2026-11-09T11:08:32.127Z",
+   "executor": "cloud",
+   "library_name": null,
+   "library_version": null,
+   "model": "mistral-voxtral-small-transcribe-3",
+   "provider": "mistral",
+   "provider_request_id": null,
+   "run_id": "job_2199aea539a34e8ca390d803ab3758d2",
+   "started_at": "2026-11-09T11:08:28.588Z",
+   "transport": "batch",
+   "upstream_model": "voxtral-small-transcribe-3"
+  },
+  "provider_capture": {
+   "metadata": {
+    "completionTokens": 484,
+    "promptAudioSeconds": 77,
+    "promptTokens": 7,
+    "totalTokens": 1616
+   },
+   "response": {
+    "media_type": "application/json",
+    "payload": {
+     "model": "voxtral-small-transcribe-3",
+     "text": "Hi, thanks for calling Pecos Curry Studio. This is Simon. How can I help you today? Good morning, Simon. My name is Dana Reyes, and I am calling about the quote for the warehouse project in Phoenix. Sure, I remember that one. We sent the revised pricing last Thursday. Did you get a chance to review it? We did. The numbers look reasonable, but our team has a question about the delivery schedule for the steel frames. Okay. The current plan is to deliver the frames in two batches, the first on December 4th and the second around December 18th. That works for us. Could you also send the updated insurance certificate before the end of the week? Absolutely. I will email the certificate tomorrow morning, and I will copy your project manager as well. Perfect. One more thing. Can we schedule a site visit for next Tuesday at 10:00 in the morning? Tuesday at 10 works. I will send a calendar invite with the address and the parking details. Great. Thank you so much for your help, Simon. Have a good day. You too, Dana. Talk soon. Goodbye.",
+     "language": null,
+     "segments": [
+      {
+       "type": "transcription_segment",
+       "text": "Hi, thanks for calling Pecos Curry Studio.",
+       "start": 0,
+       "end": 2.8,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " This is Simon.",
+       "start": 3.3,
+       "end": 4.1,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " How can I help you today?",
+       "start": 4.5,
+       "end": 6,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Good morning, Simon.",
+       "start": 7,
+       "end": 8.1,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " My name is Dana Reyes, and I am calling about the quote for the warehouse project in Phoenix.",
+       "start": 8.5,
+       "end": 13.7,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Sure, I remember that one.",
+       "start": 14.8,
+       "end": 16.6,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " We sent the revised pricing last Thursday.",
+       "start": 16.9,
+       "end": 19.6,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Did you get a chance to review it?",
+       "start": 19.9,
+       "end": 21.6,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " We did.",
+       "start": 22.6,
+       "end": 23.1,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " The numbers look reasonable, but our team has a question about the delivery schedule for the steel frames.",
+       "start": 23.5,
+       "end": 29.4,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Okay.",
+       "start": 30.4,
+       "end": 30.8,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " The current plan is to deliver the frames in two batches, the first on December 4th and the second around December 18th.",
+       "start": 31.2,
+       "end": 38.5,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " That works for us.",
+       "start": 39.5,
+       "end": 40.7,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Could you also send the updated insurance certificate before the end of the week?",
+       "start": 41.1,
+       "end": 45.7,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Absolutely.",
+       "start": 46.7,
+       "end": 47.4,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " I will email the certificate tomorrow morning, and I will copy your project manager as well.",
+       "start": 47.7,
+       "end": 53,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Perfect.",
+       "start": 54.1,
+       "end": 54.6,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " One more thing.",
+       "start": 55,
+       "end": 55.9,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Can we schedule a site visit for next Tuesday at 10:00 in the morning?",
+       "start": 56.3,
+       "end": 60.2,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Tuesday at 10 works.",
+       "start": 61.3,
+       "end": 62.6,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " I will send a calendar invite with the address and the parking details.",
+       "start": 62.9,
+       "end": 67,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Great.",
+       "start": 68,
+       "end": 68.3,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Thank you so much for your help, Simon.",
+       "start": 68.8,
+       "end": 71.3,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Have a good day.",
+       "start": 71.7,
+       "end": 72.5,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " You too, Dana.",
+       "start": 73.5,
+       "end": 74.5,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Talk soon.",
+       "start": 75,
+       "end": 75.6,
+       "speaker_id": "speaker_1"
+      },
+      {
+       "type": "transcription_segment",
+       "text": " Goodbye.",
+       "start": 76.1,
+       "end": 76.6,
+       "speaker_id": "speaker_1"
+      }
+     ],
+     "usage": {
+      "prompt_audio_seconds": 77,
+      "prompt_tokens": 7,
+      "total_tokens": 1616,
+      "completion_tokens": 484,
+      "prompt_tokens_details": {
+       "cached_tokens": 0,
+       "audio_tokens": 1125
+      },
+      "service_tier": "standard"
+     },
+     "finish_reason": null
+    }
+   }
+  },
+  "schema_version": 2,
+  "text": "Hi, thanks for calling Pecos Curry Studio. This is Simon. How can I help you today? Good morning, Simon. My name is Dana Reyes, and I am calling about the quote for the warehouse project in Phoenix. Sure, I remember that one. We sent the revised pricing last Thursday. Did you get a chance to review it? We did. The numbers look reasonable, but our team has a question about the delivery schedule for the steel frames. Okay. The current plan is to deliver the frames in two batches, the first on December 4th and the second around December 18th. That works for us. Could you also send the updated insurance certificate before the end of the week? Absolutely. I will email the certificate tomorrow morning, and I will copy your project manager as well. Perfect. One more thing. Can we schedule a site visit for next Tuesday at 10:00 in the morning? Tuesday at 10 works. I will send a calendar invite with the address and the parking details. Great. Thank you so much for your help, Simon. Have a good day. You too, Dana. Talk soon. Goodbye.",
+  "warnings": []
+ },
+ "_wall": 7.885
+}

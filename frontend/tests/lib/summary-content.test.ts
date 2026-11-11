@@ -12,20 +12,17 @@ describe('summary content validation', () => {
     expect(hasVisibleSummaryContent({ markdown: '<thinker>Visible</thinker>' })).toBe(true);
   });
 
-  test('validates BlockNote and legacy summary content', () => {
+  test('validates BlockNote content and rejects other shapes', () => {
     expect(hasVisibleSummaryContent({ summary_json: [] })).toBe(false);
     expect(hasVisibleSummaryContent({
       summary_json: [{ content: [{ type: 'text', text: 'Visible' }] }],
     })).toBe(true);
     expect(hasVisibleSummaryContent({
-      Decisions: { blocks: [{ content: '   ' }] },
-    })).toBe(false);
-    expect(hasVisibleSummaryContent({
       Decisions: { blocks: [{ content: 'Ship it' }] },
-    })).toBe(true);
+    })).toBe(false);
   });
 
-  test('parses one historical double-encoded payload', () => {
+  test('parses a JSON-encoded string payload', () => {
     expect(parseSummaryContent('{"markdown":"Visible"}')).toEqual({ markdown: 'Visible' });
     expect(parseSummaryContent('{not json')).toBeNull();
   });

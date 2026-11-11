@@ -1,8 +1,6 @@
 'use client';
 
-import { createContext, useContext, useCallback, ReactNode } from 'react';
-import { useConfig } from './ConfigContext';
-import { toast } from 'sonner';
+import { createContext, useContext, type ReactNode } from 'react';
 
 interface ImportDialogContextType {
   openImportDialog: (filePath?: string | null) => void;
@@ -16,28 +14,9 @@ export const useImportDialog = () => {
   return ctx;
 };
 
-interface ImportDialogProviderProps {
-  children: ReactNode;
-  onOpen: (filePath?: string | null) => void;
-}
-
-export function ImportDialogProvider({ children, onOpen }: ImportDialogProviderProps) {
-  const { betaFeatures } = useConfig();
-
-  const openImportDialog = useCallback((filePath?: string | null) => {
-    // Gate: Check beta feature flag before opening dialog
-    if (!betaFeatures.importAndRetranscribe) {
-      toast.error('Beta feature disabled', {
-        description: 'Enable "Import Audio & Retranscribe" in Settings > Beta to use this feature.'
-      });
-      return;
-    }
-
-    onOpen(filePath);
-  }, [onOpen, betaFeatures]);
-
+export function ImportDialogProvider({ children, onOpen }: { children: ReactNode; onOpen: (filePath?: string | null) => void }) {
   return (
-    <ImportDialogContext.Provider value={{ openImportDialog }}>
+    <ImportDialogContext.Provider value={{ openImportDialog: onOpen }}>
       {children}
     </ImportDialogContext.Provider>
   );

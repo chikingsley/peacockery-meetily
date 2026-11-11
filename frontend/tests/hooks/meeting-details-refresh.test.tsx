@@ -2,17 +2,16 @@ import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'b
 import { useEffect } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import type { SummaryProcessResponse } from '../../src/types';
+import { meetingMetadata, transcriptPage as page, transcriptRow } from '../fixtures';
 
 const originalCore = { ...await import('@tauri-apps/api/core') };
-const originalAnalytics = { ...await import('../../src/lib/analytics') };
-const originalPreferences = { ...await import('../../src/lib/summary-language-preferences') };
+const originalEvent = { ...await import('@tauri-apps/api/event') };
 const originalToast = { ...await import('sonner') };
 const originalNavigation = { ...await import('next/navigation') };
 const originalConfig = { ...await import('../../src/contexts/ConfigContext') };
 afterAll(() => {
+  mock.module('@tauri-apps/api/event', () => originalEvent);
   mock.module('@tauri-apps/api/core', () => originalCore);
-  mock.module('../../src/lib/analytics', () => originalAnalytics);
-  mock.module('../../src/lib/summary-language-preferences', () => originalPreferences);
   mock.module('sonner', () => originalToast);
   mock.module('next/navigation', () => originalNavigation);
   mock.module('../../src/contexts/ConfigContext', () => originalConfig);
@@ -24,24 +23,13 @@ mock.module('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams({ id: selectedMeeting }),
 }));
 mock.module('../../src/contexts/RecordingStateContext', () => ({ useRecordingState: () => ({ isRecording: false }) }));
-mock.module('../../src/contexts/ConfigContext', () => ({ useConfig: () => ({ isAutoSummary: false }) }));
+mock.module('../../src/contexts/ConfigContext', () => ({ useConfig: () => ({ voiceSettings: null, voiceModels: null }) }));
 const notify = mock(() => {});
 mock.module('sonner', () => ({ toast: { info: notify, error: notify, success: notify, warning: notify } }));
-mock.module('../../src/lib/analytics', () => ({ default: {
-  trackPageView() {}, trackBackendConnection() {}, trackSummaryGenerationStarted: async () => {},
-  trackSummaryGenerationCompleted: async () => {},
-} }));
-mock.module('../../src/lib/summary-language-preferences', () => ({
-  readCachedDetectedSummaryLanguage: async () => null,
-  detectAndCacheSummaryLanguage: async () => ({ language: 'en' }),
-  readMeetingSummaryLanguage: async () => ({ language: 'en', storage: 'metadata' }),
-}));
-const metadata = (id: string) => ({ id, title: id, created_at: '2026-09-01', updated_at: '2026-09-01' });
+const metadata = (id: string) => meetingMetadata(id);
 let readMetadata: (id: string) => Promise<unknown>;
 let readTranscripts: (id: string) => Promise<unknown>;
-const transcriptPage = {
-  transcripts: [{ id: 'transcript', text: 'Meeting transcript', timestamp: '00:00' }], total_count: 1, has_more: false,
-};
+const transcriptPage = page([transcriptRow('Meeting transcript')]);
 let savedSummary: SummaryProcessResponse;
 const invoke = mock(async (command: string, args?: Record<string, unknown>): Promise<unknown> => {
   if (command === 'api_get_meetings') return [];
@@ -49,10 +37,12 @@ const invoke = mock(async (command: string, args?: Record<string, unknown>): Pro
   if (command === 'api_get_meeting_metadata') return readMetadata(args!.meetingId as string);
   if (command === 'api_get_meeting_transcripts') return readTranscripts(args!.meetingId as string);
   if (command === 'api_process_transcript') return { process_id: 'attempt-b' };
-  if (command === 'api_cancel_summary') return { cancelled: true };
+  if (command === 'api_cancel_summary') return null;
   throw new Error(`Unexpected command: ${command}`);
 });
 mock.module('@tauri-apps/api/core', () => ({ ...originalCore, invoke }));
+// No Tauri webview here: event listeners attach to nothing.
+mock.module('@tauri-apps/api/event', () => ({ ...originalEvent, listen: async () => () => {} }));
 const { SidebarProvider } = await import('../../src/components/Sidebar/SidebarProvider');
 const { useSummaryGeneration } = await import('../../src/hooks/meeting-details/useSummaryGeneration');
 const { useMeetingData } = await import('../../src/hooks/meeting-details/useMeetingData');
@@ -64,11 +54,10 @@ let mounts = 0;
 function SummaryView(props: any) {
   const data = useMeetingData(props);
   summaryState = useSummaryGeneration({
-    meeting: props.meeting, initialSummary: props.initialSummary, transcripts: data.transcripts,
-    modelConfig: { provider: 'ollama', model: 'test', whisperModel: 'base' }, isModelConfigLoading: false,
+    meeting: props.meeting, initialSummary: props.initialSummary, summaryModel: null,
     selectedTemplate: 'daily_standup', setAiSummary: data.setAiSummary, updateMeetingTitle: data.updateMeetingTitle,
   });
-  refresh = props.onRefetchTranscripts;
+  refresh = props.onFinalTranscriptDone;
   useEffect(() => { mounts += 1; }, []);
   return <output>{props.meeting.id}:{summaryState.summaryStatus}:{JSON.stringify(data.aiSummary)}</output>;
 }
@@ -167,7 +156,8 @@ describe('meeting route transcript refresh', () => {
     expect([...timers.keys()]).toEqual([currentTimer]);
     expect(summaryState.summaryStatus).toBe('regenerating');
     await act(async () => { await summaryState.handleStopGeneration(); });
-    expect(invoke.mock.calls.find(([command]) => command === 'api_cancel_summary')?.[1]?.processId).toBe('attempt-b');
+    expect(invoke.mock.calls.find(([command]) => command === 'api_cancel_summary')?.[1]).toEqual({ meetingId: 'meeting-a', processId: 'attempt-b' });
+    expect(summaryState.summaryStatus).toBe('idle');
     expect(timers.size).toBe(0);
   });
 });

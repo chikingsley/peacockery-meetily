@@ -2,15 +2,14 @@
 resolver = "2"
 members = [
     "frontend/src-tauri",
-    "llama-helper"
+    "crates/peacockery-voice",
+    "crates/app-loopback",
 ]
 
-# Shared workspace settings
 [workspace.package]
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.85"
 
-# Shared dependencies that can be inherited by workspace members
 [workspace.dependencies]
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }

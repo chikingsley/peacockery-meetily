@@ -1,201 +1,73 @@
 import { useCallback, RefObject } from 'react';
-import { MeetingSummary, Transcript } from '@/types';
-import { BlockNoteSummaryViewRef } from '@/components/AISummary/BlockNoteSummaryView';
 import { toast } from 'sonner';
-import Analytics from '@/lib/analytics';
-import { invoke as invokeTauri } from '@tauri-apps/api/core';
+import type { MeetingSummary } from '@/types';
+import type { MeetingMetadata, Transcript, TranscriptSourceQuery } from '@/types/voice';
+import type { BlockNoteSummaryViewRef } from '@/components/AISummary/BlockNoteSummaryView';
 import { hasVisibleSummaryContent } from '@/lib/summary-content';
+import { formatTranscriptText } from '@/lib/transcript-format';
+import { voiceService } from '@/services/voiceService';
 
 interface UseCopyOperationsProps {
-  meeting: any;
-  transcripts: Transcript[];
+  meeting: MeetingMetadata;
   meetingTitle: string;
   aiSummary: MeetingSummary | null;
   blockNoteSummaryRef: RefObject<BlockNoteSummaryViewRef>;
+  /** The transcript on screen: best (final when present) or the live draft. */
+  transcriptSource: TranscriptSourceQuery;
 }
 
-export function useCopyOperations({
-  meeting,
-  transcripts,
-  meetingTitle,
-  aiSummary,
-  blockNoteSummaryRef,
-}: UseCopyOperationsProps) {
+const dateTime = (value: string | null) => value
+  ? new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  : '';
 
-  // Helper function to fetch ALL transcripts for copying (not just paginated data)
-  const fetchAllTranscripts = useCallback(async (meetingId: string): Promise<Transcript[]> => {
-    try {
-      console.log('📊 Fetching all transcripts for copying:', meetingId);
+/** Every row of one transcript source of the meeting. */
+async function fetchAllTranscripts(meetingId: string, source: TranscriptSourceQuery): Promise<Transcript[]> {
+  const first = await voiceService.getMeetingTranscripts(meetingId, 1, 0, source);
+  if (first.total_count === 0) return [];
+  const all = await voiceService.getMeetingTranscripts(meetingId, first.total_count, 0, source);
+  return all.transcripts;
+}
 
-      // First, get total count by fetching first page
-      const firstPage = await invokeTauri('api_get_meeting_transcripts', {
-        meetingId,
-        limit: 1,
-        offset: 0,
-      }) as { transcripts: Transcript[]; total_count: number; has_more: boolean };
-
-      const totalCount = firstPage.total_count;
-      console.log(`📊 Total transcripts in database: ${totalCount}`);
-
-      if (totalCount === 0) {
-        return [];
-      }
-
-      // Fetch all transcripts in one call
-      const allData = await invokeTauri('api_get_meeting_transcripts', {
-        meetingId,
-        limit: totalCount,
-        offset: 0,
-      }) as { transcripts: Transcript[]; total_count: number; has_more: boolean };
-
-      console.log(`✅ Fetched ${allData.transcripts.length} transcripts from database for copying`);
-      return allData.transcripts;
-    } catch (error) {
-      console.error('❌ Error fetching all transcripts:', error);
-      toast.error('Failed to fetch transcripts for copying');
-      return [];
-    }
-  }, []);
-
-  // Copy transcript to clipboard
+export function useCopyOperations({ meeting, meetingTitle, aiSummary, blockNoteSummaryRef, transcriptSource }: UseCopyOperationsProps) {
   const handleCopyTranscript = useCallback(async () => {
-    // CHANGE: Fetch ALL transcripts from database, not from pagination state
-    console.log('📊 Fetching all transcripts for copying...');
-    const allTranscripts = await fetchAllTranscripts(meeting.id);
-
-    if (!allTranscripts.length) {
-      const error_msg = 'No transcripts available to copy';
-      console.log(error_msg);
-      toast.error(error_msg);
+    let transcripts: Transcript[];
+    try {
+      transcripts = await fetchAllTranscripts(meeting.id, transcriptSource);
+    } catch (error) {
+      console.error('Failed to fetch transcripts for copying:', error);
+      toast.error('Failed to fetch transcripts for copying');
       return;
     }
+    if (!transcripts.length) {
+      toast.error('No transcripts available to copy');
+      return;
+    }
+    const header = `# Transcript: ${meetingTitle || meeting.title}\n\n## Date: ${dateTime(meeting.created_at)}\n\n`;
+    const body = formatTranscriptText(transcripts);
+    await navigator.clipboard.writeText(header + body);
+    toast.success('Transcript copied to clipboard');
+  }, [meeting, meetingTitle, transcriptSource]);
 
-    console.log(`✅ Copying ${allTranscripts.length} transcripts to clipboard`);
-
-    // Format timestamps as recording-relative [MM:SS] instead of wall-clock time
-    const formatTime = (seconds: number | undefined, fallbackTimestamp: string): string => {
-      if (seconds === undefined) {
-        // For old transcripts without audio_start_time, use wall-clock time
-        return fallbackTimestamp;
-      }
-      const totalSecs = Math.floor(seconds);
-      const mins = Math.floor(totalSecs / 60);
-      const secs = totalSecs % 60;
-      return `[${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}]`;
-    };
-
-    const header = `# Transcript of the Meeting: ${meeting.id} - ${meetingTitle ?? meeting.title}\n\n`;
-    const date = `## Date: ${new Date(meeting.created_at).toLocaleDateString()}\n\n`;
-    const fullTranscript = allTranscripts
-      .map(t => `${formatTime(t.audio_start_time, t.timestamp)} ${t.text}  `)
-      .join('\n');
-
-    await navigator.clipboard.writeText(header + date + fullTranscript);
-    toast.success("Transcript copied to clipboard");
-
-    // Track copy analytics
-    const wordCount = allTranscripts
-      .map(t => t.text.split(/\s+/).length)
-      .reduce((a, b) => a + b, 0);
-
-    await Analytics.trackCopy('transcript', {
-      meeting_id: meeting.id,
-      transcript_length: allTranscripts.length.toString(),
-      word_count: wordCount.toString()
-    });
-  }, [meeting, meetingTitle, fetchAllTranscripts]);
-
-  // Copy summary to clipboard
   const handleCopySummary = useCallback(async () => {
     if (!hasVisibleSummaryContent(aiSummary)) {
       toast.error('No summary content available to copy');
       return;
     }
     try {
-      let summaryMarkdown = '';
-
-      console.log('🔍 Copy Summary - Starting...');
-
-      // Try to get markdown from BlockNote editor first
-      if (blockNoteSummaryRef.current?.getMarkdown) {
-        console.log('📝 Trying to get markdown from ref...');
-        summaryMarkdown = await blockNoteSummaryRef.current.getMarkdown();
-        console.log('📝 Got markdown from ref, length:', summaryMarkdown.length);
-      }
-
-      // Fallback: Check if aiSummary has markdown property
-      if (!summaryMarkdown && aiSummary && typeof aiSummary.markdown === 'string') {
-        console.log('📝 Using markdown from aiSummary');
-        summaryMarkdown = aiSummary.markdown;
-        console.log('📝 Markdown from aiSummary, length:', summaryMarkdown.length);
-      }
-
-      // Fallback: Check for legacy format
-      if (!summaryMarkdown && aiSummary) {
-        console.log('📝 Converting legacy format to markdown');
-        const sections = Object.entries(aiSummary)
-          .filter(([key]) => {
-            // Skip non-section keys
-            return key !== 'markdown' && key !== 'summary_json' && key !== '_section_order' && key !== 'MeetingName';
-          })
-          .map(([, section]) => {
-            if (section && typeof section === 'object' && 'title' in section && 'blocks' in section) {
-              const sectionTitle = `## ${section.title}\n\n`;
-              const sectionContent = section.blocks
-                .map((block: any) => `- ${block.content}`)
-                .join('\n');
-              return sectionTitle + sectionContent;
-            }
-            return '';
-          })
-          .filter(s => s.trim())
-          .join('\n\n');
-        summaryMarkdown = sections;
-        console.log('📝 Converted legacy format, length:', summaryMarkdown.length);
-      }
-
-      // If still no summary content, show message
-      if (!summaryMarkdown.trim()) {
-        console.error('❌ No summary content available to copy');
+      let markdown = blockNoteSummaryRef.current ? await blockNoteSummaryRef.current.getMarkdown() : '';
+      if (!markdown && typeof aiSummary.markdown === 'string') markdown = aiSummary.markdown;
+      if (!markdown.trim()) {
         toast.error('No summary content available to copy');
         return;
       }
-
-      // Build metadata header
-      const header = `# Meeting Summary: ${meetingTitle}\n\n`;
-      const metadata = `**Meeting ID:** ${meeting.id}\n**Date:** ${new Date(meeting.created_at).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })}\n**Copied on:** ${new Date().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })}\n\n---\n\n`;
-
-      const fullMarkdown = header + metadata + summaryMarkdown;
-      await navigator.clipboard.writeText(fullMarkdown);
-
-      console.log('✅ Successfully copied to clipboard!');
-      toast.success("Summary copied to clipboard");
-
-      // Track copy analytics
-      await Analytics.trackCopy('summary', {
-        meeting_id: meeting.id,
-        has_markdown: (!!aiSummary && 'markdown' in aiSummary).toString()
-      });
+      const header = `# Meeting Summary: ${meetingTitle}\n\n**Date:** ${dateTime(meeting.created_at)}\n**Copied on:** ${dateTime(new Date().toISOString())}\n\n---\n\n`;
+      await navigator.clipboard.writeText(header + markdown);
+      toast.success('Summary copied to clipboard');
     } catch (error) {
-      console.error('❌ Failed to copy summary:', error);
-      toast.error("Failed to copy summary");
+      console.error('Failed to copy summary:', error);
+      toast.error('Failed to copy summary');
     }
   }, [aiSummary, meetingTitle, meeting, blockNoteSummaryRef]);
 
-  return {
-    handleCopyTranscript,
-    handleCopySummary,
-  };
+  return { handleCopyTranscript, handleCopySummary };
 }

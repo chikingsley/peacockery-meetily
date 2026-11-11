@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import type { MeetingMetadata, PaginatedTranscriptsResponse } from '../../src/types';
+import { meetingMetadata, transcriptPage, transcriptRow } from '../fixtures';
 
 const originalCore = { ...await import('@tauri-apps/api/core') };
 type Request = {
@@ -23,6 +23,10 @@ function View({ meetingId }: { meetingId: string | null }) {
   state = usePaginatedTranscripts({ meetingId });
   return <output>{state.metadata?.id}:{state.transcripts.map(t => t.text).join(',')}</output>;
 }
+function LiveView({ meetingId }: { meetingId: string }) {
+  state = usePaginatedTranscripts({ meetingId, source: 'live' });
+  return <output />;
+}
 beforeEach(() => {
   requests.length = 0;
   invoke.mockClear();
@@ -43,11 +47,8 @@ function request(command: 'metadata' | 'transcripts', meetingId: string, index =
   expect(result).toBeDefined();
   return result;
 }
-const metadata = (id: string): MeetingMetadata => ({ id, title: id, created_at: '2026-09-07', updated_at: '2026-09-07' });
-const page = (text: string, hasMore = false): PaginatedTranscriptsResponse => ({
-  transcripts: [{ id: text, text, timestamp: '00:00', audio_start_time: 0 }],
-  total_count: hasMore ? 2 : 1, has_more: hasMore,
-});
+const metadata = (id: string) => meetingMetadata(id);
+const page = (text: string, hasMore = false) => transcriptPage([transcriptRow(text)], hasMore);
 async function resolve(req: Request, value: unknown) {
   await act(async () => { req.resolve(value); });
 }
@@ -58,6 +59,22 @@ async function load(meetingId: string, hasMore = false) {
 }
 
 describe('paginated transcript request ownership', () => {
+  test('requests the best transcript and exposes its source and speakers', async () => {
+    await show('A');
+    await resolve(request('metadata', 'A'), metadata('A'));
+    const req = request('transcripts', 'A');
+    expect(req.args).toEqual({ meetingId: 'A', limit: 100, offset: 0, source: 'best' });
+    await resolve(req, transcriptPage([transcriptRow('Hello', { source: 'final', speaker: 'Me' })]));
+    expect(state.source).toBe('final');
+    expect(state.transcripts[0].speaker).toBe('Me');
+  });
+
+  test('reads the live draft when asked', async () => {
+    await act(async () => { renderer = create(<LiveView meetingId="A" />); });
+    await resolve(request('metadata', 'A'), metadata('A'));
+    expect(request('transcripts', 'A').args.source).toBe('live');
+  });
+
   test('ignores late A metadata after B finishes and does not start A transcripts', async () => {
     await show('A');
     const stale = request('metadata', 'A');

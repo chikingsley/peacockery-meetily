@@ -1,150 +1,90 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { MeetingSummary, SummaryProcessResponse } from '@/types';
-import { useSidebar } from '@/components/Sidebar/SidebarProvider';
-import Analytics from '@/lib/analytics';
-import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
+import type { MeetingSummary, SummaryProcessResponse } from '@/types';
+import type { MeetingMetadata, Transcript, TranscriptSource } from '@/types/voice';
 import { TranscriptPanel } from '@/components/MeetingDetails/TranscriptPanel';
 import { SummaryPanel } from '@/components/MeetingDetails/SummaryPanel';
 import { MeetingDetailsSplitView, type MeetingDetailsTab } from '@/components/MeetingDetails/MeetingDetailsSplitView';
-import { ModelConfig } from '@/components/ModelSettingsModal';
-
-// Custom hooks
 import { useMeetingData } from '@/hooks/meeting-details/useMeetingData';
 import { useSummaryGeneration } from '@/hooks/meeting-details/useSummaryGeneration';
 import { useTemplates } from '@/hooks/meeting-details/useTemplates';
 import { useCopyOperations } from '@/hooks/meeting-details/useCopyOperations';
-import { useMeetingOperations } from '@/hooks/meeting-details/useMeetingOperations';
+import { useFinalTranscript } from '@/hooks/meeting-details/useFinalTranscript';
 import { useConfig } from '@/contexts/ConfigContext';
+import { voiceService, errorMessage } from '@/services/voiceService';
 
 export default function PageContent({
   meeting,
   summaryData,
   initialSummary,
-  shouldAutoGenerate = false,
-  onAutoGenerateComplete,
   onMeetingUpdated,
-  onRefetchTranscripts,
-  // Pagination props for efficient transcript loading
-  segments,
+  onFinalTranscriptDone,
+  onRenameSpeaker,
+  justRecorded,
+  transcripts,
+  source,
+  showingLiveDraft,
+  onToggleSource,
   hasMore,
   isLoadingMore,
   totalCount,
-  loadedCount,
   onLoadMore,
 }: {
-  meeting: any;
+  meeting: MeetingMetadata;
   summaryData: MeetingSummary | null;
   initialSummary: SummaryProcessResponse | null;
-  shouldAutoGenerate?: boolean;
-  onAutoGenerateComplete?: () => void;
   onMeetingUpdated?: () => Promise<void>;
-  onRefetchTranscripts?: () => Promise<void>;
-  // Pagination props
-  segments?: any[];
-  hasMore?: boolean;
-  isLoadingMore?: boolean;
-  totalCount?: number;
-  loadedCount?: number;
-  onLoadMore?: () => void;
+  onFinalTranscriptDone: () => Promise<void>;
+  onRenameSpeaker: (from: string, to: string) => Promise<void>;
+  justRecorded: boolean;
+  transcripts: Transcript[];
+  source: TranscriptSource | null;
+  showingLiveDraft: boolean;
+  onToggleSource: () => void;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  totalCount: number;
+  onLoadMore: () => void;
 }) {
-  console.log('📄 PAGE CONTENT: Initializing with data:', {
-    meetingId: meeting.id,
-    summaryDataKeys: summaryData ? Object.keys(summaryData) : null,
-    transcriptsCount: meeting.transcripts?.length
-  });
-
-  // State
   const [customPrompt, setCustomPrompt] = useState<string>('');
-  const isRecording = false;
   const [activeTab, setActiveTab] = useState<MeetingDetailsTab>('transcript');
-
-  // Ref to store the modal open function from SummaryGeneratorButtonGroup
-  const openModelSettingsRef = useRef<(() => void) | null>(null);
   const autoSwitchedSummaryMeetingIdsRef = useRef(new Set<string>());
   const manuallySelectedTabMeetingIdsRef = useRef(new Set<string>());
-  const autoGenerationStartedMeetingIdRef = useRef<string | null>(null);
 
-  // Sidebar context
-  const { serverAddress } = useSidebar();
+  const { voiceSettings, voiceModels } = useConfig();
+  // Per-meeting override of the summary model; defaults to the Voice settings choice.
+  const [summaryModel, setSummaryModel] = useState<string | null>(null);
+  const effectiveSummaryModel = summaryModel ?? voiceSettings?.summary_model ?? null;
 
-  // Get model config from ConfigContext
-  const { modelConfig, setModelConfig, isModelConfigLoading } = useConfig();
-
-  // Custom hooks
-  const meetingData = useMeetingData({ meeting, summaryData, onMeetingUpdated });
+  const meetingData = useMeetingData({ meeting, summaryData });
   const templates = useTemplates();
-
-  // Callback to register the modal open function
-  const handleRegisterModalOpen = (openFn: () => void) => {
-    console.log('📝 Registering modal open function in PageContent');
-    openModelSettingsRef.current = openFn;
-  };
-
-  // Callback to trigger modal open (called from error handler)
-  const handleOpenModelSettings = () => {
-    console.log('🔔 Opening model settings from PageContent');
-    if (openModelSettingsRef.current) {
-      openModelSettingsRef.current();
-    } else {
-      console.warn('⚠️ Modal open function not yet registered');
-    }
-  };
-
-  // Save model config to backend database and sync via event
-  const handleSaveModelConfig = async (config?: ModelConfig) => {
-    if (!config) return;
-    try {
-      await invoke('api_save_model_config', {
-        provider: config.provider,
-        model: config.model,
-        whisperModel: config.whisperModel,
-        apiKey: config.apiKey ?? null,
-        ollamaEndpoint: config.ollamaEndpoint ?? null,
-      });
-
-      // Emit event so ConfigContext and other listeners stay in sync
-      const { emit } = await import('@tauri-apps/api/event');
-      await emit('model-config-updated', config);
-
-      toast.success('Model settings saved successfully');
-    } catch (error) {
-      console.error('Failed to save model config:', error);
-      toast.error('Failed to save model settings');
-    }
-  };
+  const finalTranscript = useFinalTranscript(meeting, onFinalTranscriptDone);
 
   const summaryGeneration = useSummaryGeneration({
     initialSummary,
     meeting,
-    transcripts: meetingData.transcripts,
-    modelConfig: modelConfig,
-    isModelConfigLoading,
     selectedTemplate: templates.selectedTemplate,
+    summaryModel: effectiveSummaryModel,
     onMeetingUpdated,
     updateMeetingTitle: meetingData.updateMeetingTitle,
     setAiSummary: meetingData.setAiSummary,
-    onOpenModelSettings: handleOpenModelSettings,
   });
 
   const copyOperations = useCopyOperations({
     meeting,
-    transcripts: meetingData.transcripts,
     meetingTitle: meetingData.meetingTitle,
     aiSummary: meetingData.aiSummary,
     blockNoteSummaryRef: meetingData.blockNoteSummaryRef,
+    transcriptSource: showingLiveDraft ? 'live' : 'best',
   });
 
-  const meetingOperations = useMeetingOperations({
-    meeting,
-  });
-
-  // Track page view
-  useEffect(() => {
-    Analytics.trackPageView('meeting_details');
-  }, []);
+  const handleOpenMeetingFolder = () => {
+    voiceService.openMeetingFolder(meeting.id).catch((error) => {
+      toast.error('Failed to open recording folder', { description: errorMessage(error) });
+    });
+  };
 
   useEffect(() => {
     if (
@@ -156,34 +96,6 @@ export default function PageContent({
       setActiveTab('summary');
     }
   }, [meeting.id, meetingData.aiSummary, summaryGeneration.summaryStatus]);
-
-  // Auto-generate only after the model configuration has settled.
-  useEffect(() => {
-    if (
-      !shouldAutoGenerate
-      || summaryGeneration.summaryStatus !== 'idle'
-      || isModelConfigLoading
-      || meetingData.transcripts.length === 0
-      || autoGenerationStartedMeetingIdRef.current === meeting.id
-    ) {
-      return;
-    }
-
-    autoGenerationStartedMeetingIdRef.current = meeting.id;
-    console.log(`🤖 Auto-generating summary with ${modelConfig.provider}/${modelConfig.model}...`);
-    onAutoGenerateComplete?.();
-    void summaryGeneration.handleGenerateSummary('');
-  }, [
-    shouldAutoGenerate,
-    meeting.id,
-    meetingData.transcripts.length,
-    isModelConfigLoading,
-    modelConfig.provider,
-    modelConfig.model,
-    summaryGeneration.handleGenerateSummary,
-    summaryGeneration.summaryStatus,
-    onAutoGenerateComplete,
-  ]);
 
   return (
     <motion.div
@@ -201,29 +113,26 @@ export default function PageContent({
           }}
           transcript={
             <TranscriptPanel
-              transcripts={meetingData.transcripts}
+              meeting={meeting}
+              transcripts={transcripts}
+              source={source}
+              justRecorded={justRecorded}
+              onToggleSource={onToggleSource}
+              onRenameSpeaker={onRenameSpeaker}
+              finalTranscript={finalTranscript}
               customPrompt={customPrompt}
               onPromptChange={setCustomPrompt}
-              onCopyTranscript={copyOperations.handleCopyTranscript}
-              onOpenMeetingFolder={meetingOperations.handleOpenMeetingFolder}
-              isRecording={isRecording}
-              disableAutoScroll={true}
-              usePagination={true}
-              segments={segments}
+              onCopyTranscript={() => void copyOperations.handleCopyTranscript()}
+              onOpenMeetingFolder={handleOpenMeetingFolder}
+              onStartFinalTranscript={(model) => void finalTranscript.start(model)}
               hasMore={hasMore}
               isLoadingMore={isLoadingMore}
               totalCount={totalCount}
-              loadedCount={loadedCount}
               onLoadMore={onLoadMore}
-              meetingId={meeting.id}
-              meetingFolderPath={meeting.folder_path}
-              onRefetchTranscripts={onRefetchTranscripts}
             />
           }
           summary={
             <SummaryPanel
-              meeting={meeting}
-              meetingTitle={meetingData.meetingTitle}
               summaryRef={meetingData.blockNoteSummaryRef}
               isSaving={meetingData.isSaving}
               isSummaryDirty={meetingData.isSummaryDirty}
@@ -231,24 +140,20 @@ export default function PageContent({
               onCopySummary={copyOperations.handleCopySummary}
               aiSummary={meetingData.aiSummary}
               summaryStatus={summaryGeneration.summaryStatus}
-              transcripts={meetingData.transcripts}
-              modelConfig={modelConfig}
-              setModelConfig={setModelConfig}
-              onSaveModelConfig={handleSaveModelConfig}
+              hasTranscripts={totalCount > 0}
+              summaryModel={effectiveSummaryModel}
+              summaryModels={voiceModels?.summary ?? []}
+              onSummaryModelChange={setSummaryModel}
               onGenerateSummary={summaryGeneration.handleGenerateSummary}
               onStopGeneration={summaryGeneration.handleStopGeneration}
               customPrompt={customPrompt}
               onSaveSummary={meetingData.handleSaveSummary}
-              onSummaryChange={meetingData.handleSummaryChange}
               onDirtyChange={meetingData.setIsSummaryDirty}
               summaryError={summaryGeneration.summaryError}
-              onRegenerateSummary={summaryGeneration.handleRegenerateSummary}
               getSummaryStatusMessage={summaryGeneration.getSummaryStatusMessage}
               availableTemplates={templates.availableTemplates}
               selectedTemplate={templates.selectedTemplate}
               onTemplateSelect={templates.handleTemplateSelection}
-              isModelConfigLoading={isModelConfigLoading}
-              onOpenModelSettings={handleRegisterModalOpen}
             />
           }
         />

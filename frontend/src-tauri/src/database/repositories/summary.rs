@@ -2,7 +2,7 @@ use crate::database::models::SummaryProcess;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use sqlx::SqlitePool;
-use tracing::{error, info as log_info};
+use log::{error, info as log_info};
 
 pub struct SummaryProcessesRepository;
 
@@ -40,15 +40,17 @@ impl SummaryProcessesRepository {
             return Ok(false);
         }
 
-        let result_json = serde_json::to_string(summary);
-        if result_json.is_err() {
-            error!("Can't convert the json to string for saving to Database");
-            transaction.rollback().await?;
-            return Ok(false);
-        }
+        let result_json = match serde_json::to_string(summary) {
+            Ok(json) => json,
+            Err(e) => {
+                error!("Can't serialize the summary for saving: {}", e);
+                transaction.rollback().await?;
+                return Ok(false);
+            }
+        };
         let now = Utc::now();
         let update = sqlx::query("UPDATE summary_processes SET result = ?, updated_at = ? WHERE meeting_id = ?")
-            .bind(&result_json.unwrap())
+            .bind(&result_json)
             .bind(now)
             .bind(meeting_id)
             .execute(&mut *transaction)
@@ -71,18 +73,6 @@ impl SummaryProcessesRepository {
             meeting_id
         );
         Ok(true)
-    }
-
-    pub async fn get_summary_data_for_meeting(
-        pool: &SqlitePool,
-        meeting_id: &str,
-    ) -> Result<Option<SummaryProcess>, sqlx::Error> {
-        sqlx::query_as::<_, SummaryProcess>(
-            "SELECT p.* FROM summary_processes p JOIN transcript_chunks t ON p.meeting_id = t.meeting_id WHERE p.meeting_id = ?",
-        )
-        .bind(meeting_id)
-        .fetch_optional(pool)
-        .await
     }
 
     pub async fn create_or_reset_process(
@@ -126,24 +116,25 @@ impl SummaryProcessesRepository {
         meeting_id: &str,
         started_at: DateTime<Utc>,
         result: Value,
-        chunk_count: i64,
+        metadata: Option<Value>,
         processing_time: f64,
     ) -> Result<bool, sqlx::Error> {
         let now = Utc::now();
         let result_str = serde_json::to_string(&result)
             .map_err(|e| sqlx::Error::Protocol(format!("Failed to serialize result: {}", e)))?;
+        let metadata_str = metadata.map(|m| m.to_string());
 
         let update = sqlx::query(
             r#"
             UPDATE summary_processes
-            SET status = 'completed', result = ?, updated_at = ?, end_time = ?, chunk_count = ?, processing_time = ?, error = NULL, result_backup = NULL, result_backup_timestamp = NULL
+            SET status = 'completed', result = ?, metadata = ?, updated_at = ?, end_time = ?, processing_time = ?, error = NULL, result_backup = NULL, result_backup_timestamp = NULL
             WHERE meeting_id = ? AND start_time = ? AND LOWER(status) = 'pending'
             "#
         )
         .bind(result_str)
+        .bind(metadata_str)
         .bind(now)
         .bind(now)
-        .bind(chunk_count)
         .bind(processing_time)
         .bind(meeting_id)
         .bind(started_at)
@@ -221,26 +212,14 @@ mod tests {
     use serde_json::json;
 
     async fn test_pool() -> SqlitePool {
-        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
-        sqlx::query(
-            "CREATE TABLE summary_processes (
-                meeting_id TEXT PRIMARY KEY,
-                status TEXT NOT NULL,
-                created_at TEXT,
-                updated_at TEXT,
-                start_time TEXT,
-                result TEXT,
-                result_backup TEXT,
-                result_backup_timestamp TEXT,
-                end_time TEXT,
-                chunk_count INTEGER,
-                processing_time REAL,
-                error TEXT
-            )",
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
+        let pool = crate::database::test_pool().await;
+        for id in ["completed-first", "cancelled-first", "stale-cancel"] {
+            sqlx::query("INSERT INTO meetings (id, title) VALUES (?, 'Call')")
+                .bind(id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
         pool
     }
 
@@ -278,7 +257,7 @@ mod tests {
                 "completed-first",
                 completed_start,
                 json!({"markdown": "completed"}),
-                1,
+                None,
                 1.0,
             )
             .await
@@ -326,7 +305,7 @@ mod tests {
                 "cancelled-first",
                 cancelled_start,
                 json!({"markdown": "completed"}),
-                1,
+                None,
                 1.0,
             )
             .await

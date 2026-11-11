@@ -22,7 +22,7 @@ function containsReasoningMarker(value: unknown): boolean {
     if (typeof child === 'string') {
       return ['markdown', 'text', 'content'].includes(key) && REASONING_MARKER.test(child);
     }
-    return ['summary_json', 'children', 'content', 'blocks'].includes(key)
+    return ['summary_json', 'children', 'content'].includes(key)
       && containsReasoningMarker(child);
   });
 }
@@ -38,14 +38,6 @@ function hasBlockText(value: unknown): boolean {
   return object ? [object.text, object.content, object.children].some(hasBlockText) : false;
 }
 
-function hasLegacySectionText(value: unknown): boolean {
-  const section = parseSummaryObject(value);
-  return Array.isArray(section?.blocks) && section.blocks.some((block) => {
-    const parsedBlock = parseSummaryObject(block);
-    return typeof parsedBlock?.content === 'string' && parsedBlock.content.trim().length > 0;
-  });
-}
-
 export function hasVisibleSummaryContent(value: unknown): value is MeetingSummary {
   const object = parseSummaryObject(value);
   if (!object || containsReasoningMarker(value)) {
@@ -57,30 +49,20 @@ export function hasVisibleSummaryContent(value: unknown): value is MeetingSummar
   if ('summary_json' in object) {
     return hasBlockText(object.summary_json);
   }
-  return Object.entries(object)
-    .filter(([key]) => key !== 'MeetingName' && key !== '_section_order')
-    .some(([, section]) => hasLegacySectionText(section));
+  return false;
 }
 
 const SummaryMetadata = z.object({
-  MeetingName: z.string().optional(),
+
   reasoning_stripped: z.boolean().optional(),
-  normalization_fallback: z.boolean().optional(),
+
 }).passthrough();
 
 export function readSummaryMetadata(value: unknown) {
   const parsed = SummaryMetadata.safeParse(value);
   return parsed.success
-    ? {
-        meetingName: parsed.data.MeetingName ?? null,
-        reasoningStripped: parsed.data.reasoning_stripped === true,
-        normalizationFallback: parsed.data.normalization_fallback === true,
-      }
-    : {
-        meetingName: null,
-        reasoningStripped: false,
-        normalizationFallback: false,
-      };
+    ? { reasoningStripped: parsed.data.reasoning_stripped === true }
+    : { reasoningStripped: false };
 }
 
 export function parseSummaryContent(value: unknown): MeetingSummary | null {

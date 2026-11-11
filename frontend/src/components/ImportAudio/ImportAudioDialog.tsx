@@ -1,18 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import {
-  Upload,
-  Globe,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
-  X,
-  Cpu,
-  FileAudio,
-  Clock,
-  HardDrive,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Upload, Loader2, AlertCircle, X, FileAudio, Clock, HardDrive } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -23,27 +10,17 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
 import { toast } from 'sonner';
-import { useConfig } from '@/contexts/ConfigContext';
-import { useImportAudio, ImportResult } from '@/hooks/useImportAudio';
+import { useImportAudio } from '@/hooks/useImportAudio';
 import { useRouter } from 'next/navigation';
 import { useSidebar } from '../Sidebar/SidebarProvider';
-import { LANGUAGES } from '@/constants/languages';
-import { useTranscriptionModels, ModelOption } from '@/hooks/useTranscriptionModels';
-
+import { useConfig } from '@/contexts/ConfigContext';
+import { getAudioFormatsDisplayList } from '@/constants/audioFormats';
 
 interface ImportAudioDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   preselectedFile?: string | null;
-  onComplete?: () => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -68,132 +45,55 @@ export function ImportAudioDialog({
   open,
   onOpenChange,
   preselectedFile,
-  onComplete,
 }: ImportAudioDialogProps) {
   const router = useRouter();
   const { refetchMeetings } = useSidebar();
-  const { selectedLanguage, transcriptModelConfig } = useConfig();
-
+  const { voiceSettings, voiceModels } = useConfig();
   const [title, setTitle] = useState('');
-  const [selectedLang, setSelectedLang] = useState(selectedLanguage || 'auto');
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [titleModifiedByUser, setTitleModifiedByUser] = useState(false);
-
-  // Always start as false — represents "dialog has not yet been opened".
-  // Do NOT initialize from the `open` prop: if the component mounts with open=true
-  // (e.g. drag-drop path), we still need the initialization effect to run.
+  // "Dialog not yet opened": the init effect must run even when mounted with open=true.
   const prevOpenRef = useRef(false);
-
-  // Use centralized model fetching hook
-  const {
-    availableModels,
-    selectedModelKey,
-    setSelectedModelKey,
-    loadingModels,
-    fetchModels,
-    resetSelection,
-  } = useTranscriptionModels(transcriptModelConfig);
-
-  const handleImportComplete = useCallback((result: ImportResult) => {
-    toast.success(`Import complete! ${result.segments_count} segments created.`);
-
-    // Refresh meetings list then navigate to the imported meeting
-    refetchMeetings();
-    onComplete?.();
-    onOpenChange(false);
-    router.push(`/meeting-details?id=${result.meeting_id}`);
-  }, [router, refetchMeetings, onComplete, onOpenChange]);
-
-  const handleImportError = useCallback((error: string) => {
-    toast.error('Import failed', { description: error });
-  }, []);
 
   const {
     status,
     fileInfo,
     progress,
     error,
-    isProcessing,
-    isBusy,
+    isImporting,
     selectFile,
     validateFile,
     startImport,
     cancelImport,
     reset,
-  } = useImportAudio({
-    onComplete: handleImportComplete,
-    onError: handleImportError,
-  });
+  } = useImportAudio();
+  const isProcessing = isImporting;
 
-  // Reset state only when dialog transitions from closed to open
-  // This prevents re-initialization when config changes while dialog is already open (Bug #4 & #5)
   useEffect(() => {
     const wasOpen = prevOpenRef.current;
     prevOpenRef.current = open;
-
-    // Only initialize when transitioning from closed (false) to open (true)
     if (open && !wasOpen) {
       reset();
-      resetSelection();
       setTitle('');
-      setTitleModifiedByUser(false);
-      setSelectedLang(selectedLanguage || 'auto');
-      setShowAdvanced(false);
-
-      // Validate preselected file if provided
-      if (preselectedFile) {
-        validateFile(preselectedFile).then((info) => {
-          if (info) {
-            setTitle(info.filename);
-          }
-        });
-      }
-
-      // Fetch available models using centralized hook
-      fetchModels();
+      if (preselectedFile) void validateFile(preselectedFile);
     }
-  }, [open, preselectedFile, selectedLanguage, transcriptModelConfig, reset, resetSelection, validateFile, fetchModels]);
+  }, [open, preselectedFile, reset, validateFile]);
 
-  // Update title when fileInfo changes
-  useEffect(() => {
-    if (fileInfo && !title && !titleModifiedByUser) {
-      setTitle(fileInfo.filename);
-    }
-  }, [fileInfo, title, titleModifiedByUser]);
-
-  const selectedModel = useMemo((): ModelOption | undefined => {
-    if (!selectedModelKey) return undefined;
-    const colonIndex = selectedModelKey.indexOf(':');
-    if (colonIndex === -1) return undefined;
-    const provider = selectedModelKey.slice(0, colonIndex);
-    const name = selectedModelKey.slice(colonIndex + 1);
-    return availableModels.find((m) => m.provider === provider && m.name === name);
-  }, [selectedModelKey, availableModels]);
-  const isParakeetModel = selectedModel?.provider === 'parakeet';
-
-  useEffect(() => {
-    if (isParakeetModel && selectedLang !== 'auto') {
-      setSelectedLang('auto');
-    }
-  }, [isParakeetModel, selectedLang]);
+  const finalModelLabel = voiceSettings
+    ? voiceModels?.final.find(m => m.id === voiceSettings.final_model)?.label ?? voiceSettings.final_model
+    : null;
 
   const handleSelectFile = async () => {
-    const info = await selectFile();
-    if (info) {
-      setTitle(info.filename);
-    }
+    await selectFile();
   };
 
   const handleStartImport = async () => {
     if (!fileInfo) return;
-
-    await startImport(
-      fileInfo.path,
-      title || fileInfo.filename,
-      isParakeetModel ? null : selectedLang === 'auto' ? null : selectedLang,
-      selectedModel?.name || null,
-      selectedModel?.provider || null
-    );
+    // Resolves on the meeting's `import-complete`; the dialog shows progress until then.
+    const meetingId = await startImport(fileInfo.path, title.trim() || null);
+    if (!meetingId) return;
+    toast.success('Audio imported', { description: 'The final transcript is running.' });
+    await refetchMeetings();
+    onOpenChange(false);
+    router.push(`/meeting-details?id=${encodeURIComponent(meetingId)}`);
   };
 
   const handleCancel = async () => {
@@ -243,11 +143,6 @@ export function ImportAudioDialog({
                 <AlertCircle className="h-5 w-5 text-red-600" />
                 Import Failed
               </>
-            ) : status === 'complete' ? (
-              <>
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                Import Complete
-              </>
             ) : (
               <>
                 <Upload className="h-5 w-5 text-blue-600" />
@@ -260,7 +155,7 @@ export function ImportAudioDialog({
               ? progress?.message || 'Processing audio...'
               : error
               ? 'An error occurred during import'
-              : 'Import an audio file to create a new meeting with transcripts'}
+              : 'Import an audio file as a new meeting; Peacockery Voice transcribes it'}
           </DialogDescription>
         </DialogHeader>
 
@@ -290,14 +185,11 @@ export function ImportAudioDialog({
 
                   {/* Editable title */}
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Meeting Title</label>
+                    <label className="text-sm font-medium text-gray-700">Meeting title (optional)</label>
                     <Input
                       value={title}
-                      onChange={(e) => {
-                        setTitle(e.target.value);
-                        setTitleModifiedByUser(true);
-                      }}
-                      placeholder="Enter meeting title"
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder={fileInfo.filename}
                     />
                   </div>
 
@@ -321,90 +213,15 @@ export function ImportAudioDialog({
                       </>
                     )}
                   </Button>
-                  <p className="text-sm text-gray-500 mt-2">MP4, WAV, MP3, FLAC, OGG, MKV, WebM, WMA</p>
+                  <p className="text-sm text-gray-500 mt-2">{getAudioFormatsDisplayList()}</p>
                 </div>
               )}
 
-              {/* Advanced options (collapsible) */}
-              {fileInfo && (
-                <div className="border rounded-lg">
-                  <button
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="w-full flex items-center justify-between p-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <span>Advanced Options</span>
-                    {showAdvanced ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </button>
-
-                  {showAdvanced && (
-                    <div className="p-3 pt-0 space-y-4 border-t">
-                      {/* Language selector */}
-                      {!isParakeetModel ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Language</span>
-                          </div>
-                          <Select value={selectedLang} onValueChange={setSelectedLang}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select language" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-60">
-                              {LANGUAGES.map((lang) => (
-                                <SelectItem key={lang.code} value={lang.code}>
-                                  {lang.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Language</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Language selection isn't supported for Parakeet. It always uses automatic detection.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Model selector */}
-                      {availableModels.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Cpu className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Model</span>
-                          </div>
-                          <Select
-                            value={selectedModelKey}
-                            onValueChange={setSelectedModelKey}
-                            disabled={loadingModels}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder={loadingModels ? 'Loading models...' : 'Select model'} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableModels.map((model) => (
-                                <SelectItem
-                                  key={`${model.provider}:${model.name}`}
-                                  value={`${model.provider}:${model.name}`}
-                                >
-                                  {model.displayName} ({Math.round(model.size_mb)} MB)
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+              {fileInfo && finalModelLabel && (
+                <p className="text-xs text-gray-500">
+                  Final transcript: {finalModelLabel}
+                  {voiceSettings?.final_diarize ? ' with speaker labels' : ''} (change in Settings)
+                </p>
               )}
             </>
           )}

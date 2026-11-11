@@ -1,274 +1,265 @@
-use crate::api::{MeetingDetails, MeetingTranscript};
-use crate::database::models::{MeetingModel, Transcript};
-use chrono::Utc;
-use sqlx::{Connection, Error as SqlxError, SqliteConnection, SqlitePool};
-use tracing::{error, info};
+use crate::database::models::{meeting_status, Meeting};
+use crate::database::now_rfc3339;
+use sqlx::SqlitePool;
+
+/// Columns needed to create a meeting row.
+#[derive(Debug, Clone)]
+pub struct NewMeeting<'a> {
+    pub id: &'a str,
+    pub title: &'a str,
+    pub folder_path: &'a str,
+    pub status: &'a str,
+}
+
+/// `meetings.final_*` values.
+#[derive(Debug, Clone, Copy)]
+pub struct FinalState<'a> {
+    pub status: &'a str,
+    pub model: &'a str,
+    pub job_id: Option<&'a str>,
+    pub error: Option<&'a str>,
+}
 
 pub struct MeetingsRepository;
 
 impl MeetingsRepository {
-    pub async fn get_meetings(pool: &SqlitePool) -> Result<Vec<MeetingModel>, sqlx::Error> {
-        let meetings =
-            sqlx::query_as::<_, MeetingModel>("SELECT * FROM meetings ORDER BY created_at DESC")
-                .fetch_all(pool)
-                .await?;
-        Ok(meetings)
-    }
-
-    pub async fn delete_meeting(pool: &SqlitePool, meeting_id: &str) -> Result<bool, SqlxError> {
-        if meeting_id.trim().is_empty() {
-            return Err(SqlxError::Protocol(
-                "meeting_id cannot be empty".to_string(),
-            ));
-        }
-
-        let mut conn = pool.acquire().await?;
-        let mut transaction = conn.begin().await?;
-
-        match delete_meeting_with_transaction(&mut transaction, meeting_id).await {
-            Ok(success) => {
-                if success {
-                    transaction.commit().await?;
-                    info!(
-                        "Successfully deleted meeting {} and all associated data",
-                        meeting_id
-                    );
-                    Ok(true)
-                } else {
-                    transaction.rollback().await?;
-                    Ok(false)
-                }
-            }
-            Err(e) => {
-                let _ = transaction.rollback().await;
-                error!("Failed to delete meeting {}: {}", meeting_id, e);
-                Err(e)
-            }
-        }
-    }
-
-    pub async fn get_meeting(
-        pool: &SqlitePool,
-        meeting_id: &str,
-    ) -> Result<Option<MeetingDetails>, SqlxError> {
-        if meeting_id.trim().is_empty() {
-            return Err(SqlxError::Protocol(
-                "meeting_id cannot be empty".to_string(),
-            ));
-        }
-
-        let mut conn = pool.acquire().await?;
-        let mut transaction = conn.begin().await?;
-
-        // Get meeting details
-        let meeting: Option<MeetingModel> =
-            sqlx::query_as("SELECT id, title, created_at, updated_at, folder_path FROM meetings WHERE id = ?")
-                .bind(meeting_id)
-                .fetch_optional(&mut *transaction)
-                .await?;
-
-        if meeting.is_none() {
-            transaction.rollback().await?;
-            return Err(SqlxError::RowNotFound);
-        }
-
-        if let Some(meeting) = meeting {
-            // Get all transcripts for this meeting
-            let transcripts =
-                sqlx::query_as::<_, Transcript>("SELECT * FROM transcripts WHERE meeting_id = ?")
-                    .bind(meeting_id)
-                    .fetch_all(&mut *transaction)
-                    .await?;
-
-            transaction.commit().await?;
-
-            // Convert Transcript to MeetingTranscript
-            let meeting_transcripts = transcripts
-                .into_iter()
-                .map(|t| MeetingTranscript {
-                    id: t.id,
-                    text: t.transcript,
-                    timestamp: t.timestamp,
-                    audio_start_time: t.audio_start_time,
-                    audio_end_time: t.audio_end_time,
-                    duration: t.duration,
-                })
-                .collect::<Vec<_>>();
-
-            Ok(Some(MeetingDetails {
-                id: meeting.id,
-                title: meeting.title,
-                created_at: meeting.created_at.0.to_rfc3339(),
-                updated_at: meeting.updated_at.0.to_rfc3339(),
-                transcripts: meeting_transcripts,
-            }))
-        } else {
-            transaction.rollback().await?;
-            Ok(None)
-        }
-    }
-
-    /// Get meeting metadata without transcripts (for pagination)
-    pub async fn get_meeting_metadata(
-        pool: &SqlitePool,
-        meeting_id: &str,
-    ) -> Result<Option<MeetingModel>, SqlxError> {
-        if meeting_id.trim().is_empty() {
-            return Err(SqlxError::Protocol(
-                "meeting_id cannot be empty".to_string(),
-            ));
-        }
-
-        let meeting: Option<MeetingModel> =
-            sqlx::query_as("SELECT id, title, created_at, updated_at, folder_path FROM meetings WHERE id = ?")
-                .bind(meeting_id)
-                .fetch_optional(pool)
-                .await?;
-
-        Ok(meeting)
-    }
-
-    /// Get meeting transcripts with pagination support
-    pub async fn get_meeting_transcripts_paginated(
-        pool: &SqlitePool,
-        meeting_id: &str,
-        limit: i64,
-        offset: i64,
-    ) -> Result<(Vec<Transcript>, i64), SqlxError> {
-        if meeting_id.trim().is_empty() {
-            return Err(SqlxError::Protocol(
-                "meeting_id cannot be empty".to_string(),
-            ));
-        }
-
-        // Get total count of transcripts for this meeting
-        let total: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM transcripts WHERE meeting_id = ?"
+    pub async fn create(pool: &SqlitePool, meeting: &NewMeeting<'_>) -> Result<(), sqlx::Error> {
+        let now = now_rfc3339();
+        sqlx::query(
+            "INSERT INTO meetings (id, title, created_at, updated_at, folder_path, status)
+             VALUES (?, ?, ?, ?, ?, ?)",
         )
-        .bind(meeting_id)
-        .fetch_one(pool)
+        .bind(meeting.id)
+        .bind(meeting.title)
+        .bind(&now)
+        .bind(&now)
+        .bind(meeting.folder_path)
+        .bind(meeting.status)
+        .execute(pool)
         .await?;
-
-        // Get paginated transcripts ordered by audio_start_time
-        let transcripts = sqlx::query_as::<_, Transcript>(
-            "SELECT * FROM transcripts
-             WHERE meeting_id = ?
-             ORDER BY audio_start_time ASC
-             LIMIT ? OFFSET ?"
-        )
-        .bind(meeting_id)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await?;
-
-        Ok((transcripts, total.0))
+        Ok(())
     }
 
-    pub async fn update_meeting_title(
-        pool: &SqlitePool,
-        meeting_id: &str,
-        new_title: &str,
-    ) -> Result<bool, SqlxError> {
-        if meeting_id.trim().is_empty() {
-            return Err(SqlxError::Protocol(
-                "meeting_id cannot be empty".to_string(),
-            ));
-        }
-
-        let mut conn = pool.acquire().await?;
-        let mut transaction = conn.begin().await?;
-
-        let now = Utc::now().naive_utc();
-
-        let rows_affected =
-            sqlx::query("UPDATE meetings SET title = ?, updated_at = ? WHERE id = ?")
-                .bind(new_title)
-                .bind(now)
-                .bind(meeting_id)
-                .execute(&mut *transaction)
-                .await?;
-        if rows_affected.rows_affected() == 0 {
-            transaction.rollback().await?;
-            return Ok(false);
-        }
-        transaction.commit().await?;
-        Ok(true)
+    /// All meetings, newest first.
+    pub async fn list(pool: &SqlitePool) -> Result<Vec<Meeting>, sqlx::Error> {
+        sqlx::query_as::<_, Meeting>("SELECT * FROM meetings ORDER BY created_at DESC")
+            .fetch_all(pool)
+            .await
     }
 
-    pub async fn update_meeting_name(
-        pool: &SqlitePool,
-        meeting_id: &str,
-        new_title: &str,
-    ) -> Result<bool, SqlxError> {
-        let mut transaction = pool.begin().await?;
-        let now = Utc::now();
-
-        // Update meetings table
-        let meeting_update =
-            sqlx::query("UPDATE meetings SET title = ?, updated_at = ? WHERE id = ?")
-                .bind(new_title)
-                .bind(now)
-                .bind(meeting_id)
-                .execute(&mut *transaction)
-                .await?;
-
-        if meeting_update.rows_affected() == 0 {
-            transaction.rollback().await?;
-            return Ok(false); // Meeting not found
-        }
-
-        // Update transcript_chunks table
-        sqlx::query("UPDATE transcript_chunks SET meeting_name = ? WHERE meeting_id = ?")
-            .bind(new_title)
+    pub async fn get(pool: &SqlitePool, meeting_id: &str) -> Result<Option<Meeting>, sqlx::Error> {
+        sqlx::query_as::<_, Meeting>("SELECT * FROM meetings WHERE id = ?")
             .bind(meeting_id)
-            .execute(&mut *transaction)
-            .await?;
+            .fetch_optional(pool)
+            .await
+    }
 
-        transaction.commit().await?;
-        Ok(true)
+    /// Mark a recording as stopped with its active (pause-excluded) duration.
+    pub async fn mark_stopped(
+        pool: &SqlitePool,
+        meeting_id: &str,
+        duration_seconds: Option<f64>,
+    ) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query(
+            "UPDATE meetings SET status = ?, duration_seconds = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(meeting_status::STOPPED)
+        .bind(duration_seconds)
+        .bind(now_rfc3339())
+        .bind(meeting_id)
+        .execute(pool)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// Meetings still `recording` belong to a previous app run that died: mark them
+    /// `interrupted` and return them.
+    pub async fn interrupt_unfinished(pool: &SqlitePool) -> Result<Vec<Meeting>, sqlx::Error> {
+        let mut tx = pool.begin().await?;
+        let unfinished = sqlx::query_as::<_, Meeting>("SELECT * FROM meetings WHERE status = ?")
+            .bind(meeting_status::RECORDING)
+            .fetch_all(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE meetings SET status = ?, updated_at = ? WHERE status = ?")
+            .bind(meeting_status::INTERRUPTED)
+            .bind(now_rfc3339())
+            .bind(meeting_status::RECORDING)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(unfinished)
+    }
+
+    pub async fn update_title(pool: &SqlitePool, meeting_id: &str, title: &str) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query("UPDATE meetings SET title = ?, updated_at = ? WHERE id = ?")
+            .bind(title)
+            .bind(now_rfc3339())
+            .bind(meeting_id)
+            .execute(pool)
+            .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// Record the final-transcript state of a meeting (every `final_*` column at once).
+    pub async fn set_final_state(pool: &SqlitePool, meeting_id: &str, state: &FinalState<'_>) -> Result<bool, sqlx::Error> {
+        let now = now_rfc3339();
+        let result = sqlx::query(
+            "UPDATE meetings SET final_status = ?, final_model = ?, final_job_id = ?, final_error = ?,
+                    final_updated_at = ?, updated_at = ?
+             WHERE id = ?",
+        )
+        .bind(state.status)
+        .bind(state.model)
+        .bind(state.job_id)
+        .bind(state.error)
+        .bind(&now)
+        .bind(&now)
+        .bind(meeting_id)
+        .execute(pool)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// Meetings whose final transcript was queued or running when the app last exited.
+    pub async fn final_in_progress(pool: &SqlitePool) -> Result<Vec<Meeting>, sqlx::Error> {
+        sqlx::query_as::<_, Meeting>(
+            "SELECT * FROM meetings WHERE final_status IN ('queued', 'uploading', 'transcribing')",
+        )
+        .fetch_all(pool)
+        .await
+    }
+
+    /// Live sessions of a finished recording: public model, mode and realtime session ids (JSON array).
+    pub async fn set_live_info(
+        pool: &SqlitePool,
+        meeting_id: &str,
+        model: &str,
+        mode: &str,
+        session_ids_json: &str,
+    ) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query(
+            "UPDATE meetings SET live_model = ?, live_mode = ?, realtime_session_ids = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(model)
+        .bind(mode)
+        .bind(session_ids_json)
+        .bind(now_rfc3339())
+        .bind(meeting_id)
+        .execute(pool)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// Delete a meeting; transcripts and summary rows go with it (ON DELETE CASCADE).
+    pub async fn delete(pool: &SqlitePool, meeting_id: &str) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query("DELETE FROM meetings WHERE id = ?")
+            .bind(meeting_id)
+            .execute(pool)
+            .await?;
+        Ok(result.rows_affected() == 1)
     }
 }
 
-async fn delete_meeting_with_transaction(
-    transaction: &mut SqliteConnection,
-    meeting_id: &str,
-) -> Result<bool, SqlxError> {
-    // Check if meeting exists
-    let meeting_exists: Option<(i64,)> = sqlx::query_as("SELECT 1 FROM meetings WHERE id = ?")
-        .bind(meeting_id)
-        .fetch_optional(&mut *transaction)
-        .await?;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::test_pool;
 
-    if meeting_exists.is_none() {
-        error!("Meeting {} not found for deletion", meeting_id);
-        return Ok(false);
+    async fn seed(pool: &SqlitePool, id: &str, status: &str) {
+        MeetingsRepository::create(
+            pool,
+            &NewMeeting { id, title: "Call", folder_path: "/tmp/call", status },
+        )
+        .await
+        .unwrap();
     }
 
-    // Delete from related tables in proper order
-    // 1. Delete from transcript_chunks
-    sqlx::query("DELETE FROM transcript_chunks WHERE meeting_id = ?")
-        .bind(meeting_id)
-        .execute(&mut *transaction)
-        .await?;
+    #[tokio::test]
+    async fn create_get_title_and_stop() {
+        let pool = test_pool().await;
+        seed(&pool, "m1", meeting_status::RECORDING).await;
 
-    // 2. Delete from summary_processes
-    sqlx::query("DELETE FROM summary_processes WHERE meeting_id = ?")
-        .bind(meeting_id)
-        .execute(&mut *transaction)
-        .await?;
+        let meeting = MeetingsRepository::get(&pool, "m1").await.unwrap().unwrap();
+        assert_eq!(meeting.status, "recording");
+        assert_eq!(meeting.folder_path.as_deref(), Some("/tmp/call"));
 
-    // 3. Delete from transcripts
-    sqlx::query("DELETE FROM transcripts WHERE meeting_id = ?")
-        .bind(meeting_id)
-        .execute(&mut *transaction)
-        .await?;
+        assert!(MeetingsRepository::update_title(&pool, "m1", "Renamed").await.unwrap());
+        assert!(MeetingsRepository::mark_stopped(&pool, "m1", Some(61.5)).await.unwrap());
+        let meeting = MeetingsRepository::get(&pool, "m1").await.unwrap().unwrap();
+        assert_eq!(meeting.title, "Renamed");
+        assert_eq!(meeting.status, "stopped");
+        assert_eq!(meeting.duration_seconds, Some(61.5));
 
-    // 4. Finally, delete the meeting
-    let result = sqlx::query("DELETE FROM meetings WHERE id = ?")
-        .bind(meeting_id)
-        .execute(&mut *transaction)
-        .await?;
+        assert!(!MeetingsRepository::update_title(&pool, "missing", "x").await.unwrap());
+    }
 
-    Ok(result.rows_affected() > 0)
+    #[tokio::test]
+    async fn interrupt_unfinished_only_touches_recording_rows() {
+        let pool = test_pool().await;
+        seed(&pool, "live", meeting_status::RECORDING).await;
+        seed(&pool, "done", meeting_status::STOPPED).await;
+
+        let interrupted = MeetingsRepository::interrupt_unfinished(&pool).await.unwrap();
+        assert_eq!(interrupted.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), vec!["live"]);
+        let live = MeetingsRepository::get(&pool, "live").await.unwrap().unwrap();
+        let done = MeetingsRepository::get(&pool, "done").await.unwrap().unwrap();
+        assert_eq!(live.status, "interrupted");
+        assert_eq!(done.status, "stopped");
+        assert!(MeetingsRepository::interrupt_unfinished(&pool).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn delete_cascades_to_transcripts_and_summary() {
+        let pool = test_pool().await;
+        seed(&pool, "m1", meeting_status::STOPPED).await;
+        sqlx::query("INSERT INTO transcripts (id, meeting_id, source, transcript) VALUES ('t1', 'm1', 'live', 'hi')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO summary_processes (meeting_id, status) VALUES ('m1', 'completed')")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        assert!(MeetingsRepository::delete(&pool, "m1").await.unwrap());
+        let remaining: i64 = sqlx::query_scalar(
+            "SELECT (SELECT COUNT(*) FROM transcripts) + (SELECT COUNT(*) FROM summary_processes)",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(remaining, 0);
+        assert!(!MeetingsRepository::delete(&pool, "m1").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn final_state_round_trips() {
+        let pool = test_pool().await;
+        seed(&pool, "m1", meeting_status::STOPPED).await;
+        seed(&pool, "m2", meeting_status::STOPPED).await;
+        let state = FinalState { status: "transcribing", model: "elevenlabs-scribe_v2", job_id: Some("job_1"), error: None };
+        assert!(MeetingsRepository::set_final_state(&pool, "m1", &state).await.unwrap());
+        let meeting = MeetingsRepository::get(&pool, "m1").await.unwrap().unwrap();
+        assert_eq!(meeting.final_status.as_deref(), Some("transcribing"));
+        assert_eq!(meeting.final_job_id.as_deref(), Some("job_1"));
+        assert!(meeting.final_updated_at.is_some());
+        let running = MeetingsRepository::final_in_progress(&pool).await.unwrap();
+        assert_eq!(running.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), vec!["m1"]);
+
+        let failed = FinalState { status: "failed", error: Some("boom"), ..state };
+        MeetingsRepository::set_final_state(&pool, "m1", &failed).await.unwrap();
+        assert!(MeetingsRepository::final_in_progress(&pool).await.unwrap().is_empty());
+        assert!(!MeetingsRepository::set_final_state(&pool, "missing", &failed).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn status_is_constrained() {
+        let pool = test_pool().await;
+        let result = MeetingsRepository::create(
+            &pool,
+            &NewMeeting { id: "bad", title: "x", folder_path: "/tmp", status: "finished" },
+        )
+        .await;
+        assert!(result.is_err());
+    }
 }

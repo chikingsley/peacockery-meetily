@@ -2,31 +2,24 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import Analytics from '@/lib/analytics';
-import { invoke } from '@tauri-apps/api/core';
 import { useRecordingState } from '@/contexts/RecordingStateContext';
+import { voiceService } from '@/services/voiceService';
 import type { SummaryProcessResponse } from '@/types';
+import type { FinalTranscriptState, MeetingListItem, TranscriptSearchResult } from '@/types/voice';
+import { AUTO_START_FLAG, START_RECORDING_EVENT } from '@/lib/recording-triggers';
 
-
-
-interface SidebarItem {
+export interface SidebarItem {
   id: string;
   title: string;
   type: 'folder' | 'file';
+  /** Final transcript state of a meeting item. */
+  finalStatus?: FinalTranscriptState | null;
   children?: SidebarItem[];
 }
 
 export interface CurrentMeeting {
   id: string;
   title: string;
-}
-
-// Search result type for transcript search
-interface TranscriptSearchResult {
-  id: string;
-  title: string;
-  matchContext: string;
-  timestamp: string;
 }
 
 interface SummaryPoll {
@@ -41,18 +34,14 @@ interface SidebarContextType {
   sidebarItems: SidebarItem[];
   isCollapsed: boolean;
   toggleCollapse: () => void;
-  meetings: CurrentMeeting[];
-  setMeetings: (meetings: CurrentMeeting[]) => void;
+  meetings: MeetingListItem[];
+  setMeetings: (meetings: MeetingListItem[]) => void;
   isMeetingActive: boolean;
   setIsMeetingActive: (active: boolean) => void;
   handleRecordingToggle: () => void;
   searchTranscripts: (query: string) => Promise<void>;
   searchResults: TranscriptSearchResult[];
   isSearching: boolean;
-  setServerAddress: (address: string) => void;
-  serverAddress: string;
-  transcriptServerAddress: string;
-  setTranscriptServerAddress: (address: string) => void;
   // Summary polling management
   startSummaryPolling: (
     meetingId: string,
@@ -78,13 +67,12 @@ export const useSidebar = () => {
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [currentMeeting, setCurrentMeeting] = useState<CurrentMeeting | null>({ id: 'intro-call', title: '+ New Call' });
   const [isCollapsed, setIsCollapsed] = useState(true);
-  const [meetings, setMeetings] = useState<CurrentMeeting[]>([]);
-  const [sidebarItems, setSidebarItems] = useState<SidebarItem[]>([]);
+  const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
+  const meetingsRef = React.useRef(meetings);
+  meetingsRef.current = meetings;
   const [isMeetingActive, setIsMeetingActive] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<TranscriptSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [serverAddress, setServerAddress] = useState('');
-  const [transcriptServerAddress, setTranscriptServerAddress] = useState('');
   const summaryPollsRef = React.useRef(new Map<string, SummaryPoll>());
 
   // Use recording state from RecordingStateContext (single source of truth)
@@ -93,65 +81,58 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  // Extract fetchMeetings as a reusable function
   const fetchMeetings = React.useCallback(async () => {
-    if (serverAddress) {
-      try {
-        const meetings = await invoke('api_get_meetings') as Array<{ id: string, title: string }>;
-        const transformedMeetings = meetings.map((meeting: any) => ({
-          id: meeting.id,
-          title: meeting.title
-        }));
-        setMeetings(transformedMeetings);
-        Analytics.trackBackendConnection(true);
-      } catch (error) {
-        console.error('Error fetching meetings:', error);
-        setMeetings([]);
-        Analytics.trackBackendConnection(false, error instanceof Error ? error.message : 'Unknown error');
-      }
+    try {
+      const list = await voiceService.getMeetings();
+      setMeetings(list);
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+      setMeetings([]);
     }
-  }, [serverAddress]);
+  }, []);
 
   useEffect(() => {
     fetchMeetings();
-  }, [serverAddress, fetchMeetings]);
+  }, [fetchMeetings]);
 
+  // Keep each meeting's final-transcript indicator current; a new meeting (import, stop) refetches.
   useEffect(() => {
-    const fetchSettings = async () => {
-      setServerAddress('http://localhost:5167');
-      setTranscriptServerAddress('http://127.0.0.1:8178/stream');
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+    voiceService.onFinalTranscriptStatus(({ meeting_id, state }) => {
+      if (!meetingsRef.current.some(m => m.id === meeting_id)) {
+        void fetchMeetings();
+        return;
+      }
+      setMeetings(prev => prev.map(m => (m.id === meeting_id ? { ...m, final_status: state } : m)));
+    }).then(fn => {
+      if (cancelled) fn();
+      else unlisten = fn;
+    });
+    return () => {
+      cancelled = true;
+      unlisten?.();
     };
-    fetchSettings();
-  }, []);
+  }, [fetchMeetings]);
 
-  const baseItems: SidebarItem[] = [
+  const sidebarItems = React.useMemo<SidebarItem[]>(() => [
     {
       id: 'meetings',
       title: 'Meeting Notes',
       type: 'folder' as const,
-      children: [
-        ...meetings.map(meeting => ({ id: meeting.id, title: meeting.title, type: 'file' as const }))
-      ]
+      children: meetings.map(meeting => ({ id: meeting.id, title: meeting.title, type: 'file' as const, finalStatus: meeting.final_status })),
     },
-  ];
-
+  ], [meetings]);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
 
-  // Update current meeting when on home page
   useEffect(() => {
     if (pathname === '/') {
       setCurrentMeeting({ id: 'intro-call', title: '+ New Call' });
     }
-    setSidebarItems(baseItems);
   }, [pathname]);
-
-  // Update sidebar items when meetings change
-  useEffect(() => {
-    setSidebarItems(baseItems);
-  }, [meetings]);
 
   // Function to handle recording toggle from sidebar
   const handleRecordingToggle = () => {
@@ -159,20 +140,22 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
       // Check if already on home page
       if (pathname === '/') {
         // Already on home - trigger recording directly via custom event
-        console.log('Triggering recording from sidebar (already on home page)');
-        window.dispatchEvent(new CustomEvent('start-recording-from-sidebar'));
+        window.dispatchEvent(new CustomEvent(START_RECORDING_EVENT));
       } else {
         // Not on home - navigate and use auto-start mechanism
-        console.log('Navigating to home page with auto-start flag');
-        sessionStorage.setItem('autoStartRecording', 'true');
+        sessionStorage.setItem(AUTO_START_FLAG, 'true');
         router.push('/');
       }
-
-      // Track recording initiation from sidebar
-      Analytics.trackButtonClick('start_recording', 'sidebar');
     }
-    // The actual recording start/stop is handled in the Home component
   };
+
+  // The tray's "Start Recording" takes the same path as the sidebar button.
+  const recordingToggleRef = React.useRef(handleRecordingToggle);
+  recordingToggleRef.current = handleRecordingToggle;
+  useEffect(() => {
+    const unlisten = voiceService.onRequestRecordingToggle(() => recordingToggleRef.current());
+    return () => { unlisten.then(fn => fn()); };
+  }, []);
 
   // Function to search through meeting transcripts
   const searchTranscripts = async (query: string) => {
@@ -185,8 +168,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
       setIsSearching(true);
 
 
-      const results = await invoke('api_search_transcripts', { query }) as TranscriptSearchResult[];
-      setSearchResults(results);
+      setSearchResults(await voiceService.searchTranscripts(query));
     } catch (error) {
       console.error('Error searching transcripts:', error);
       setSearchResults([]);
@@ -229,7 +211,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
             start: processId,
             end: null,
             data: null,
-            error: 'Summary generation timed out after 15 minutes. Please try again or check your model configuration.',
+            error: 'Summary generation timed out after 15 minutes. Please try again.',
           });
           if (summaryPollsRef.current.get(meetingId) === entry) {
             stopSummaryPolling(meetingId, processId);
@@ -237,7 +219,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const result = await invoke<SummaryProcessResponse>('api_get_summary', { meetingId });
+        const result = await voiceService.getSummary(meetingId);
         const current = summaryPollsRef.current.get(meetingId);
         if (current !== entry || result.start !== processId) {
           return;
@@ -309,10 +291,6 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
       searchTranscripts,
       searchResults,
       isSearching,
-      setServerAddress,
-      serverAddress,
-      transcriptServerAddress,
-      setTranscriptServerAddress,
       startSummaryPolling,
       stopSummaryPolling,
       refetchMeetings: fetchMeetings,

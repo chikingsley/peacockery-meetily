@@ -1,279 +1,150 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import Analytics from '@/lib/analytics';
-import { applyPinnedSummaryLanguageToMeeting } from '@/lib/summary-language-preferences';
-import { toast } from 'sonner';
+import { voiceService, errorMessage } from '@/services/voiceService';
+import type { AudioFileInfo, ImportProgressEvent } from '@/types/voice';
 
-export interface AudioFileInfo {
-  path: string;
-  filename: string;
-  duration_seconds: number;
-  size_bytes: number;
-  format: string;
+export type ImportStatus = 'idle' | 'validating' | 'importing' | 'error';
+
+/** An import between `start_import_audio_command` and its `import-complete` / `import-error`. */
+interface PendingImport {
+  /** Null until the start call returns it. */
+  meetingId: string | null;
+  /** Outcomes that arrived before the meeting id was known: meeting id -> error (null = complete). */
+  early: Map<string, string | null>;
+  settle: (meetingId: string | null) => void;
 }
 
-export interface ImportProgress {
-  stage: string;
-  progress_percentage: number;
-  message: string;
-}
-
-export interface ImportResult {
-  meeting_id: string;
-  title: string;
-  segments_count: number;
-  duration_seconds: number;
-}
-
-export interface ImportError {
-  error: string;
-}
-
-export type ImportStatus = 'idle' | 'validating' | 'processing' | 'complete' | 'error';
-
-export interface UseImportAudioOptions {
-  onComplete?: (result: ImportResult) => void;
-  onError?: (error: string) => void;
-}
-
-export interface UseImportAudioReturn {
-  status: ImportStatus;
-  fileInfo: AudioFileInfo | null;
-  progress: ImportProgress | null;
-  error: string | null;
-  isProcessing: boolean;
-  isBusy: boolean;
-  selectFile: () => Promise<AudioFileInfo | null>;
-  validateFile: (path: string) => Promise<AudioFileInfo | null>;
-  startImport: (
-    sourcePath: string,
-    title: string,
-    language?: string | null,
-    model?: string | null,
-    provider?: string | null
-  ) => Promise<void>;
-  cancelImport: () => Promise<void>;
-  reset: () => void;
-}
-
-export function useImportAudio({
-  onComplete,
-  onError,
-}: UseImportAudioOptions = {}): UseImportAudioReturn {
+/**
+ * Audio import (§8 "Import"): `start_import_audio_command` returns the new meeting id at once and
+ * Rust copies the file in the background, then runs the final transcript with the saved Voice
+ * settings. `startImport` resolves with the meeting id on that meeting's `import-complete`, or
+ * with null on its `import-error` or a cancel.
+ */
+export function useImportAudio() {
   const [status, setStatus] = useState<ImportStatus>('idle');
   const [fileInfo, setFileInfo] = useState<AudioFileInfo | null>(null);
-  const [progress, setProgress] = useState<ImportProgress | null>(null);
+  const [progress, setProgress] = useState<ImportProgressEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pendingRef = useRef<PendingImport | null>(null);
 
-  // Stable refs for callbacks to avoid listener re-registration on every render
-  const onCompleteRef = useRef(onComplete);
-  const onErrorRef = useRef(onError);
-  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
-  useEffect(() => { onErrorRef.current = onError; }, [onError]);
-
-  // Cancellation guard: prevents late events from updating state after cancel
-  const isCancelledRef = useRef(false);
-
-  // Set up event listeners (registered once, use refs for callbacks)
-  useEffect(() => {
-    const unlisteners: UnlistenFn[] = [];
-    const cleanedUpRef = { current: false };
-
-    const setupListeners = async () => {
-      // Progress events
-      const unlistenProgress = await listen<ImportProgress>(
-        'import-progress',
-        (event) => {
-          if (isCancelledRef.current) return;
-          setProgress(event.payload);
-          setStatus('processing');
-        }
-      );
-      if (cleanedUpRef.current) {
-        unlistenProgress();
-        return;
-      }
-      unlisteners.push(unlistenProgress);
-
-      // Completion event
-      const unlistenComplete = await listen<ImportResult>(
-        'import-complete',
-        async (event) => {
-          if (isCancelledRef.current) return;
-
-          await Analytics.track('import_audio_completed', {
-            success: 'true',
-            duration_seconds: event.payload.duration_seconds.toString(),
-            segments_count: event.payload.segments_count.toString()
-          });
-
-          setStatus('complete');
-          setProgress(null);
-          try {
-            await applyPinnedSummaryLanguageToMeeting(event.payload.meeting_id);
-          } catch (error) {
-            console.warn('Failed to apply pinned summary language to imported meeting:', error);
-            toast.warning('Could not apply default summary language', {
-              description: 'The imported meeting was saved, but the default summary language was not applied.',
-            });
-          }
-          onCompleteRef.current?.(event.payload);
-        }
-      );
-      if (cleanedUpRef.current) {
-        unlistenComplete();
-        unlisteners.forEach(u => u());
-        return;
-      }
-      unlisteners.push(unlistenComplete);
-
-      // Error event
-      const unlistenError = await listen<ImportError>(
-        'import-error',
-        async (event) => {
-          if (isCancelledRef.current) return;
-
-          await Analytics.trackError('import_audio_failed', event.payload.error);
-
-          setStatus('error');
-          setError(event.payload.error);
-          onErrorRef.current?.(event.payload.error);
-        }
-      );
-      if (cleanedUpRef.current) {
-        unlistenError();
-        unlisteners.forEach(u => u());
-        return;
-      }
-      unlisteners.push(unlistenError);
-    };
-
-    setupListeners();
-
-    return () => {
-      cleanedUpRef.current = true;
-      unlisteners.forEach((unlisten) => unlisten());
-    };
-  }, []);
-
-  // Select file using native file dialog
-  const selectFile = useCallback(async (): Promise<AudioFileInfo | null> => {
-    setStatus('validating');
-    setError(null);
-
-    try {
-      const result = await invoke<AudioFileInfo | null>('select_and_validate_audio_command');
-      if (result) {
-        setFileInfo(result);
-        setStatus('idle');
-        return result;
-      } else {
-        // User cancelled
-        setStatus('idle');
-        return null;
-      }
-    } catch (err: any) {
-      setStatus('error');
-      const errorMsg = typeof err === 'string' ? err : (err?.message || String(err) || 'Failed to validate file');
-      setError(errorMsg);
-      onErrorRef.current?.(errorMsg);
-      return null;
+  const finish = useCallback((meetingId: string, importError: string | null) => {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    if (pending.meetingId === null) {
+      pending.early.set(meetingId, importError);
+      return;
     }
-  }, []);
-
-  // Validate a file from a given path (for drag-drop)
-  const validateFile = useCallback(async (path: string): Promise<AudioFileInfo | null> => {
-    setStatus('validating');
-    setError(null);
-
-    try {
-      const result = await invoke<AudioFileInfo>('validate_audio_file_command', { path });
-      setFileInfo(result);
+    if (pending.meetingId !== meetingId) return;
+    pendingRef.current = null;
+    setProgress(null);
+    if (importError === null) {
       setStatus('idle');
-      return result;
-    } catch (err: any) {
+      pending.settle(meetingId);
+    } else {
       setStatus('error');
-      const errorMsg = typeof err === 'string' ? err : (err?.message || String(err) || 'Failed to validate file');
-      setError(errorMsg);
-      onErrorRef.current?.(errorMsg);
+      setError(importError);
+      pending.settle(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unlisteners: (() => void)[] = [];
+    const keep = (fn: () => void) => {
+      if (cancelled) fn();
+      else unlisteners.push(fn);
+    };
+    (async () => {
+      keep(await voiceService.onImportProgress((p) => {
+        const pending = pendingRef.current;
+        if (pending && (pending.meetingId === null || pending.meetingId === p.meeting_id)) setProgress(p);
+      }));
+      keep(await voiceService.onImportComplete(({ meeting_id }) => finish(meeting_id, null)));
+      keep(await voiceService.onImportError(({ meeting_id, error }) => finish(meeting_id, error)));
+    })();
+    return () => {
+      cancelled = true;
+      unlisteners.forEach(fn => fn());
+    };
+  }, [finish]);
+
+  const runValidation = useCallback(async (validate: () => Promise<AudioFileInfo | null>) => {
+    setStatus('validating');
+    setError(null);
+    try {
+      const info = await validate();
+      if (info) setFileInfo(info);
+      setStatus('idle');
+      return info;
+    } catch (err) {
+      setStatus('error');
+      setError(errorMessage(err));
       return null;
     }
   }, []);
 
-  // Start the import process
-  const startImport = useCallback(
-    async (
-      sourcePath: string,
-      title: string,
-      language?: string | null,
-      model?: string | null,
-      provider?: string | null
-    ) => {
-      isCancelledRef.current = false;
-      setStatus('processing');
-      setError(null);
-      setProgress(null);
-
-      try {
-        if (fileInfo) {
-          await Analytics.track('import_audio_started', {
-            file_size_bytes: fileInfo.size_bytes.toString(),
-            duration_seconds: fileInfo.duration_seconds.toString(),
-            language: language || 'auto',
-            model_provider: provider || '',
-            model_name: model || ''
-          });
-        }
-
-        await invoke('start_import_audio_command', {
-          sourcePath,
-          title,
-          language: language || null,
-          model: model || null,
-          provider: provider || null,
-        });
-      } catch (err: any) {
-        setStatus('error');
-        const errorMsg = typeof err === 'string' ? err : (err?.message || String(err) || 'Failed to start import');
-        setError(errorMsg);
-
-        await Analytics.trackError('import_audio_failed', errorMsg);
-
-        onErrorRef.current?.(errorMsg);
-      }
-    },
-    [fileInfo]
+  const selectFile = useCallback(() => runValidation(voiceService.selectAndValidateAudio), [runValidation]);
+  const validateFile = useCallback(
+    (path: string) => runValidation(() => voiceService.validateAudioFile(path)),
+    [runValidation],
   );
 
-  // Cancel ongoing import
-  const cancelImport = useCallback(async () => {
-    isCancelledRef.current = true;
-    try {
-      await invoke('cancel_import_command');
-      setStatus('idle');
-      setProgress(null);
-    } catch (err: any) {
-      console.error('Failed to cancel import:', err);
-    }
+  const startImport = useCallback((sourcePath: string, title: string | null): Promise<string | null> => {
+    setStatus('importing');
+    setError(null);
+    setProgress(null);
+    return new Promise((resolve) => {
+      const pending: PendingImport = { meetingId: null, early: new Map(), settle: resolve };
+      pendingRef.current = pending;
+      voiceService.startImport(sourcePath, title).then(
+        ({ meeting_id }) => {
+          if (pendingRef.current !== pending) return;
+          pending.meetingId = meeting_id;
+          const early = pending.early.get(meeting_id);
+          if (early !== undefined) finish(meeting_id, early);
+        },
+        (err) => {
+          if (pendingRef.current !== pending) return;
+          pendingRef.current = null;
+          setStatus('error');
+          setError(errorMessage(err));
+          resolve(null);
+        },
+      );
+    });
+  }, [finish]);
+
+  /** Drop the running import from this view; its later events are ignored. */
+  const abandon = useCallback(() => {
+    const pending = pendingRef.current;
+    pendingRef.current = null;
+    pending?.settle(null);
   }, []);
 
-  // Reset all state
+  const cancelImport = useCallback(async () => {
+    abandon();
+    try {
+      await voiceService.cancelImport();
+    } catch (err) {
+      console.error('cancel_import_command failed:', err);
+    }
+    setStatus('idle');
+    setProgress(null);
+  }, [abandon]);
+
   const reset = useCallback(() => {
-    isCancelledRef.current = false;
+    abandon();
     setStatus('idle');
     setFileInfo(null);
     setProgress(null);
     setError(null);
-  }, []);
+  }, [abandon]);
 
   return {
     status,
     fileInfo,
     progress,
     error,
-    isProcessing: status === 'processing',
-    isBusy: status === 'processing' || status === 'validating',
+    isImporting: status === 'importing',
     selectFile,
     validateFile,
     startImport,

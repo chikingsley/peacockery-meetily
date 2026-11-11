@@ -5,41 +5,33 @@ import { parseSummaryContent } from '../../src/lib/summary-content';
 import type { MeetingSummary, SummaryProcessResponse } from '../../src/types';
 
 // Bun shares module mocks between test files; restore application modules after this suite.
-const originalAnalytics = { ...await import('../../src/lib/analytics') };
-const originalPreferences = { ...await import('../../src/lib/summary-language-preferences') };
 const originalToast = { ...await import('sonner') };
+const originalCore = { ...await import('@tauri-apps/api/core') };
+const originalEvent = { ...await import('@tauri-apps/api/event') };
+const originalNavigation = { ...await import('next/navigation') };
 afterAll(() => {
-  mock.module('../../src/lib/analytics', () => originalAnalytics);
-  mock.module('../../src/lib/summary-language-preferences', () => originalPreferences);
+  mock.module('@tauri-apps/api/event', () => originalEvent);
+  mock.module('next/navigation', () => originalNavigation);
   mock.module('sonner', () => originalToast);
+  mock.module('@tauri-apps/api/core', () => originalCore);
 });
 
-mock.module('next/navigation', () => ({ usePathname: () => '/meeting-details', useRouter: () => ({}) }));
+mock.module('next/navigation', () => ({ ...originalNavigation, usePathname: () => '/meeting-details', useRouter: () => ({}) }));
 mock.module('../../src/contexts/RecordingStateContext', () => ({ useRecordingState: () => ({ isRecording: false }) }));
 const notify = mock(() => {});
 mock.module('sonner', () => ({ toast: { info: notify, error: notify, success: notify, warning: notify } }));
-const trackCompletion = mock(async (..._args: Parameters<typeof originalAnalytics.default.trackSummaryGenerationCompleted>) => {});
-mock.module('../../src/lib/analytics', () => ({ default: {
-  trackBackendConnection() {}, trackSummaryGenerationStarted: async () => {},
-  trackSummaryGenerationCompleted: trackCompletion,
-} }));
 let startProcess: () => Promise<{ process_id: string }>;
 let getSummary: (meetingId: string) => Promise<SummaryProcessResponse>;
 const invoke = mock(async (command: string, args?: Record<string, unknown>): Promise<unknown> => {
   if (command === 'api_get_meetings') return [];
   if (command === 'api_get_summary') return getSummary(args!.meetingId as string);
-  if (command === 'api_get_meeting_transcripts') return { transcripts: [{ text: 'Meeting transcript', timestamp: '00:00' }], total_count: 1 };
-  if (command === 'get_ollama_models') return [{ name: 'test' }];
   if (command === 'api_process_transcript') return startProcess();
-  if (command === 'api_cancel_summary') return { cancelled: true };
+  if (command === 'api_cancel_summary') return null;
   throw new Error(`Unexpected command: ${command}`);
 });
-mock.module('@tauri-apps/api/core', () => ({ invoke }));
-mock.module('../../src/lib/summary-language-preferences', () => ({
-  readCachedDetectedSummaryLanguage: async () => null,
-  detectAndCacheSummaryLanguage: async () => ({ language: 'en' }),
-  readMeetingSummaryLanguage: async () => ({ language: 'en', storage: 'metadata' }),
-}));
+mock.module('@tauri-apps/api/core', () => ({ ...originalCore, invoke }));
+// No Tauri webview here: event listeners attach to nothing.
+mock.module('@tauri-apps/api/event', () => ({ ...originalEvent, listen: async () => () => {} }));
 const { SidebarProvider, useSidebar } = await import('../../src/components/Sidebar/SidebarProvider');
 const { useSummaryGeneration } = await import('../../src/hooks/meeting-details/useSummaryGeneration');
 
@@ -47,7 +39,7 @@ const response = (overrides: Partial<SummaryProcessResponse> = {}): SummaryProce
   meeting_id: 'meeting-a', status: 'pending', start: 'attempt-a', end: null,
   data: null, error: null, meetingName: 'Meeting A', ...overrides,
 });
-let configuredModel = 'test';
+let configuredModel: string | null = 'google-gemini-3.8-flash';
 let state: ReturnType<typeof useSummaryGeneration>;
 function Status({ initialSummary, meetingId = 'meeting-a' }: {
   initialSummary: SummaryProcessResponse; meetingId?: string;
@@ -55,9 +47,8 @@ function Status({ initialSummary, meetingId = 'meeting-a' }: {
   const [summary, setAiSummary] = useState<MeetingSummary | null>(() => parseSummaryContent(initialSummary.data));
   const [title, updateMeetingTitle] = useState('Original title');
   state = useSummaryGeneration({
-    meeting: { id: meetingId, created_at: '2026-09-01T00:00:00Z' },
-    transcripts: [], modelConfig: { provider: 'ollama', model: configuredModel, whisperModel: 'base' },
-    isModelConfigLoading: false, selectedTemplate: 'daily_standup',
+    meeting: { id: meetingId },
+    summaryModel: configuredModel, selectedTemplate: 'daily_standup',
     setAiSummary, updateMeetingTitle, initialSummary,
   });
   return <output>{state.summaryStatus}:{state.summaryError}:{title}:{JSON.stringify(summary)}</output>;
@@ -70,8 +61,8 @@ const realSetInterval = globalThis.setInterval;
 const realClearInterval = globalThis.clearInterval;
 beforeEach(() => {
   renderer = undefined as unknown as ReactTestRenderer;
-  configuredModel = 'test';
-  timers.clear(); notify.mockClear(); trackCompletion.mockClear(); invoke.mockClear();
+  configuredModel = 'google-gemini-3.8-flash';
+  timers.clear(); notify.mockClear(); invoke.mockClear();
   getSummary = async () => response();
   startProcess = async () => ({ process_id: 'attempt-a' });
   globalThis.setInterval = ((callback: () => Promise<void>) => {
@@ -190,7 +181,7 @@ describe('summary state restored when returning to a meeting', () => {
     expect(state.summaryStatus).toBe('completed');
   });
 
-  test('hydrates completed and cancelled records without replaying notifications or analytics', async () => {
+  test('hydrates completed and cancelled records without replaying notifications', async () => {
     await show(response({ status: 'completed', data: { markdown: 'Finished while away' } }));
     expect(state.summaryStatus).toBe('completed');
     expect(text()).toContain('Finished while away');
@@ -200,7 +191,6 @@ describe('summary state restored when returning to a meeting', () => {
     expect(text()).toContain('Restored summary');
     expect(timers.size).toBe(0);
     expect(notify).not.toHaveBeenCalled();
-    expect(trackCompletion).not.toHaveBeenCalled();
   });
 
   test('ignores a response belonging to another meeting', async () => {
@@ -246,15 +236,19 @@ describe('summary state restored when returning to a meeting', () => {
     expect(state.summaryStatus).toBe('completed');
   });
 
-  test('completion analytics retain the model used to start the attempt after settings change', async () => {
-    const initial = response({ status: 'idle', start: null });
-    await show(initial);
-    await act(async () => state.handleGenerateSummary());
-    configuredModel = 'different-model';
-    await show(initial);
-    getSummary = async () => response({ status: 'completed', data: { markdown: 'Finished summary' } });
-    await tick();
-    expect(trackCompletion.mock.calls[0]?.slice(0, 3)).toEqual(['ollama', 'test', true]);
+  test('starts generation with the meeting, template, prompt and chosen summary model', async () => {
+    await show(response({ status: 'idle', start: null }));
+    await act(async () => state.handleGenerateSummary('  '));
+    expect(invoke.mock.calls).toContainEqual(['api_process_transcript', {
+      meetingId: 'meeting-a', templateId: 'daily_standup', customPrompt: null, model: 'google-gemini-3.8-flash',
+    }]);
+    configuredModel = null;
+    await show(response({ status: 'idle', start: null }));
+    await act(async () => state.handleRegenerateSummary('People: Ana, Bo'));
+    expect(invoke.mock.calls).toContainEqual(['api_process_transcript', {
+      meetingId: 'meeting-a', templateId: 'daily_standup', customPrompt: 'People: Ana, Bo', model: null,
+    }]);
+    expect(state.summaryStatus).toBe('regenerating');
   });
 
   test('old in-flight poll cannot stop a resumed poll for the same process', async () => {

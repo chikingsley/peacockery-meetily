@@ -1,22 +1,23 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { Transcript, MeetingMetadata, PaginatedTranscriptsResponse, TranscriptSegmentData } from "@/types";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { voiceService } from "@/services/voiceService";
+import type { MeetingMetadata, Transcript, TranscriptSource, TranscriptSourceQuery } from "@/types/voice";
 
 const DEFAULT_PAGE_SIZE = 100;
 
 interface UsePaginatedTranscriptsProps {
     meetingId: string | null;
-    /** Optional initial timestamp (in seconds) from URL for loading the correct page */
-    initialTimestamp?: number;
+    /** Which rows to read: "best" (final when present, else live) or one source explicitly. */
+    source?: TranscriptSourceQuery;
 }
 
 interface UsePaginatedTranscriptsReturn {
     metadata: MeetingMetadata | null;
-    segments: TranscriptSegmentData[];
     transcripts: Transcript[];
     isLoading: boolean;
     isLoadingMore: boolean;
     hasMore: boolean;
+    /** Which rows are shown: the final transcript when one exists, else the live lines. */
+    source: TranscriptSource | null;
     totalCount: number;
     loadedCount: number;
     error: string | null;
@@ -27,22 +28,9 @@ interface UsePaginatedTranscriptsReturn {
     refetch: () => Promise<void>;
 }
 
-/**
- * Convert Transcript array to TranscriptSegmentData for virtualized display
- */
-function convertTranscriptsToSegments(transcripts: Transcript[]): TranscriptSegmentData[] {
-    return transcripts.map(t => ({
-        id: t.id,
-        timestamp: t.audio_start_time ?? 0,
-        endTime: t.audio_end_time,
-        text: t.text,
-        confidence: t.confidence,
-    }));
-}
-
 export function usePaginatedTranscripts({
     meetingId,
-    initialTimestamp,
+    source: requestedSource = 'best',
 }: UsePaginatedTranscriptsProps): UsePaginatedTranscriptsReturn {
     const [metadata, setMetadata] = useState<MeetingMetadata | null>(null);
     const [transcripts, setTranscripts] = useState<Transcript[]>([]);
@@ -50,6 +38,7 @@ export function usePaginatedTranscripts({
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(false);
+    const [source, setSource] = useState<TranscriptSource | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const offsetRef = useRef(0);
@@ -74,6 +63,7 @@ export function usePaginatedTranscripts({
         setIsLoading(true);
         setIsLoadingMore(false);
         setHasMore(false);
+        setSource(null);
         setError(null);
         offsetRef.current = 0;
     }, []);
@@ -83,9 +73,7 @@ export function usePaginatedTranscripts({
         if (!meetingId || !isCurrentRequest(requestId)) return null;
 
         try {
-            const data = await invoke<MeetingMetadata>('api_get_meeting_metadata', {
-                meetingId,
-            });
+            const data = await voiceService.getMeetingMetadata(meetingId);
             if (!isCurrentRequest(requestId)) return null;
             setMetadata(data);
             return data;
@@ -106,14 +94,7 @@ export function usePaginatedTranscripts({
         if (!meetingId || !isCurrentRequest(requestId)) return [];
 
         try {
-            const response = await invoke<PaginatedTranscriptsResponse>(
-                'api_get_meeting_transcripts',
-                {
-                    meetingId,
-                    limit: DEFAULT_PAGE_SIZE,
-                    offset,
-                }
-            );
+            const response = await voiceService.getMeetingTranscripts(meetingId, DEFAULT_PAGE_SIZE, offset, requestedSource);
 
             if (!isCurrentRequest(requestId)) return [];
             const newTranscripts = response.transcripts;
@@ -134,6 +115,7 @@ export function usePaginatedTranscripts({
             }
 
             setHasMore(response.has_more);
+            setSource(response.source);
             setTotalCount(response.total_count);
             offsetRef.current = offset + newTranscripts.length;
 
@@ -144,7 +126,7 @@ export function usePaginatedTranscripts({
             setError('Failed to load transcripts');
             return [];
         }
-    }, [meetingId, isCurrentRequest]);
+    }, [meetingId, isCurrentRequest, requestedSource]);
 
     // Load next page with debounce protection
     const loadMore = useCallback(async () => {
@@ -171,7 +153,7 @@ export function usePaginatedTranscripts({
         }
     }, [hasMore, meetingId, loadTranscriptsAtOffset, isLoading, isCurrentRequest]);
 
-    // Force refetch of data (e.g., after retranscription)
+    // Force refetch of data (e.g., after the final transcript finishes)
     const refetch = useCallback(async () => {
         if (!meetingId || activeMeetingIdRef.current !== meetingId) return;
 
@@ -200,19 +182,13 @@ export function usePaginatedTranscripts({
         };
     }, [meetingId, reset, refetch]);
 
-    // Convert to segments (memoized)
-    const segments = useMemo(() =>
-        convertTranscriptsToSegments(transcripts),
-        [transcripts]
-    );
-
     return {
         metadata,
-        segments,
         transcripts,
         isLoading,
         isLoadingMore,
         hasMore,
+        source,
         totalCount,
         loadedCount: transcripts.length,
         error,

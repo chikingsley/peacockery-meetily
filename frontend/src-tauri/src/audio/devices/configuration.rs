@@ -1,50 +1,6 @@
 use anyhow::{anyhow, Result};
-use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::sync::atomic::AtomicU64;
-
-lazy_static! {
-    pub static ref LAST_AUDIO_CAPTURE: AtomicU64 = AtomicU64::new(
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs()
-    );
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum AudioTranscriptionEngine {
-    Deepgram,
-    WhisperTiny,
-    WhisperDistilLargeV3,
-    WhisperLargeV3Turbo,
-    WhisperLargeV3,
-}
-
-impl fmt::Display for AudioTranscriptionEngine {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AudioTranscriptionEngine::Deepgram => write!(f, "Deepgram"),
-            AudioTranscriptionEngine::WhisperTiny => write!(f, "WhisperTiny"),
-            AudioTranscriptionEngine::WhisperDistilLargeV3 => write!(f, "WhisperLarge"),
-            AudioTranscriptionEngine::WhisperLargeV3Turbo => write!(f, "WhisperLargeV3Turbo"),
-            AudioTranscriptionEngine::WhisperLargeV3 => write!(f, "WhisperLargeV3"),
-        }
-    }
-}
-
-impl Default for AudioTranscriptionEngine {
-    fn default() -> Self {
-        AudioTranscriptionEngine::WhisperLargeV3Turbo
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct DeviceControl {
-    pub is_running: bool,
-    pub is_paused: bool,
-}
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Debug, Deserialize)]
 pub enum DeviceType {
@@ -56,11 +12,18 @@ pub enum DeviceType {
 pub struct AudioDevice {
     pub name: String,
     pub device_type: DeviceType,
+    /// Display label for pseudo devices (`app:chrome`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 impl AudioDevice {
     pub fn new(name: String, device_type: DeviceType) -> Self {
-        AudioDevice { name, device_type }
+        AudioDevice { name, device_type, label: None }
+    }
+
+    pub fn with_label(name: &str, device_type: DeviceType, label: &str) -> Self {
+        AudioDevice { name: name.to_string(), device_type, label: Some(label.to_string()) }
     }
 
     pub fn from_name(name: &str) -> Result<Self> {
@@ -107,70 +70,34 @@ pub fn parse_audio_device(name: &str) -> Result<AudioDevice> {
     AudioDevice::from_name(name)
 }
 
-/// Get device and config for audio operations
+/// The cpal device and its default (mix-format) config for `audio_device`.
+#[cfg(target_os = "windows")]
 pub async fn get_device_and_config(
     audio_device: &AudioDevice,
 ) -> Result<(cpal::Device, cpal::SupportedStreamConfig)> {
-    #[cfg(target_os = "windows")]
-    {
-        return super::platform::get_windows_device(audio_device);
-    }
+    super::platform::get_windows_device(audio_device)
+}
 
-    #[cfg(not(target_os = "windows"))]
-    {
-        use cpal::traits::{DeviceTrait, HostTrait};
+/// The cpal device and its default config for `audio_device` (Linux development:
+/// system audio comes from PulseAudio/PipeWire monitor sources exposed as ALSA inputs).
+#[cfg(not(target_os = "windows"))]
+pub async fn get_device_and_config(
+    audio_device: &AudioDevice,
+) -> Result<(cpal::Device, cpal::SupportedStreamConfig)> {
+    use cpal::traits::{DeviceTrait, HostTrait};
 
-        let host = cpal::default_host();
-
-        match audio_device.device_type {
-            DeviceType::Input => {
-                for device in host.input_devices()? {
-                    if let Ok(name) = device.name() {
-                        if name == audio_device.name {
-                            let default_config = device
-                                .default_input_config()
-                                .map_err(|e| anyhow!("Failed to get default input config: {}", e))?;
-                            return Ok((device, default_config));
-                        }
-                    }
-                }
-            }
-            DeviceType::Output => {
-                #[cfg(target_os = "macos")]
-                {
-                    // Use default host for all macOS output devices
-                    // Core Audio backend uses direct cidre API for system capture, not cpal
-                    for device in host.output_devices()? {
-                        if let Ok(name) = device.name() {
-                            if name == audio_device.name {
-                                let default_config = device
-                                    .default_output_config()
-                                    .map_err(|e| anyhow!("Failed to get output config: {}", e))?;
-                                return Ok((device, default_config));
-                            }
-                        }
-                    }
-                }
-
-                #[cfg(target_os = "linux")]
-                {
-                    // For Linux, we use PulseAudio monitor sources for system audio
-                    if let Ok(pulse_host) = cpal::host_from_id(cpal::HostId::Alsa) {
-                        for device in pulse_host.input_devices()? {
-                            if let Ok(name) = device.name() {
-                                if name == audio_device.name {
-                                    let default_config = device
-                                        .default_input_config()
-                                        .map_err(|e| anyhow!("Failed to get default input config: {}", e))?;
-                                    return Ok((device, default_config));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    let host = match audio_device.device_type {
+        DeviceType::Input => cpal::default_host(),
+        DeviceType::Output => cpal::host_from_id(cpal::HostId::Alsa)
+            .map_err(|e| anyhow!("ALSA host unavailable: {}", e))?,
+    };
+    for device in host.input_devices()? {
+        if device.name().is_ok_and(|name| name == audio_device.name) {
+            let config = device
+                .default_input_config()
+                .map_err(|e| anyhow!("Failed to get default input config: {}", e))?;
+            return Ok((device, config));
         }
-
-        Err(anyhow!("Device not found: {}", audio_device.name))
     }
+    Err(anyhow!("Device not found: {}", audio_device.name))
 }

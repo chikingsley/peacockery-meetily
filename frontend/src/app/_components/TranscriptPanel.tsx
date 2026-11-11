@@ -1,118 +1,76 @@
-import { VirtualizedTranscriptView } from '@/components/VirtualizedTranscriptView';
-import { PermissionWarning } from '@/components/PermissionWarning';
-import { Button } from '@/components/ui/button';
-import { ButtonGroup } from '@/components/ui/button-group';
-import { Copy, GlobeIcon } from 'lucide-react';
-import { useTranscripts } from '@/contexts/TranscriptContext';
-import { useConfig } from '@/contexts/ConfigContext';
-import { useRecordingState } from '@/contexts/RecordingStateContext';
-import { usePermissionCheck } from '@/hooks/usePermissionCheck';
-import { ModalType } from '@/hooks/useModalState';
-import { useIsLinux } from '@/hooks/usePlatform';
 import { useMemo } from 'react';
+import { AlertTriangle, Copy } from 'lucide-react';
+import Link from 'next/link';
+import { AudioDeviceWarning } from '@/components/AudioDeviceWarning';
+import { LiveStatusBadges } from '@/components/LiveStatusBadges';
+import { RecordingStatusBar } from '@/components/RecordingStatusBar';
+import { Button } from '@/components/ui/button';
+import { useTranscripts } from '@/contexts/TranscriptContext';
+import { useRecordingState } from '@/contexts/RecordingStateContext';
+import { useConfig } from '@/contexts/ConfigContext';
+import { useAudioDeviceCheck } from '@/hooks/useAudioDeviceCheck';
+import { useAudioLevels } from '@/hooks/useAudioLevels';
+import { byChannel, isSystemSilent } from '@/lib/live-transcript';
+import { LiveTranscriptView } from './LiveTranscriptView';
+import { LiveQuickSettings } from './LiveQuickSettings';
 
-/**
- * TranscriptPanel Component
- *
- * Displays transcript content with controls for copying and language settings.
- * Uses TranscriptContext, ConfigContext, and RecordingStateContext internally.
- */
-
-interface TranscriptPanelProps {
-  // indicates stop-processing state for transcripts; derived from backend statuses.
-  isProcessingStop: boolean;
-  isStopping: boolean;
-  showModal: (name: ModalType, message?: string) => void;
-}
-
-export function TranscriptPanel({
-  isProcessingStop,
-  isStopping,
-  showModal
-}: TranscriptPanelProps) {
-  // Contexts
-  const { transcripts, transcriptContainerRef, copyTranscript } = useTranscripts();
-  const { transcriptModelConfig } = useConfig();
-  const { isRecording, isPaused } = useRecordingState();
-  const { checkPermissions, isChecking, hasSystemAudio, hasMicrophone } = usePermissionCheck();
-  const isLinux = useIsLinux();
-
-  // Convert transcripts to segments for virtualized view
-  const segments = useMemo(() =>
-    transcripts.map(t => ({
-      id: t.id,
-      timestamp: t.audio_start_time ?? 0,
-      endTime: t.audio_end_time,
-      text: t.text,
-      confidence: t.confidence,
-    })),
-    [transcripts]
-  );
+/** Live transcript of the current recording, with the live model, session status and copy. */
+export function TranscriptPanel() {
+  const { lines, interims, liveStatus, transcriptContainerRef, copyTranscript } = useTranscripts();
+  const { isRecording, isPaused, isStopping } = useRecordingState();
+  const { voiceSettings } = useConfig();
+  const { check, isChecking, hasMicrophone, hasSystemAudio } = useAudioDeviceCheck();
+  const levels = useAudioLevels(isRecording);
+  const systemSilent = isSystemSilent(levels, isRecording, isPaused);
+  const interimLines = useMemo(() => byChannel(interims), [interims]);
 
   return (
     <div ref={transcriptContainerRef} className="w-full border-r border-gray-200 bg-white flex flex-col overflow-y-auto">
-      {/* Title area - Sticky header */}
-      <div className="sticky top-0 z-10 bg-white p-4 border-gray-200">
-        <div className="flex flex-col space-y-3">
-          <div className="flex  flex-col space-y-2">
-            <div className="flex justify-center  items-center space-x-2">
-              <ButtonGroup>
-                {transcripts?.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={copyTranscript}
-                    title="Copy Transcript"
-                  >
-                    <Copy />
-                    <span className='hidden md:inline'>
-                      Copy
-                    </span>
-                  </Button>
-                )}
-                {transcriptModelConfig.provider === "localWhisper" &&
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => showModal('languageSettings')}
-                    title="Language"
-                  >
-                    <GlobeIcon />
-                    <span className='hidden md:inline'>
-                      Language
-                    </span>
-                  </Button>
-                }
-              </ButtonGroup>
-            </div>
-          </div>
+      <div className="sticky top-0 z-20 bg-white px-4 py-3 border-b border-gray-100">
+        <div className="flex flex-wrap justify-center items-center gap-3">
+          {isRecording && <RecordingStatusBar isPaused={isPaused} />}
+          <LiveQuickSettings isRecording={isRecording} />
+          {isRecording && <LiveStatusBadges liveStatus={liveStatus} />}
+          {lines.length > 0 && (
+            <Button variant="outline" size="sm" onClick={copyTranscript} title="Copy transcript">
+              <Copy />
+              <span className="hidden md:inline">Copy</span>
+            </Button>
+          )}
         </div>
+        {systemSilent && (
+          <div role="alert" className="mt-3 mx-auto max-w-[750px] flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
+            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <span>
+              No call/system audio detected for {Math.round(levels.system_silent_seconds)} s. Check the system audio
+              source in <Link href="/settings?tab=recording" className="underline font-medium">Settings</Link>; for
+              Google Voice choose &quot;Google Chrome app audio&quot;.
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Permission Warning - Not needed on Linux */}
-      {!isRecording && !isChecking && !isLinux && (
+      {!isRecording && !isChecking && (
         <div className="flex justify-center px-4 pt-4">
-          <PermissionWarning
+          <AudioDeviceWarning
             hasMicrophone={hasMicrophone}
             hasSystemAudio={hasSystemAudio}
-            onRecheck={checkPermissions}
+            onRecheck={check}
             isRechecking={isChecking}
           />
         </div>
       )}
 
-      {/* Transcript content */}
-      <div className="pb-20">
+      <div className="pb-28">
         <div className="flex justify-center">
           <div className="w-2/3 max-w-[750px]">
-            <VirtualizedTranscriptView
-              segments={segments}
+            <LiveTranscriptView
+              lines={lines}
+              interims={interimLines}
               isRecording={isRecording}
               isPaused={isPaused}
-              isProcessing={isProcessingStop}
               isStopping={isStopping}
-              enableStreaming={isRecording}
-              showConfidence={true}
+              liveEnabled={voiceSettings?.live_enabled ?? true}
             />
           </div>
         </div>

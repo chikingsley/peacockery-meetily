@@ -1,236 +1,51 @@
 use std::sync::Arc;
+use std::time::Duration;
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{Device, Stream, SupportedStreamConfig};
 use log::{error, info, warn};
-use tokio::sync::mpsc;
 
 use super::devices::{AudioDevice, get_device_and_config};
-use super::pipeline::AudioCapture;
+use super::capture::AudioCapture;
 use super::recording_state::{RecordingState, DeviceType};
-use super::capture::{AudioCaptureBackend, get_current_backend};
 
-#[cfg(target_os = "macos")]
-use super::capture::CoreAudioCapture;
-
-/// Stream backend implementation
-pub enum StreamBackend {
-    /// CPAL-based stream (ScreenCaptureKit or default)
-    Cpal(Stream),
-    /// Core Audio direct implementation (macOS only)
-    #[cfg(target_os = "macos")]
-    CoreAudio {
-        task: Option<tokio::task::JoinHandle<()>>,
-    },
-}
-
-// SAFETY: While Stream doesn't implement Send, we ensure it's only accessed
-// from the same thread context by using spawn_blocking for operations that cross thread boundaries
-unsafe impl Send for StreamBackend {}
-
-/// Simplified audio stream wrapper with multi-backend support
+/// One cpal input stream (a capture device, or a render device opened as WASAPI loopback).
 pub struct AudioStream {
     device: Arc<AudioDevice>,
-    backend: StreamBackend,
+    stream: Stream,
 }
 
-// SAFETY: AudioStream contains StreamBackend which we've marked as Send
+// SAFETY: cpal's WASAPI/ALSA streams are only paused and dropped through this wrapper;
+// the stream is never shared between threads concurrently.
 unsafe impl Send for AudioStream {}
 
 impl AudioStream {
-    /// Create a new audio stream for the given device
+    /// Open and start a cpal stream for `device`.
     pub async fn create(
         device: Arc<AudioDevice>,
         state: Arc<RecordingState>,
         device_type: DeviceType,
-        recording_sender: Option<mpsc::UnboundedSender<super::recording_state::AudioChunk>>,
     ) -> Result<Self> {
-        // Get current backend from global config
-        let backend_type = get_current_backend();
-        Self::create_with_backend(device, state, device_type, recording_sender, backend_type).await
-    }
-
-    /// Create a new audio stream with explicit backend selection
-    pub async fn create_with_backend(
-        device: Arc<AudioDevice>,
-        state: Arc<RecordingState>,
-        device_type: DeviceType,
-        recording_sender: Option<mpsc::UnboundedSender<super::recording_state::AudioChunk>>,
-        backend_type: AudioCaptureBackend,
-    ) -> Result<Self> {
-        info!("🎵 Stream: Creating audio stream for device: {} with backend: {:?}, device_type: {:?}",
-              device.name, backend_type, device_type);
-
-        // For system audio devices, use the selected backend
-        // For microphone devices, always use CPAL
-        #[cfg(target_os = "macos")]
-        let use_core_audio = device_type == DeviceType::System
-            && backend_type == AudioCaptureBackend::CoreAudio;
-
-        #[cfg(not(target_os = "macos"))]
-        let use_core_audio = false;
-
-        #[cfg(target_os = "macos")]
-        info!("🎵 Stream: use_core_audio = {}, device_type == System: {}, backend == CoreAudio: {}",
-              use_core_audio,
-              device_type == DeviceType::System,
-              backend_type == AudioCaptureBackend::CoreAudio);
-
-        #[cfg(not(target_os = "macos"))]
-        info!("🎵 Stream: use_core_audio = {}, device_type == System: {}",
-              use_core_audio,
-              device_type == DeviceType::System);
-
-        #[cfg(target_os = "macos")]
-        if use_core_audio {
-            info!("🎵 Stream: Using Core Audio backend (cidre) for system audio");
-            return Self::create_core_audio_stream(device, state, device_type, recording_sender).await;
-        }
-
-        // Default path: use CPAL
-        #[cfg(target_os = "macos")]
-        let backend_name = if backend_type == AudioCaptureBackend::ScreenCaptureKit {
-            "ScreenCaptureKit"
-        } else {
-            "CPAL (default)"
-        };
-
-        #[cfg(not(target_os = "macos"))]
-        let backend_name = "CPAL";
-
-        info!("🎵 Stream: Using CPAL backend ({}) for device: {}", backend_name, device.name);
-        Self::create_cpal_stream(device, state, device_type, recording_sender).await
-    }
-
-    /// Create a CPAL-based stream (ScreenCaptureKit on macOS)
-    async fn create_cpal_stream(
-        device: Arc<AudioDevice>,
-        state: Arc<RecordingState>,
-        device_type: DeviceType,
-        recording_sender: Option<mpsc::UnboundedSender<super::recording_state::AudioChunk>>,
-    ) -> Result<Self> {
-        info!("Creating CPAL stream for device: {}", device.name);
-
-        // Get the underlying cpal device and config
+        info!("Creating {:?} stream for device: {}", device_type, device.name);
         let (cpal_device, config) = get_device_and_config(&device).await?;
+        info!(
+            "Audio config - Sample rate: {}, Channels: {}, Format: {:?}",
+            config.sample_rate().0,
+            config.channels(),
+            config.sample_format()
+        );
 
-        info!("Audio config - Sample rate: {}, Channels: {}, Format: {:?}",
-              config.sample_rate().0, config.channels(), config.sample_format());
-
-        // Create audio capture processor
         let capture = AudioCapture::new(
             device.clone(),
-            state.clone(),
+            state,
             config.sample_rate().0,
             config.channels(),
             device_type,
-            recording_sender,
         );
-
-        // Build the appropriate stream based on sample format
-        let stream = Self::build_stream(&cpal_device, &config, capture.clone())?;
-
-        // Start the stream
+        let stream = Self::build_stream(&cpal_device, &config, capture)?;
         stream.play()?;
-        info!("CPAL stream started for device: {}", device.name);
-
-        Ok(Self {
-            device,
-            backend: StreamBackend::Cpal(stream),
-        })
-    }
-
-    /// Create a Core Audio stream (macOS only)
-    #[cfg(target_os = "macos")]
-    async fn create_core_audio_stream(
-        device: Arc<AudioDevice>,
-        state: Arc<RecordingState>,
-        device_type: DeviceType,
-        recording_sender: Option<mpsc::UnboundedSender<super::recording_state::AudioChunk>>,
-    ) -> Result<Self> {
-        info!("🔊 Stream: Creating Core Audio stream for device: {}", device.name);
-
-        // Create Core Audio capture
-        info!("🔊 Stream: Calling CoreAudioCapture::new()...");
-        let capture_impl = CoreAudioCapture::new()
-            .map_err(|e| {
-                error!("❌ Stream: CoreAudioCapture::new() failed: {}", e);
-                anyhow::anyhow!("Failed to create Core Audio capture: {}", e)
-            })?;
-
-        info!("✅ Stream: CoreAudioCapture created, calling stream()...");
-        let core_stream = capture_impl.stream()
-            .map_err(|e| {
-                error!("❌ Stream: capture_impl.stream() failed: {}", e);
-                anyhow::anyhow!("Failed to create Core Audio stream: {}", e)
-            })?;
-
-        let sample_rate = core_stream.sample_rate();
-        info!("✅ Stream: Core Audio stream created with sample rate: {} Hz", sample_rate);
-
-        // Create audio capture processor for pipeline integration
-        // CRITICAL: Core Audio tap is MONO (with_mono_global_tap_excluding_processes)
-        let capture = AudioCapture::new(
-            device.clone(),
-            state.clone(),
-            sample_rate,
-            1, // Core Audio tap is MONO (not stereo!)
-            device_type,
-            recording_sender,
-        );
-
-        // Spawn task to process Core Audio stream samples
-        // The stream needs to be polled continuously to produce samples
-        let device_name = device.name.clone();
-        info!("🔊 Stream: Spawning tokio task to poll Core Audio stream...");
-        let task = tokio::spawn({
-            let capture = capture.clone();
-            let mut stream = core_stream;
-
-            async move {
-                use futures_util::StreamExt;
-
-                let mut buffer = Vec::new();
-                let mut frame_count = 0;
-                let frames_per_chunk = 1024; // Process in chunks of 1024 samples
-
-                info!("✅ Stream: Core Audio processing task started for {}", device_name);
-
-                let mut _sample_count = 0u64;
-                while let Some(sample) = stream.next().await {
-                    _sample_count += 1;
-                    // if _sample_count % 48000 == 0 {
-                    //     info!("📊 Stream: Received {} samples from Core Audio stream", _sample_count);
-                    // }
-
-                    buffer.push(sample);
-                    frame_count += 1;
-
-                    // Process when we have enough samples
-                    if frame_count >= frames_per_chunk {
-                        capture.process_audio_data(&buffer);
-                        buffer.clear();
-                        frame_count = 0;
-                    }
-                }
-
-                // Process any remaining samples
-                if !buffer.is_empty() {
-                    capture.process_audio_data(&buffer);
-                }
-
-                info!("⚠️ Stream: Core Audio processing task ended for {}", device_name);
-            }
-        });
-
-        info!("✅ Stream: Core Audio stream fully initialized for device: {}", device.name);
-
-        Ok(Self {
-            device: device.clone(),
-            backend: StreamBackend::CoreAudio {
-                task: Some(task),
-            },
-        })
+        info!("Stream started for device: {}", device.name);
+        Ok(Self { device, stream })
     }
 
     /// Build stream based on sample format
@@ -311,39 +126,18 @@ impl AudioStream {
         Ok(stream)
     }
 
-    /// Get device info
-    pub fn device(&self) -> &AudioDevice {
-        &self.device
-    }
-
     /// Stop the stream
     pub fn stop(self) -> Result<()> {
         info!("Stopping audio stream for device: {}", self.device.name);
 
-        match self.backend {
-            StreamBackend::Cpal(stream) => {
-                // CRITICAL: Pause the stream first to stop callbacks immediately
-                // This ensures closures stop executing before we drop the stream,
-                // allowing Arc references captured in callbacks to be released
-                if let Err(e) = stream.pause() {
-                    warn!("Failed to pause stream before drop: {}", e);
-                }
-                info!("Stream paused, now dropping to release callbacks");
-                drop(stream);
-            }
-            #[cfg(target_os = "macos")]
-            StreamBackend::CoreAudio { task } => {
-                // Abort the processing task and wait briefly for cleanup
-                if let Some(task_handle) = task {
-                    info!("Aborting Core Audio task...");
-                    task_handle.abort();
-                    // Give the runtime a moment to clean up the aborted task
-                    // This helps ensure Arc references in the closure are dropped
-                    std::thread::sleep(std::time::Duration::from_millis(50));
-                    info!("Core Audio task aborted");
-                }
-            }
+        // CRITICAL: Pause the stream first to stop callbacks immediately
+        // This ensures closures stop executing before we drop the stream,
+        // allowing Arc references captured in callbacks to be released
+        if let Err(e) = self.stream.pause() {
+            warn!("Failed to pause stream before drop: {}", e);
         }
+        info!("Stream paused, now dropping to release callbacks");
+        drop(self.stream);
 
         // Explicitly drop self.device Arc reference
         drop(self.device);
@@ -352,107 +146,178 @@ impl AudioStream {
     }
 }
 
-/// Audio stream manager for handling multiple streams
+/// Name of the pseudo system device: process-tree loopback of Google Chrome.
+pub const CHROME_APP_DEVICE: &str = "app:chrome";
+pub const CHROME_APP_LABEL: &str = "Google Chrome app audio (Google Voice)";
+const CHROME_EXE: &str = "chrome.exe";
+pub const CHROME_NOT_RUNNING: &str = "Google Chrome is not running — open Google Voice first";
+const CHROME_UNSUPPORTED: &str = "Google Chrome app audio needs Windows 10 build 20348 or newer";
+
+/// Where system audio comes from.
+#[derive(Debug, Clone)]
+pub enum SystemSource {
+    /// A render endpoint opened as WASAPI loopback (Linux: a monitor source).
+    Endpoint(Arc<AudioDevice>),
+    /// Process-tree loopback of the Chrome browser (Google Voice PWA).
+    ChromeApp,
+}
+
+impl SystemSource {
+    /// `app:chrome` → `ChromeApp`, anything else is an endpoint.
+    pub fn for_device(device: Arc<AudioDevice>) -> Self {
+        if device.name == CHROME_APP_DEVICE {
+            SystemSource::ChromeApp
+        } else {
+            SystemSource::Endpoint(device)
+        }
+    }
+
+    /// The endpoint the device monitor should watch (none for the Chrome capture).
+    pub fn endpoint(&self) -> Option<Arc<AudioDevice>> {
+        match self {
+            SystemSource::Endpoint(device) => Some(device.clone()),
+            SystemSource::ChromeApp => None,
+        }
+    }
+
+    /// Fails early when the source cannot be opened (Chrome not running / unsupported OS).
+    pub fn check(&self) -> Result<()> {
+        match self {
+            SystemSource::Endpoint(_) => Ok(()),
+            SystemSource::ChromeApp => chrome_root_pid().map(|_| ()),
+        }
+    }
+}
+
+fn chrome_root_pid() -> Result<u32> {
+    if !app_loopback::is_supported() {
+        return Err(anyhow::anyhow!(CHROME_UNSUPPORTED));
+    }
+    app_loopback::find_process_tree_root(CHROME_EXE).ok_or_else(|| anyhow::anyhow!(CHROME_NOT_RUNNING))
+}
+
+/// A running system-audio capture.
+pub enum SystemStream {
+    Endpoint(AudioStream),
+    ChromeApp(app_loopback::AppLoopbackCapture),
+}
+
+impl SystemStream {
+    pub async fn open(source: &SystemSource, state: Arc<RecordingState>) -> Result<Self> {
+        match source {
+            SystemSource::Endpoint(device) => {
+                AudioStream::create(device.clone(), state, DeviceType::System).await.map(SystemStream::Endpoint)
+            }
+            SystemSource::ChromeApp => {
+                let pid = chrome_root_pid()?;
+                info!("Capturing Google Chrome process tree (root pid {})", pid);
+                let device = Arc::new(AudioDevice::new(CHROME_APP_DEVICE.to_string(), super::devices::DeviceType::Output));
+                let capture = AudioCapture::new(device, state, app_loopback::SAMPLE_RATE, 1, DeviceType::System);
+                let on_error = capture.clone();
+                // Activation blocks up to 10 s: keep it off the async runtime.
+                let started = tokio::task::spawn_blocking(move || {
+                    app_loopback::AppLoopbackCapture::start(
+                        pid,
+                        move |samples| capture.process_audio_data(samples),
+                        move |message| on_error.report_source_ended(&message),
+                    )
+                })
+                .await
+                .map_err(|e| anyhow::anyhow!("Chrome capture task failed: {}", e))?;
+                match started {
+                    Ok(capture) => Ok(SystemStream::ChromeApp(capture)),
+                    Err(app_loopback::AppLoopbackError::Unsupported) => Err(anyhow::anyhow!(CHROME_UNSUPPORTED)),
+                    Err(app_loopback::AppLoopbackError::ProcessNotFound(_)) => Err(anyhow::anyhow!(CHROME_NOT_RUNNING)),
+                    Err(e) => Err(anyhow::anyhow!("Could not capture Google Chrome audio: {}", e)),
+                }
+            }
+        }
+    }
+
+    pub fn stop(self) -> Result<()> {
+        match self {
+            SystemStream::Endpoint(stream) => stream.stop(),
+            SystemStream::ChromeApp(capture) => {
+                capture.stop();
+                info!("Chrome audio capture stopped");
+                Ok(())
+            }
+        }
+    }
+}
+
+/// The capture streams of one session.
 pub struct AudioStreamManager {
     microphone_stream: Option<AudioStream>,
-    system_stream: Option<AudioStream>,
+    system_stream: Option<SystemStream>,
     state: Arc<RecordingState>,
 }
 
-// SAFETY: AudioStreamManager contains AudioStream which we've marked as Send
+// SAFETY: AudioStream is Send (see above) and AppLoopbackCapture is Send.
 unsafe impl Send for AudioStreamManager {}
 
 impl AudioStreamManager {
     pub fn new(state: Arc<RecordingState>) -> Self {
-        Self {
-            microphone_stream: None,
-            system_stream: None,
-            state,
-        }
+        Self { microphone_stream: None, system_stream: None, state }
     }
 
-    /// Start audio streams for the given devices
+    /// Start the mic and the system source. A failing mic fails the start; a failing
+    /// system source does too when it is the Chrome capture (the user picked it on purpose),
+    /// while a failing endpoint only logs (the call is still recorded from the mic).
     pub async fn start_streams(
         &mut self,
         microphone_device: Option<Arc<AudioDevice>>,
-        system_device: Option<Arc<AudioDevice>>,
-        recording_sender: Option<mpsc::UnboundedSender<super::recording_state::AudioChunk>>,
+        system_source: Option<SystemSource>,
     ) -> Result<()> {
-        use super::capture::get_current_backend;
-        let backend = get_current_backend();
-        info!("🎙️ Starting audio streams with backend: {:?}", backend);
-
-        // Start microphone stream
         if let Some(mic_device) = microphone_device {
-            info!("🎤 Creating microphone stream: {} (always uses CPAL)", mic_device.name);
-            match AudioStream::create(mic_device.clone(), self.state.clone(), DeviceType::Microphone, recording_sender.clone()).await {
-                Ok(stream) => {
-                    self.state.set_microphone_device(mic_device);
-                    self.microphone_stream = Some(stream);
-                    info!("✅ Microphone stream created successfully");
-                }
-                Err(e) => {
-                    error!("❌ Failed to create microphone stream: {}", e);
-                    return Err(e);
-                }
-            }
-        } else {
-            info!("ℹ️ No microphone device specified, skipping microphone stream");
+            info!("Creating microphone stream: {}", mic_device.name);
+            let stream = AudioStream::create(mic_device, self.state.clone(), DeviceType::Microphone).await?;
+            self.microphone_stream = Some(stream);
         }
-
-        // Start system audio stream
-        if let Some(sys_device) = system_device {
-            info!("🔊 Creating system audio stream: {} (backend: {:?})", sys_device.name, backend);
-            match AudioStream::create(sys_device.clone(), self.state.clone(), DeviceType::System, recording_sender.clone()).await {
-                Ok(stream) => {
-                    self.state.set_system_device(sys_device);
-                    self.system_stream = Some(stream);
-                    info!("✅ System audio stream created with {:?} backend", backend);
+        if let Some(source) = system_source {
+            match tokio::time::timeout(Duration::from_secs(15), SystemStream::open(&source, self.state.clone())).await {
+                Ok(Ok(stream)) => self.system_stream = Some(stream),
+                Ok(Err(e)) if matches!(source, SystemSource::ChromeApp) => return Err(e),
+                Ok(Err(e)) => warn!("Failed to create system audio stream: {}", e),
+                Err(_) if matches!(source, SystemSource::ChromeApp) => {
+                    return Err(anyhow::anyhow!("Google Chrome audio capture did not start within 15 s"))
                 }
-                Err(e) => {
-                    warn!("⚠️ Failed to create system audio stream: {}", e);
-                    // Don't fail if only system audio fails
-                }
+                Err(_) => warn!("System audio stream did not start within 15 s"),
             }
-        } else {
-            info!("ℹ️ No system device specified, skipping system audio stream");
         }
-
-        // Ensure at least one stream was created
         if self.microphone_stream.is_none() && self.system_stream.is_none() {
             return Err(anyhow::anyhow!("No audio streams could be created"));
         }
-
         Ok(())
+    }
+
+    pub fn has_microphone(&self) -> bool {
+        self.microphone_stream.is_some()
+    }
+
+    pub fn has_system(&self) -> bool {
+        self.system_stream.is_some()
     }
 
     /// Stop all audio streams
     pub fn stop_streams(&mut self) -> Result<()> {
-        info!("Stopping all audio streams");
-
         let mut errors = Vec::new();
-
-        // Stop microphone stream
         if let Some(mic_stream) = self.microphone_stream.take() {
             if let Err(e) = mic_stream.stop() {
                 error!("Failed to stop microphone stream: {}", e);
                 errors.push(e);
             }
         }
-
-        // Stop system stream
         if let Some(sys_stream) = self.system_stream.take() {
             if let Err(e) = sys_stream.stop() {
                 error!("Failed to stop system stream: {}", e);
                 errors.push(e);
             }
         }
-
-        if !errors.is_empty() {
-            Err(anyhow::anyhow!("Failed to stop some streams: {:?}", errors))
-        } else {
-            info!("All audio streams stopped successfully");
+        if errors.is_empty() {
             Ok(())
+        } else {
+            Err(anyhow::anyhow!("Failed to stop some streams: {:?}", errors))
         }
     }
 
@@ -466,23 +331,6 @@ impl AudioStreamManager {
     /// Set a new microphone stream (used after hot-swap creation).
     pub fn set_mic_stream(&mut self, stream: AudioStream) {
         self.microphone_stream = Some(stream);
-    }
-
-    /// Get stream count
-    pub fn active_stream_count(&self) -> usize {
-        let mut count = 0;
-        if self.microphone_stream.is_some() {
-            count += 1;
-        }
-        if self.system_stream.is_some() {
-            count += 1;
-        }
-        count
-    }
-
-    /// Check if any streams are active
-    pub fn has_active_streams(&self) -> bool {
-        self.microphone_stream.is_some() || self.system_stream.is_some()
     }
 }
 

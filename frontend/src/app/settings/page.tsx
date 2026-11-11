@@ -1,72 +1,39 @@
 'use client';
 
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { ArrowLeft, Settings2, Mic, Database as DatabaseIcon, SparkleIcon, FlaskConical } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { invoke } from '@tauri-apps/api/core';
+import React, { Suspense, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowLeft, AudioLines, Mic, Settings2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { TranscriptSettings } from '@/components/TranscriptSettings';
-import { RecordingSettings } from '@/components/RecordingSettings';
-import { PreferenceSettings } from '@/components/PreferenceSettings';
-import { SummaryModelSettings } from '@/components/SummaryModelSettings';
-import { BetaSettings } from '@/components/BetaSettings';
-import { useConfig } from '@/contexts/ConfigContext';
+import { VoiceSettingsTab } from '@/components/settings/VoiceSettingsTab';
+import { RecordingTab } from '@/components/settings/RecordingTab';
+import { GeneralTab } from '@/components/settings/GeneralTab';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
-// Tabs configuration (constant)
 const TABS = [
+  { value: 'voice', label: 'Peacockery Voice', icon: AudioLines },
+  { value: 'recording', label: 'Recording', icon: Mic },
   { value: 'general', label: 'General', icon: Settings2 },
-  { value: 'recording', label: 'Recordings', icon: Mic },
-  { value: 'Transcriptionmodels', label: 'Transcription', icon: DatabaseIcon },
-  { value: 'summaryModels', label: 'Summary', icon: SparkleIcon },
-  { value: 'beta', label: 'Beta', icon: FlaskConical }
 ] as const;
 
-export default function SettingsPage() {
-  const router = useRouter();
-  const { transcriptModelConfig, setTranscriptModelConfig } = useConfig();
+type TabValue = typeof TABS[number]['value'];
 
-  // Animation state for tabs
-  const [activeTab, setActiveTab] = useState('general');
+function SettingsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTab = TABS.some(t => t.value === searchParams.get('tab')) ? searchParams.get('tab') as TabValue : 'voice';
+  const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 });
 
-  // Load saved transcript configuration on mount
-  useEffect(() => {
-    const loadTranscriptConfig = async () => {
-      try {
-        const config = await invoke('api_get_transcript_config') as any;
-        if (config) {
-          console.log('Loaded saved transcript config:', config);
-          setTranscriptModelConfig({
-            provider: config.provider || 'localWhisper',
-            model: config.model || 'large-v3',
-            apiKey: config.apiKey || null
-          });
-        }
-      } catch (error) {
-        console.error('Failed to load transcript config:', error);
-      }
-    };
-    loadTranscriptConfig();
-  }, [setTranscriptModelConfig]);
-
-  // Update underline position when active tab changes
   useLayoutEffect(() => {
-    const activeIndex = TABS.findIndex(tab => tab.value === activeTab);
-    const activeTabElement = tabRefs.current[activeIndex];
-
-    if (activeTabElement) {
-      const { offsetLeft, offsetWidth } = activeTabElement;
-      setUnderlineStyle({ left: offsetLeft, width: offsetWidth });
-    }
+    const el = tabRefs.current[TABS.findIndex(tab => tab.value === activeTab)];
+    if (el) setUnderlineStyle({ left: el.offsetLeft, width: el.offsetWidth });
   }, [activeTab]);
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
-      {/* Fixed Header */}
       <div className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-8 py-6">
+        <div className="max-w-3xl mx-auto px-8 py-6">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
@@ -80,11 +47,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto p-8 pt-6">
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="max-w-3xl mx-auto p-8 pt-6">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
             <TabsList className="bg-transparent relative rounded-none border-b border-gray-200 p-0 h-auto">
               {TABS.map((tab, index) => {
                 const Icon = tab.icon;
@@ -100,7 +65,6 @@ export default function SettingsPage() {
                   </TabsTrigger>
                 );
               })}
-
               <motion.div
                 className="absolute bottom-0 z-20 h-0.5 bg-blue-600"
                 layoutId="underline"
@@ -109,27 +73,26 @@ export default function SettingsPage() {
               />
             </TabsList>
 
-            <TabsContent value="general">
-              <PreferenceSettings />
+            <TabsContent value="voice" className="mt-6">
+              <VoiceSettingsTab />
             </TabsContent>
-            <TabsContent value="recording">
-              <RecordingSettings />
+            <TabsContent value="recording" className="mt-6">
+              <RecordingTab />
             </TabsContent>
-            <TabsContent value="Transcriptionmodels">
-              <TranscriptSettings
-                transcriptModelConfig={transcriptModelConfig}
-                setTranscriptModelConfig={setTranscriptModelConfig}
-              />
-            </TabsContent>
-            <TabsContent value="summaryModels">
-              <SummaryModelSettings />
-            </TabsContent>
-            <TabsContent value="beta" className="mt-6">
-              <BetaSettings />
+            <TabsContent value="general" className="mt-6">
+              <GeneralTab />
             </TabsContent>
           </Tabs>
         </div>
       </div>
     </div>
   );
-};
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SettingsContent />
+    </Suspense>
+  );
+}
