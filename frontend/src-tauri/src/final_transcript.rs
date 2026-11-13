@@ -453,22 +453,34 @@ pub fn start_for_meeting(app: &AppHandle, meeting_id: &str, model: Option<String
     });
 }
 
-fn start_if_auto(app: &AppHandle, meeting_id: &str) {
-    if app.state::<VoiceService>().settings().auto_final {
+async fn start_if_auto(app: &AppHandle, meeting_id: &str) {
+    let settings = app.state::<VoiceService>().settings();
+    if settings.auto_final {
         start_for_meeting(app, meeting_id, None);
-    } else {
-        log::info!("Automatic final transcript is off; {} keeps its live transcript", meeting_id);
+    } else if settings.auto_summary {
+        let pool = app.state::<AppState>().db_manager.pool().clone();
+        match TranscriptsRepository::all(&pool, meeting_id, transcript_source::LIVE).await {
+            Ok(rows) if !rows.is_empty() => {
+                if let Err(error) = crate::summary::commands::start_summary(app, &pool, meeting_id, None, None, None).await {
+                    log::error!("Automatic summary of {} failed: {}", meeting_id, error);
+                }
+            }
+            Ok(_) => log::info!("Meeting {} has an empty live transcript", meeting_id),
+            Err(error) => log::error!("Failed to read live transcript of {}: {}", meeting_id, error),
+        }
     }
 }
 
 /// `stop_recording` wrote `audio.mp4` and marked the meeting stopped.
-pub fn on_recording_stopped(app: &AppHandle, meeting_id: &str) {
-    start_if_auto(app, meeting_id);
+pub async fn on_recording_stopped(app: &AppHandle, meeting_id: &str) {
+    start_if_auto(app, meeting_id).await;
 }
 
 /// Startup recovery merged an interrupted meeting's checkpoints into `audio.mp4`.
 pub fn on_meeting_recovered(app: &AppHandle, meeting_id: &str) {
-    start_if_auto(app, meeting_id);
+    let app = app.clone();
+    let meeting_id = meeting_id.to_string();
+    tauri::async_runtime::spawn(async move { start_if_auto(&app, &meeting_id).await; });
 }
 
 /// Startup: runs that were queued or running when the app exited start again with their model.

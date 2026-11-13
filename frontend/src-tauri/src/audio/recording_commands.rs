@@ -350,6 +350,10 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
         error!("Failed to mark meeting {} stopped: {}", target.meeting_id, e);
     }
 
+    // Register automatic work before the UI opens the completed meeting.
+    if stopped.audio_path.is_ok() {
+        crate::final_transcript::on_recording_stopped(&app, &target.meeting_id).await;
+    }
     let folder_path = target.folder.to_string_lossy().to_string();
     drop(stopping);
     let _ = app.emit(
@@ -365,7 +369,6 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
     let audio_path = match stopped.audio_path {
         Ok(audio_path) => {
             info!("Recording {} saved to {}", target.meeting_id, audio_path.display());
-            crate::final_transcript::on_recording_stopped(&app, &target.meeting_id);
             Some(audio_path.to_string_lossy().to_string())
         }
         Err(e) => {

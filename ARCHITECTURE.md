@@ -44,12 +44,12 @@ OneDrive-redirected on CICA; never fall back to Documents).
 {
   "base_url": "https://voice-lab.peacockery.studio",
   "live_enabled": true,
-  "live_model": "deepgram-nova-3",
+  "live_model": "elevenlabs-scribe_v3",
   "live_mode": "split",          // "split": mic -> "Me" session + system -> "Them" session; "mixed": one session on the mix
-  "live_diarize": false,         // Voxtral realtime only: speaker labels on the mixed stream (mixed) or system stream (split)
-  "final_model": "elevenlabs-scribe_v2",
+  "live_diarize": true,          // Scribe v3 and Voxtral realtime: speaker labels on the mixed stream (mixed) or system stream (split)
+  "final_model": "elevenlabs-scribe_v3",
   "final_diarize": true,
-  "auto_final": true,            // run the final transcript automatically after stop
+  "auto_final": false,           // preserve the live transcript; final batch is optional
   "language": "en",              // ISO-639-1, or "auto"
   "keyterms": [],                // vocabulary hints (names, companies); sent where the model supports them
   "me_label": "Me",
@@ -64,11 +64,13 @@ Model allow-lists (labels shown in the UI; availability = present in `GET /v1/mo
 
 | Use | id | Label / note |
 |---|---|---|
-| live | `deepgram-nova-3` | Deepgram Nova (via Superwhisper) — default; lowest latency, no live speaker labels |
+| live | `elevenlabs-scribe_v3` | Scribe v3 Live (via Superwhisper) — default; live speaker labels |
+| live | `deepgram-nova-3` | Deepgram Nova (via Superwhisper) — automatic fallback; lowest latency, channel labels |
 | live | `mistral-voxtral-mini-transcribe-realtime-3` | Voxtral Mini Realtime 3 — more accurate, live speaker labels |
 | live | `elevenlabs-scribe_v2` | Scribe v2 Realtime (via Superwhisper) — accurate, less reliable |
 | live | `cohere-transcribe` | Cohere Transcribe (self-hosted on GMK) — free, may be offline |
-| final | `elevenlabs-scribe_v2` | Scribe v2 — recommended; diarization + word timestamps |
+| final | `elevenlabs-scribe_v3` | Scribe v3 — optional final pass; diarization and word timestamps |
+| final | `elevenlabs-scribe_v2` | Scribe v2 — legacy; diarization + word timestamps |
 | final | `mistral-voxtral-small-transcribe-3` | Voxtral Small Transcribe 3 — top overall WER; segment timestamps |
 | final | `mistral-voxtral-mini-transcribe-3` | Voxtral Mini Transcribe 3 |
 | final | `deepgram-nova-3` | Deepgram Nova (via Superwhisper) |
@@ -272,3 +274,15 @@ and measured transcript virtualization. `pnpm check` runs the complete frontend 
 The browser preview serves the static export, with an explicit desktop-capability banner.
 Native recording and credentials remain in Tauri. `scripts/preview.sh up|down|status` manages both
 the systemd user service and public tunnel. The preview service has no login or boot autostart.
+
+### Scribe v3 live delivery
+
+Scribe v3 waits for the diarized commit before saving each passage. The API preserves word times and speaker turns, and the app splits multi-speaker commits into separate lines. On a provider rejection or two transient failures, each Scribe channel switches to Nova while local audio capture continues. Nova uses the configured channel labels. Authentication failures remain actionable errors. The API allows eight seconds for delayed labels after stop. Existing settings remain preserved; the November 13 installation explicitly selects Scribe v3, enables live labels, and turns automatic final transcription off.
+
+Automatic summaries use the saved live transcript when automatic final transcription is off. Summary registration happens before the recording-stopped event so the meeting page can attach to the active summary. An optional batch pass takes precedence when it exists.
+
+#### 0.6.1 acceptance (November 13, 2026)
+
+The deployed lab API passed paced Scribe v3 tests with and without diarization, a Nova fallback-route test, saved-session recovery, and optional Scribe v3 batch transcription. A 12.43-second AMI fixture returned two speaker IDs. The installed Windows app recorded the same fixture, displayed Them 1/Them 2 while recording, and retained its live rows after stop with final_status unset. Fallback selection and multi-speaker line splitting have regression coverage.
+
+Before installation, CICA's application data and recordings were backed up. Readback verified that both existing meetings, all 39 original transcript rows, and all 15 original recording-related files remained unchanged. The installation changed exactly four voice preferences: live_model, live_diarize, final_model, and auto_final. Credentials, installation identity, summary preferences, and vocabulary remained preserved.

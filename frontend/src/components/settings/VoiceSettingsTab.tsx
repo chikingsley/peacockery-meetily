@@ -103,7 +103,7 @@ export function VoiceSettingsTab() {
         description={
           isRecording
             ? "These apply to the next recording; the current one keeps its live settings."
-            : "A draft transcript while you record. The final transcript replaces it after stop."
+            : "Transcribes while you record and keeps the transcript when you stop."
         }
       >
         <ToggleRow
@@ -181,7 +181,7 @@ export function VoiceSettingsTab() {
                   voiceSettings.live_mode,
                   voiceSettings.them_label
                 )
-              : "Only Voxtral Mini Realtime 3 can label speakers live."
+              : "Scribe v3 Live and Voxtral Mini Realtime 3 support live speaker labels."
           }
           checked={speakerLabelsSupported && voiceSettings.live_diarize}
           disabled={!voiceSettings.live_enabled || !speakerLabelsSupported}
@@ -190,9 +190,9 @@ export function VoiceSettingsTab() {
       </SettingsSection>
 
       <SettingsSection
-        title="Final transcript"
+        title="Optional final transcript"
         icon={<FileText className="h-5 w-5" />}
-        description="After stop, the saved recording is uploaded and transcribed in one pass. It is the transcript summaries use."
+        description="Optionally reprocess the saved audio. Summaries use this version when available, or your saved live transcript."
       >
         <ModelSelect
           id="final-model"
@@ -204,7 +204,7 @@ export function VoiceSettingsTab() {
         <ToggleRow
           id="final-diarize"
           label="Speaker labels"
-          description={`Speakers are named "${voiceSettings.me_label}" / "${voiceSettings.them_label}" from which side of the call they were heard on.`}
+          description={`Speakers are named "${voiceSettings.me_label}" and "${voiceSettings.them_label}" from which side of the call they were heard on.`}
           checked={voiceSettings.final_diarize}
           onChange={(final_diarize) => update({ final_diarize })}
         />
@@ -230,7 +230,7 @@ export function VoiceSettingsTab() {
         <ToggleRow
           id="auto-summary"
           label="Summarize automatically"
-          description="Runs once the final transcript is done."
+          description="Runs after recording stops, or after the optional final pass finishes."
           checked={voiceSettings.auto_summary}
           onChange={(auto_summary) => update({ auto_summary })}
         />

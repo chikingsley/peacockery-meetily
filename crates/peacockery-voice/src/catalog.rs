@@ -111,11 +111,12 @@ struct Curated {
 }
 
 const LIVE: &[Curated] = &[
+    Curated { id: "elevenlabs-scribe_v3", label: "Scribe v3 Live (via Superwhisper)", note: "default; live speaker labels, Nova fallback", recommended: true },
     Curated {
         id: "deepgram-nova-3",
         label: "Deepgram Nova (via Superwhisper)",
-        note: "default; lowest latency, no live speaker labels",
-        recommended: true,
+        note: "fallback; low-latency live transcript",
+        recommended: false,
     },
     Curated {
         id: "mistral-voxtral-mini-transcribe-realtime-3",
@@ -138,11 +139,12 @@ const LIVE: &[Curated] = &[
 ];
 
 const FINAL: &[Curated] = &[
+    Curated { id: "elevenlabs-scribe_v3", label: "Scribe v3", note: "optional final transcript", recommended: true },
     Curated {
         id: "elevenlabs-scribe_v2",
         label: "Scribe v2",
         note: "diarization + word timestamps",
-        recommended: true,
+        recommended: false,
     },
     Curated {
         id: "mistral-voxtral-small-transcribe-3",
@@ -300,13 +302,18 @@ mod tests {
     use super::*;
 
     fn fixture() -> Catalog {
-        serde_json::from_str(include_str!("../tests/fixtures/models.json")).unwrap()
+        let mut catalog: Catalog = serde_json::from_str(include_str!("../tests/fixtures/models.json")).unwrap();
+        let mut v3 = catalog.models.iter().find(|m| m.id == "elevenlabs-scribe_v2").unwrap().clone();
+        v3.id = "elevenlabs-scribe_v3".into();
+        if let Some(route) = &mut v3.routes.realtime { route.supports_diarization = true; }
+        catalog.models.push(v3);
+        catalog
     }
 
     #[test]
     fn parses_live_catalog() {
         let catalog = fixture();
-        assert_eq!(catalog.models.len(), 51);
+        assert_eq!(catalog.models.len(), 52);
         assert_eq!(catalog.presentation_schema_version, Some(1));
         assert_eq!(
             catalog.realtime_model_id("mistral-voxtral-mini-latest"),
@@ -351,10 +358,10 @@ mod tests {
     fn curated_lists_against_live_catalog() {
         let catalog = fixture();
         let live = curated_live(&catalog);
-        assert_eq!(live.len(), 4);
+        assert_eq!(live.len(), 5);
         assert!(live.iter().all(|m| m.available), "{live:?}");
         let nova = &live[0];
-        assert!(nova.recommended && nova.id == "deepgram-nova-3");
+        assert!(nova.recommended && nova.id == "elevenlabs-scribe_v3");
         assert_eq!(live.iter().filter(|m| m.recommended).count(), 1);
         let vox = live
             .iter()
@@ -372,7 +379,7 @@ mod tests {
         assert!(
             fin[0].recommended
                 && fin[0].supports_diarization
-                && fin[0].id == "elevenlabs-scribe_v2"
+                && fin[0].id == "elevenlabs-scribe_v3"
         );
         assert!(
             !fin.iter()

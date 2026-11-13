@@ -97,13 +97,14 @@ fn retryable(error: &Error) -> bool {
 
 pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receiver<LiveFrame>) {
     let mut input = Input { rx, open: true, backlog: Backlog::default(), last_end: 0.0 };
+    let mut model = shared.config.model.clone();
     let mut failures = 0usize;
     let mut state = LiveState::Connecting;
     let mut message = None;
     loop {
-        shared.status(channel, state, message.take());
+        shared.status_model(channel, state, message.take(), &model);
         let connected = {
-            let connect = connect(&shared, channel);
+            let connect = connect(&shared, channel, &model);
             tokio::pin!(connect);
             loop {
                 tokio::select! {
@@ -114,11 +115,11 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
         };
         let error = match connected {
             Ok((sender, events)) => {
-                shared.status(channel, LiveState::Live, None);
+                shared.status_model(channel, LiveState::Live, None, &model);
                 let up = Instant::now();
-                match stream(&shared, channel, sender, events, &mut input).await {
+                match stream(&shared, channel, &model, sender, events, &mut input).await {
                     Ended::Stopped => {
-                        shared.status(channel, LiveState::Closed, None);
+                        shared.status_model(channel, LiveState::Closed, None, &model);
                         return;
                     }
                     Ended::Lost(error) => {
@@ -134,21 +135,28 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
         failures += 1;
         let reason = describe_error(&error);
         if !input.open {
-            shared.status(channel, LiveState::Closed, Some(reason));
+            shared.status_model(channel, LiveState::Closed, Some(reason), &model);
             return;
+        }
+        if should_fallback(&model, failures, &error) {
+            model = "deepgram-nova-3".into();
+            failures = 0;
+            state = LiveState::Reconnecting;
+            message = Some(format!("Scribe unavailable: {}. Switching to Nova; local audio recording continues.", reason));
+            continue;
         }
         if !retryable(&error) || failures > BACKOFF_SECONDS.len() {
             warn!("Live {:?} session gave up after {} failures: {}", channel, failures, reason);
-            shared.status(channel, LiveState::Failed, Some(reason));
+            shared.status_model(channel, LiveState::Failed, Some(reason), &model);
             // Keep draining so the pipeline never sees a full channel.
             while input.recv().await.is_some() {}
             return;
         }
         let delay = BACKOFF_SECONDS[failures - 1];
         warn!("Live {:?} session failed ({}); retry {} in {} s", channel, reason, failures, delay);
-        shared.status(channel, LiveState::Reconnecting, Some(format!("{} — retrying in {} s", reason, delay)));
+        shared.status_model(channel, LiveState::Reconnecting, Some(format!("{} — retrying in {} s", reason, delay)), &model);
         if !input.wait(Duration::from_secs(delay)).await {
-            shared.status(channel, LiveState::Closed, None);
+            shared.status_model(channel, LiveState::Closed, None, &model);
             return;
         }
         state = LiveState::Reconnecting;
@@ -159,26 +167,27 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
 async fn connect(
     shared: &Shared,
     channel: Channel,
+    model: &str,
 ) -> Result<(RealtimeSender, mpsc::Receiver<RealtimeEvent>), Error> {
     let config = &shared.config;
     let catalog = shared.client.models().await?;
     let route = catalog
-        .realtime_model_id(&config.model)
+        .realtime_model_id(model)
         .ok_or_else(|| Error::Config(format!("{} has no realtime route on this server", config.model)))?
         .to_string();
     let mut options = RealtimeOptions::new(route);
     options.language = config.language.clone();
-    options.diarize = config.diarize_for(channel);
+    options.diarize = config.diarize_for_model(channel, model);
     options.keyterms = config.keyterms.clone();
     options.client_session_id = Some(config.meeting_id.clone());
     RealtimeSession::connect(&shared.client, options).await
 }
 
-fn builder_for(shared: &Shared, channel: Channel, offset: f64) -> LineBuilder {
+fn builder_for(shared: &Shared, channel: Channel, model: &str, offset: f64) -> LineBuilder {
     let config = &shared.config;
     let speakers =
-        SpeakerLabels::for_session(config.mode, channel, config.diarize_for(channel), &config.me_label, &config.them_label);
-    let mut builder_config = LineBuilderConfig::new(channel, &config.model, speakers);
+        SpeakerLabels::for_session(config.mode, channel, config.diarize_for_model(channel, model), &config.me_label, &config.them_label);
+    let mut builder_config = LineBuilderConfig::new(channel, model, speakers);
     builder_config.session_offset = offset.max(0.0);
     LineBuilder::new(builder_config)
 }
@@ -196,6 +205,7 @@ fn note_event(shared: &Shared, event: &RealtimeEvent) {
 async fn stream(
     shared: &Shared,
     channel: Channel,
+    model: &str,
     mut sender: RealtimeSender,
     mut events: mpsc::Receiver<RealtimeEvent>,
     input: &mut Input,
@@ -206,7 +216,7 @@ async fn stream(
         .front()
         .map(|frame| frame.end - frame.duration())
         .unwrap_or(input.last_end);
-    let mut builder = builder_for(shared, channel, offset);
+    let mut builder = builder_for(shared, channel, model, offset);
     let mut sent = offset;
     if input.backlog.dropped > 0 {
         warn!("Live {:?}: {} frames of audio were dropped while connecting", channel, input.backlog.dropped);
@@ -352,6 +362,17 @@ mod tests {
     }
 
     #[test]
+    fn scribe_falls_back_after_retry_or_provider_rejection() {
+        let transient = Error::Network("unavailable".into());
+        assert!(!should_fallback("elevenlabs-scribe_v3", 1, &transient));
+        assert!(should_fallback("elevenlabs-scribe_v3", 2, &transient));
+        assert!(should_fallback("elevenlabs-scribe_v3", 1, &Error::SessionFailed { code: "provider_error".into(), message: "unsupported model".into(), retryable: false }));
+        assert!(!should_fallback("deepgram-nova-3", 2, &transient));
+        assert!(!should_fallback("elevenlabs-scribe_v3", 2, &Error::Unauthorized));
+        assert!(!should_fallback("elevenlabs-scribe_v3", 2, &Error::Cancelled));
+    }
+
+    #[test]
     fn retry_only_what_can_recover() {
         assert!(retryable(&Error::Network("x".into())));
         assert!(retryable(&Error::RealtimeClosed("x".into())));
@@ -361,4 +382,10 @@ mod tests {
         assert!(!retryable(&Error::BadRequest { status: 400, body: String::new() }));
         assert!(!retryable(&Error::Config("x".into())));
     }
+}
+
+fn should_fallback(model: &str, failures: usize, error: &Error) -> bool {
+    model == "elevenlabs-scribe_v3"
+        && !matches!(error, Error::Unauthorized | Error::Forbidden(_) | Error::Cancelled)
+        && (failures >= 2 || !retryable(error))
 }

@@ -90,7 +90,7 @@ impl RealtimeOptions {
             pairs.push(("language", lang.to_string()));
         }
         if self.diarize {
-            if matches!(family, ModelFamily::Scribe | ModelFamily::Cohere) {
+            if family == ModelFamily::Cohere || (family == ModelFamily::Scribe && !self.model.ends_with("scribe_v3")) {
                 return Err(Error::Config(format!(
                     "{} does not support live speaker labels",
                     self.model
@@ -679,6 +679,9 @@ mod tests {
 
     #[test]
     fn diarize_rejected_where_it_fails() {
+        let mut v3 = RealtimeOptions::new("elevenlabs-scribe_v3");
+        v3.diarize = true;
+        assert!(keys(&v3).contains(&"diarize=true".to_string()));
         let mut o = RealtimeOptions::new("elevenlabs-scribe_v2");
         o.diarize = true;
         assert!(matches!(o.query_pairs(), Err(Error::Config(_))));

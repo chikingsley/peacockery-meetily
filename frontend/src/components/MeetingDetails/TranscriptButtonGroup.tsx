@@ -95,7 +95,7 @@ export function TranscriptButtonGroup({
         )}
         {source === "live" && (
           <span className="rounded-full bg-muted/40 px-2 py-0.5 font-medium text-foreground">
-            Live draft
+            Live transcript
           </span>
         )}
         {hasFinal && hasLive && (
@@ -104,7 +104,9 @@ export function TranscriptButtonGroup({
             onClick={onToggleSource}
             className="text-info hover:underline"
           >
-            {source === "live" ? "Show final transcript" : "View live draft"}
+            {source === "live"
+              ? "Show final transcript"
+              : "View live transcript"}
           </button>
         )}
       </div>

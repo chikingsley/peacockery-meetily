@@ -440,9 +440,18 @@ impl LineBuilder {
             let end = self.audio_time(sent);
             (self.interim_start.unwrap_or(end), end)
         });
-        let provider = event.segments.iter().find_map(|s| s.speaker.clone());
-        let speaker = self.label(provider.as_deref());
-        self.emit_final(speaker, &event.text, start, end, out);
+        let turns = if event.speaker_turns.is_empty() { &event.segments } else { &event.speaker_turns };
+        if turns.iter().any(|turn| turn.speaker.is_some()) {
+            for turn in turns {
+                let speaker = self.label(turn.speaker.as_deref());
+                let turn_start = turn.start_seconds.map(|t| t + self.config.session_offset).unwrap_or(start);
+                let turn_end = turn.end_seconds.map(|t| t + self.config.session_offset).unwrap_or(end);
+                self.emit_final(speaker, &turn.text, turn_start, turn_end, out);
+            }
+        } else {
+            let speaker = self.label(None);
+            self.emit_final(speaker, &event.text, start, end, out);
+        }
         self.interim_start = None;
         self.interim_text.clear();
         self.set_preview(None, "", out);
@@ -538,6 +547,25 @@ mod tests {
             SpeakerLabels::for_session(LiveMode::Mixed, Channel::Mixed, false, "Me", "Them"),
             SpeakerLabels::None
         );
+    }
+
+    #[test]
+    fn scribe_commit_splits_speakers_and_preserves_recording_offsets() {
+        let labels = SpeakerLabels::for_session(LiveMode::Mixed, Channel::Mixed, true, "Me", "Them");
+        let mut config = LineBuilderConfig::new(Channel::Mixed, "elevenlabs-scribe_v3", labels);
+        config.session_offset = 10.0;
+        let mut builder = LineBuilder::new(config);
+        let event = RealtimeEvent::Committed(TranscriptEvent {
+            text: "Hello. Hi. Welcome back.".into(),
+            speaker_turns: vec![
+                LiveSegment { text: "Hello.".into(), speaker: Some("speaker_0".into()), start_seconds: Some(0.0), end_seconds: Some(1.0) },
+                LiveSegment { text: "Hi.".into(), speaker: Some("speaker_1".into()), start_seconds: Some(1.1), end_seconds: Some(2.0) },
+                LiveSegment { text: "Welcome back.".into(), speaker: Some("speaker_0".into()), start_seconds: Some(2.1), end_seconds: Some(4.0) },
+            ],
+            ..Default::default()
+        });
+        let out = builder.on_event(&event, 15.0);
+        assert_eq!(finals(&out), [(Some("Speaker 1"), "Hello.", 10.0, 11.0), (Some("Speaker 2"), "Hi.", 11.1, 12.0), (Some("Speaker 1"), "Welcome back.", 12.1, 14.0)]);
     }
 
     #[test]

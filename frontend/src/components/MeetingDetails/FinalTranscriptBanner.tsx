@@ -10,7 +10,6 @@ import { FINAL_STATE_TEXT, isFinalInProgress } from "@/lib/live-transcript";
 export function FinalTranscriptBanner({
   view,
   modelLabel,
-  hasFinal,
   onRetry,
 }: {
   view: FinalTranscriptView;
@@ -53,15 +52,6 @@ export function FinalTranscriptBanner({
           <RotateCcw className="mr-1 h-3.5 w-3.5" /> Retry
         </Button>
       </div>
-    );
-  }
-
-  if (!hasFinal && view.state === null) {
-    return (
-      <p className="text-center text-xs text-muted-foreground">
-        No final transcript yet. Run it for the accurate text and speaker
-        labels.
-      </p>
     );
   }
 

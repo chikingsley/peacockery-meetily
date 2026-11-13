@@ -66,10 +66,14 @@ impl LiveConfig {
         }
     }
 
-    /// Diarization is a Voxtral realtime 3 option; it applies to the system session (split)
+    /// Diarization is supported by Scribe v3 and Voxtral realtime 3; it applies to the system session (split)
     /// or the mixed session.
     pub fn diarize_for(&self, channel: Channel) -> bool {
-        self.diarize && channel != Channel::Mic && ModelFamily::of(&self.model) == ModelFamily::VoxtralRealtime3
+        self.diarize_for_model(channel, &self.model)
+    }
+
+    pub fn diarize_for_model(&self, channel: Channel, model: &str) -> bool {
+        self.diarize && channel != Channel::Mic && (ModelFamily::of(model) == ModelFamily::VoxtralRealtime3 || model == "elevenlabs-scribe_v3")
     }
 
     pub fn mode_name(&self) -> &'static str {
@@ -189,7 +193,7 @@ pub(crate) struct Shared {
 }
 
 impl Shared {
-    fn status(&self, channel: Channel, state: LiveState, message: Option<String>) {
+    fn status_model(&self, channel: Channel, state: LiveState, message: Option<String>, model: &str) {
         match &message {
             Some(message) => info!("Live {:?} session: {:?} ({})", channel, state, message),
             None => info!("Live {:?} session: {:?}", channel, state),
@@ -197,7 +201,7 @@ impl Shared {
         self.sink.status(&LiveStatus {
             meeting_id: self.config.meeting_id.clone(),
             channel,
-            model: self.config.model.clone(),
+            model: model.to_string(),
             state,
             message,
         });

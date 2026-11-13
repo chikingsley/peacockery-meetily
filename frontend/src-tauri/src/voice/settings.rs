@@ -37,12 +37,12 @@ impl Default for VoiceSettings {
         Self {
             base_url: DEFAULT_BASE_URL.to_string(),
             live_enabled: true,
-            live_model: "deepgram-nova-3".to_string(),
+            live_model: "elevenlabs-scribe_v3".to_string(),
             live_mode: LiveMode::Split,
-            live_diarize: false,
-            final_model: "elevenlabs-scribe_v2".to_string(),
+            live_diarize: true,
+            final_model: "elevenlabs-scribe_v3".to_string(),
             final_diarize: true,
-            auto_final: true,
+            auto_final: false,
             language: "en".to_string(),
             keyterms: Vec::new(),
             me_label: "Me".to_string(),
@@ -247,7 +247,7 @@ mod tests {
         });
         let settings = VoiceSettings::from_stored(Some(&stored));
         assert_eq!(settings.live_mode, LiveMode::Mixed);
-        assert_eq!(settings.final_model, "elevenlabs-scribe_v2");
+        assert_eq!(settings.final_model, "elevenlabs-scribe_v3");
         assert_eq!(settings.language, "en");
         assert!(settings.auto_summary);
         assert_eq!(settings.me_label, "Simon");

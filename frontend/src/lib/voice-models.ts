@@ -1,6 +1,6 @@
 import type { LiveMode, ModelOption } from "@/types/voice";
 
-/** The only live model that can label speakers (Voxtral realtime `diarize=true`, §3). */
+/** Voxtral supports live speaker labels alongside Scribe v3. */
 export const LIVE_SPEAKER_LABEL_MODEL =
   "mistral-voxtral-mini-transcribe-realtime-3";
 
@@ -66,7 +66,9 @@ export function modelOptionText(option: ModelOption): string {
 }
 
 export function supportsLiveSpeakerLabels(modelId: string): boolean {
-  return modelId === LIVE_SPEAKER_LABEL_MODEL;
+  return (
+    modelId === LIVE_SPEAKER_LABEL_MODEL || modelId === "elevenlabs-scribe_v3"
+  );
 }
 
 /** What "live speaker labels" does in each live mode (§5 speaker rules). */
