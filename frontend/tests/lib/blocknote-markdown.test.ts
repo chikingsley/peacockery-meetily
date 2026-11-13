@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
+
 import { blocksToMarkdownSafely } from "../../src/lib/blocknote-markdown";
 
 describe("blocksToMarkdownSafely", () => {
@@ -24,18 +25,24 @@ describe("blocksToMarkdownSafely", () => {
 
   test("returns fallback markdown when conversion throws", async () => {
     const error = new Error("conversion failed");
+
     const editor = {
       blocksToMarkdownLossy: mock(async () => {
         throw error;
       }),
     };
+
     const consoleError = mock(() => {});
     console.error = consoleError as any;
 
-    const result = await blocksToMarkdownSafely(editor, [{ id: "block-1" }] as any, {
-      source: "test-fallback",
-      fallbackMarkdown: "existing markdown",
-    });
+    const result = await blocksToMarkdownSafely(
+      editor,
+      [{ id: "block-1" }] as any,
+      {
+        fallbackMarkdown: "existing markdown",
+        source: "test-fallback",
+      }
+    );
 
     expect(result).toEqual({
       markdown: "existing markdown",
@@ -45,10 +52,10 @@ describe("blocksToMarkdownSafely", () => {
     expect(consoleError).toHaveBeenCalledWith(
       "Failed to convert BlockNote blocks to markdown",
       {
-        source: "test-fallback",
         blocksCount: 1,
         error,
-      },
+        source: "test-fallback",
+      }
     );
   });
 
@@ -58,6 +65,7 @@ describe("blocksToMarkdownSafely", () => {
         throw new Error("conversion failed");
       }),
     };
+
     console.error = mock(() => {}) as any;
 
     const result = await blocksToMarkdownSafely(editor, [] as any, {

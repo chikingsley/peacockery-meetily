@@ -1,5 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Loader2, AlertCircle, X, FileAudio, Clock, HardDrive } from 'lucide-react';
+import {
+  Upload,
+  Loader2,
+  AlertCircle,
+  X,
+  FileAudio,
+  Clock,
+  HardDrive,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
+
+import { getAudioFormatsDisplayList } from "@/constants/audioFormats";
+import { useConfig } from "@/contexts/ConfigContext";
+import { useImportAudio } from "@/hooks/useImportAudio";
+
+import { useSidebar } from "../Sidebar/SidebarProvider";
+import { Button } from "../ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,15 +24,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../ui/dialog';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { toast } from 'sonner';
-import { useImportAudio } from '@/hooks/useImportAudio';
-import { useRouter } from 'next/navigation';
-import { useSidebar } from '../Sidebar/SidebarProvider';
-import { useConfig } from '@/contexts/ConfigContext';
-import { getAudioFormatsDisplayList } from '@/constants/audioFormats';
+} from "../ui/dialog";
+import { Input } from "../ui/input";
 
 interface ImportAudioDialogProps {
   open: boolean;
@@ -29,15 +39,25 @@ function formatDuration(seconds: number): string {
   const secs = Math.floor(seconds % 60);
 
   if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }
-  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+
+  return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
 function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
@@ -49,7 +69,7 @@ export function ImportAudioDialog({
   const router = useRouter();
   const { refetchMeetings } = useSidebar();
   const { voiceSettings, voiceModels } = useConfig();
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState("");
   // "Dialog not yet opened": the init effect must run even when mounted with open=true.
   const prevOpenRef = useRef(false);
 
@@ -65,20 +85,26 @@ export function ImportAudioDialog({
     cancelImport,
     reset,
   } = useImportAudio();
+
   const isProcessing = isImporting;
 
   useEffect(() => {
     const wasOpen = prevOpenRef.current;
     prevOpenRef.current = open;
+
     if (open && !wasOpen) {
       reset();
-      setTitle('');
-      if (preselectedFile) void validateFile(preselectedFile);
+      setTitle("");
+
+      if (preselectedFile) {
+        void validateFile(preselectedFile);
+      }
     }
   }, [open, preselectedFile, reset, validateFile]);
 
   const finalModelLabel = voiceSettings
-    ? voiceModels?.final.find(m => m.id === voiceSettings.final_model)?.label ?? voiceSettings.final_model
+    ? (voiceModels?.final.find((m) => m.id === voiceSettings.final_model)
+        ?.label ?? voiceSettings.final_model)
     : null;
 
   const handleSelectFile = async () => {
@@ -86,11 +112,20 @@ export function ImportAudioDialog({
   };
 
   const handleStartImport = async () => {
-    if (!fileInfo) return;
+    if (!fileInfo) {
+      return;
+    }
+
     // Resolves on the meeting's `import-complete`; the dialog shows progress until then.
     const meetingId = await startImport(fileInfo.path, title.trim() || null);
-    if (!meetingId) return;
-    toast.success('Audio imported', { description: 'The final transcript is running.' });
+
+    if (!meetingId) {
+      return;
+    }
+
+    toast.success("Audio imported", {
+      description: "The final transcript is running.",
+    });
     await refetchMeetings();
     onOpenChange(false);
     router.push(`/meeting-details?id=${encodeURIComponent(meetingId)}`);
@@ -99,8 +134,9 @@ export function ImportAudioDialog({
   const handleCancel = async () => {
     if (isProcessing) {
       await cancelImport();
-      toast.info('Import cancelled');
+      toast.info("Import cancelled");
     }
+
     onOpenChange(false);
   };
 
@@ -109,6 +145,7 @@ export function ImportAudioDialog({
     if (!newOpen && isProcessing) {
       return;
     }
+
     onOpenChange(newOpen);
   };
 
@@ -132,30 +169,30 @@ export function ImportAudioDialog({
         onInteractOutside={handleInteractOutside}
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center">
             {isProcessing ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                <Loader2 className="h-5 w-5 animate-spin text-info" />
                 Importing Audio...
               </>
             ) : error ? (
               <>
-                <AlertCircle className="h-5 w-5 text-red-600" />
+                <AlertCircle className="h-5 w-5 text-destructive" />
                 Import Failed
               </>
             ) : (
               <>
-                <Upload className="h-5 w-5 text-blue-600" />
+                <Upload className="h-5 w-5 text-info" />
                 Import Audio File
               </>
             )}
           </DialogTitle>
           <DialogDescription>
             {isProcessing
-              ? progress?.message || 'Processing audio...'
+              ? progress?.message || "Processing audio..."
               : error
-              ? 'An error occurred during import'
-              : 'Import an audio file as a new meeting; Peacockery Voice transcribes it'}
+                ? "An error occurred during import"
+                : "Import an audio file as a new meeting; Peacockery Voice transcribes it"}
           </DialogDescription>
         </DialogHeader>
 
@@ -164,12 +201,14 @@ export function ImportAudioDialog({
           {!isProcessing && !error && (
             <>
               {fileInfo ? (
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="space-y-3 rounded-lg bg-muted/40 p-4">
                   <div className="flex items-start gap-3">
-                    <FileAudio className="h-8 w-8 text-blue-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{fileInfo.filename}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                    <FileAudio className="h-8 w-8 flex-shrink-0 text-info" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-foreground">
+                        {fileInfo.filename}
+                      </p>
+                      <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" />
                           {formatDuration(fileInfo.duration_seconds)}
@@ -178,49 +217,70 @@ export function ImportAudioDialog({
                           <HardDrive className="h-3.5 w-3.5" />
                           {formatFileSize(fileInfo.size_bytes)}
                         </span>
-                        <span className="text-blue-600 font-medium">{fileInfo.format}</span>
+                        <span className="font-medium text-info">
+                          {fileInfo.format}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Editable title */}
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-gray-700">Meeting title (optional)</label>
+                    <label
+                      htmlFor="import-title"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Meeting title (optional)
+                    </label>
                     <Input
+                      id="import-title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder={fileInfo.filename}
                     />
                   </div>
 
-                  <Button variant="outline" size="sm" onClick={handleSelectFile} className="w-full">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectFile}
+                    className="w-full"
+                  >
                     Choose Different File
                   </Button>
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <FileAudio className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <Button onClick={handleSelectFile} disabled={status === 'validating'}>
-                    {status === 'validating' ? (
+                <div className="rounded-lg border-2 border-dashed border-border p-8 text-center">
+                  <FileAudio className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                  <Button
+                    onClick={handleSelectFile}
+                    disabled={status === "validating"}
+                  >
+                    {status === "validating" ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Validating...
                       </>
                     ) : (
                       <>
-                        <Upload className="h-4 w-4 mr-2" />
+                        <Upload className="mr-2 h-4 w-4" />
                         Select Audio File
                       </>
                     )}
                   </Button>
-                  <p className="text-sm text-gray-500 mt-2">{getAudioFormatsDisplayList()}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {getAudioFormatsDisplayList()}
+                  </p>
                 </div>
               )}
 
               {fileInfo && finalModelLabel && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Final transcript: {finalModelLabel}
-                  {voiceSettings?.final_diarize ? ' with speaker labels' : ''} (change in Settings)
+                  {voiceSettings?.final_diarize
+                    ? " with speaker labels"
+                    : ""}{" "}
+                  (change in Settings)
                 </p>
               )}
             </>
@@ -230,25 +290,27 @@ export function ImportAudioDialog({
           {isProcessing && progress && (
             <div className="space-y-2">
               <div className="relative">
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
-                    style={{ width: `${Math.min(progress.progress_percentage, 100)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-gray-600 mt-1">
+                <progress
+                  className="h-3 w-full"
+                  max={100}
+                  value={Math.min(progress.progress_percentage, 100)}
+                  aria-label="Import progress"
+                />
+                <div className="mt-1 flex justify-between text-xs text-muted-foreground">
                   <span>{progress.stage}</span>
                   <span>{Math.round(progress.progress_percentage)}%</span>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground text-center">{progress.message}</p>
+              <p className="text-center text-sm text-muted-foreground">
+                {progress.message}
+              </p>
             </div>
           )}
 
           {/* Error display */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+              <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
         </div>
@@ -259,19 +321,15 @@ export function ImportAudioDialog({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button
-                onClick={handleStartImport}
-                className="bg-blue-600 hover:bg-blue-700"
-                disabled={!fileInfo}
-              >
-                <Upload className="h-4 w-4 mr-2" />
+              <Button onClick={handleStartImport} disabled={!fileInfo}>
+                <Upload className="mr-2 h-4 w-4" />
                 Import
               </Button>
             </>
           )}
           {isProcessing && (
             <Button variant="outline" onClick={handleCancel}>
-              <X className="h-4 w-4 mr-2" />
+              <X className="mr-2 h-4 w-4" />
               Cancel
             </Button>
           )}

@@ -1,7 +1,15 @@
-import { useRouter } from 'next/navigation';
-import { KeyRound } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { KeyRound } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface VoiceNotConfiguredDialogProps {
   open: boolean;
@@ -9,26 +17,33 @@ interface VoiceNotConfiguredDialogProps {
 }
 
 /** Shown when a recording is started without a Peacockery Voice API key. */
-export function VoiceNotConfiguredDialog({ open, onOpenChange }: VoiceNotConfiguredDialogProps) {
+export function VoiceNotConfiguredDialog({
+  open,
+  onOpenChange,
+}: VoiceNotConfiguredDialogProps) {
   const router = useRouter();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <KeyRound className="h-5 w-5 text-blue-600" />
+          <DialogTitle className="flex items-center">
+            <KeyRound className="h-5 w-5 text-info" />
             Peacockery Voice not configured
           </DialogTitle>
           <DialogDescription>
-            Transcription and summaries run on the Peacockery Voice API. Add the API key in Settings first.
+            Transcription and summaries run on the Peacockery Voice API. Add the
+            API key in Settings first.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button
             onClick={() => {
               onOpenChange(false);
-              router.push('/settings?tab=voice');
+              router.push("/settings?tab=voice");
             }}
           >
             Open settings

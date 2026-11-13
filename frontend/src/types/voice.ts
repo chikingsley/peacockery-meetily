@@ -7,7 +7,7 @@
 // Settings, credential, models (§2, §8 "Voice settings")
 // ---------------------------------------------------------------------------
 
-export type LiveMode = 'split' | 'mixed';
+export type LiveMode = "split" | "mixed";
 
 export interface VoiceSettings {
   base_url: string;
@@ -61,7 +61,7 @@ export interface ConnectionTestResult {
 // Recording (§8 "Recording")
 // ---------------------------------------------------------------------------
 
-export type AudioDeviceType = 'Input' | 'Output';
+export type AudioDeviceType = "Input" | "Output";
 
 export interface AudioDevice {
   name: string;
@@ -71,7 +71,7 @@ export interface AudioDevice {
 }
 
 /** Pseudo system device: process-tree loopback of Chrome (Google Voice PWA). */
-export const CHROME_APP_DEVICE = 'app:chrome';
+export const CHROME_APP_DEVICE = "app:chrome";
 
 export interface StartRecordingResult {
   meeting_id: string;
@@ -107,9 +107,15 @@ export interface RecordingPreferences {
 // Meetings and transcripts (§7, §8 "Meetings / transcripts")
 // ---------------------------------------------------------------------------
 
-export type TranscriptSource = 'live' | 'final';
-export type TranscriptSourceQuery = 'best' | TranscriptSource;
-export type MeetingStatus = 'recording' | 'stopped' | 'interrupted' | 'imported';
+export type TranscriptSource = "live" | "final";
+
+export type TranscriptSourceQuery = "best" | TranscriptSource;
+
+export type MeetingStatus =
+  | "recording"
+  | "stopped"
+  | "interrupted"
+  | "imported";
 
 export interface MeetingListItem {
   id: string;
@@ -173,7 +179,12 @@ export interface TranscriptSearchResult {
 // Final transcript (§6)
 // ---------------------------------------------------------------------------
 
-export type FinalTranscriptState = 'queued' | 'uploading' | 'transcribing' | 'done' | 'failed';
+export type FinalTranscriptState =
+  | "queued"
+  | "uploading"
+  | "transcribing"
+  | "done"
+  | "failed";
 
 export interface FinalTranscriptStatusResult {
   state: FinalTranscriptState | null;
@@ -215,7 +226,7 @@ export interface SummaryTemplate {
 // Events (§9)
 // ---------------------------------------------------------------------------
 
-export type LiveChannel = 'mic' | 'system' | 'mixed';
+export type LiveChannel = "mic" | "system" | "mixed";
 
 export interface RecordingStartedEvent {
   meeting_id: string;
@@ -246,7 +257,7 @@ export interface TranscriptUpdate {
   audio_end_time: number;
   duration: number;
   is_partial: false;
-  source: 'live';
+  source: "live";
   confidence: null;
 }
 
@@ -260,7 +271,12 @@ export interface TranscriptInterim {
   text: string;
 }
 
-export type LiveTranscriptionState = 'connecting' | 'live' | 'reconnecting' | 'failed' | 'closed';
+export type LiveTranscriptionState =
+  | "connecting"
+  | "live"
+  | "reconnecting"
+  | "failed"
+  | "closed";
 
 export interface LiveTranscriptionStatus {
   meeting_id: string;

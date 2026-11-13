@@ -13,7 +13,7 @@ This file is the contract between the Rust core, the `peacockery-voice` client c
 Cargo.toml                      workspace: frontend/src-tauri, crates/peacockery-voice, crates/app-loopback
 crates/peacockery-voice/        Peacockery Voice API client (HTTP + realtime WebSocket), pure logic + tests
 crates/app-loopback/            Windows process-tree loopback capture (Chrome / Google Voice audio)
-frontend/                       Next.js 14 static export (UI)
+frontend/                       Next.js 16 static export (UI)
 frontend/src-tauri/             Tauri app: audio capture, recording, SQLite, commands, events
 scripts/build-windows.sh        cross-compile the NSIS installer on GMK (cargo-xwin)
 scripts/install-cica.sh         copy + silent install on CICA over ssh
@@ -27,7 +27,7 @@ Windows is the only shipped target. The crate also compiles on Linux so `cargo t
 the only Linux-specific code is cpal device enumeration and lookup in `audio/devices/` (no process loopback).
 
 Identity: productName `Peacockery Meetily`, identifier `studio.peacockery.meetily`, Cargo package
-`peacockery-meetily`, version `0.5.0`. App data: `%APPDATA%\studio.peacockery.meetily\`.
+`peacockery-meetily`, version `0.6.0`. App data: `%APPDATA%\studio.peacockery.meetily\`.
 Recordings: `%USERPROFILE%\Music\Peacockery Meetily\<title>_<YYYY-MM-DD_HH-MM>\` (Music is not
 OneDrive-redirected on CICA; never fall back to Documents).
 
@@ -247,3 +247,28 @@ Summaries:
 - CICA: `scripts/install-cica.sh` → `scp` the setup exe, silent per-user install (`/S`). The key cannot be stored over ssh
   (Credential Manager refuses a network logon session): paste it in Settings, or run `cmdkey` in the desktop session.
 - Logs: `%LOCALAPPDATA%\studio.peacockery.meetily\logs\` (tauri-plugin-log), readable over `ssh cica`.
+
+## 11. Frontend modernization (0.6.0)
+
+Next.js 16, React 19, Tailwind 4, and BlockNote 0.57 use the static-export Tauri contract.
+Turbopack builds the app with React Strict Mode enabled. BlockNote and Tiptap share their
+current compatible dependencies; the former Webpack aliases and pinned ProseMirror overrides are removed.
+
+The shadcn shell owns sidebar collapse state, persisted locally. Meeting data lives in
+`contexts/MeetingContext.tsx`; `hooks/meeting-details/useSummaryPolling.ts` owns polling.
+The compatibility export in `components/Sidebar/SidebarProvider.tsx` preserves existing hook imports.
+New meeting opens setup; Start recording supplies the optional title and selected devices to Rust.
+Tray requests use context state instead of window events and session-storage flags.
+
+Search debounces 200 ms and invalidates prior responses immediately, including on clear and unmount.
+Rust returns at most 100 distinct meeting hits, newest first, from the best transcript. SQL wildcard
+characters are escaped so search terms are literal. Indexed full-text search remains a separate scaling option.
+
+Ultracite's core, React, Next.js, anti-slop, and shadcn presets run through Oxlint. Oxfmt uses
+Ultracite's formatter preset through explicit config. Project exceptions are documented inline:
+component naming, native callback APIs, compiler-only checks, runtime parsers, native test fixtures,
+and measured transcript virtualization. `pnpm check` runs the complete frontend gate.
+
+The browser preview serves the static export, with an explicit desktop-capability banner.
+Native recording and credentials remain in Tauri. `scripts/preview.sh up|down|status` manages both
+the systemd user service and public tunnel. The preview service has no login or boot autostart.

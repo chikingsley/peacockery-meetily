@@ -17,7 +17,7 @@ down to this one use.
    - the default speakers: everything the PC plays;
    - **Google Chrome app audio (Google Voice)**: only Chrome's sound, so other apps stay out of
      the recording. Chrome must be running. This captures every Chrome tab, not only Google Voice.
-4. Press **Record**. The live transcript appears as you talk ("Me" is the microphone, "Them" is
+4. Choose **New meeting**, enter an optional title, then press **Start recording**. The live transcript appears as you talk ("Me" is the microphone, "Them" is
    the PC sound). Pause and resume as needed.
 5. Press **Stop**. The app finishes the live transcript, saves `audio.mp4`, then uploads it for the
    final transcript. When that is done the meeting page shows it in place of the live one.
@@ -68,8 +68,18 @@ it in Settings, or run `cmdkey /generic:studio.peacockery.meetily/peacockery-voi
 cargo test --workspace                 # Rust unit and replay tests (Linux host)
 cargo clippy --workspace --all-targets
 cargo xwin check --workspace --target x86_64-pc-windows-msvc
-cd frontend && pnpm install && pnpm typecheck && pnpm lint && bun test && pnpm build
+cd frontend && pnpm install --frozen-lockfile && pnpm check
 ```
 
 The live-API tests in `crates/peacockery-voice` are ignored by default; run them with
 `PEACOCKERY_VOICE_LAB_API_KEY` set and `cargo test -p peacockery-voice -- --ignored`.
+
+## UI development and preview
+
+The UI uses Next.js 16, React 19, Tailwind 4 and shadcn components. General settings include
+light, dark and system themes. Use `pnpm format` to apply the Ultracite/Oxfmt preset and
+`pnpm lint` for the Oxlint core, React, Next.js, anti-slop and shadcn checks.
+
+After `pnpm build`, run `scripts/preview.sh up` from the repository root for the supervised
+browser preview. Use `scripts/preview.sh status` to inspect it and `scripts/preview.sh down`
+to stop it and remove its tunnel. The browser preview shows UI; recording runs in the desktop app.

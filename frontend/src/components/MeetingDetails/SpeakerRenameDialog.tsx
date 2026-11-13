@@ -1,11 +1,19 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Loader2, UserPen } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { SpeakerChip } from '@/components/SpeakerChip';
+import { Loader2, UserPen } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { SpeakerChip } from "@/components/SpeakerChip";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 interface SpeakerRenameDialogProps {
   /** Speaker being renamed; null closes the dialog. */
@@ -17,15 +25,29 @@ interface SpeakerRenameDialogProps {
 }
 
 /** Rename one speaker across this meeting's transcript; picking an existing name merges them. */
-export function SpeakerRenameDialog({ speaker, suggestions, onClose, onRename }: SpeakerRenameDialogProps) {
-  const [name, setName] = useState('');
+export function SpeakerRenameDialog({
+  speaker,
+  suggestions,
+  onClose,
+  onRename,
+}: SpeakerRenameDialogProps) {
+  const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
-  useEffect(() => { if (speaker) setName(speaker); }, [speaker]);
+  useEffect(() => {
+    if (speaker) {
+      setName(speaker);
+    }
+  }, [speaker]);
 
   const submit = async (to: string) => {
     const target = to.trim();
-    if (!speaker || !target || target === speaker) return;
+
+    if (!speaker || !target || target === speaker) {
+      return;
+    }
+
     setSaving(true);
+
     try {
       await onRename(speaker, target);
       onClose();
@@ -34,31 +56,50 @@ export function SpeakerRenameDialog({ speaker, suggestions, onClose, onRename }:
     }
   };
 
-  const choices = suggestions.filter(s => s !== speaker);
+  const choices = suggestions.filter((s) => s !== speaker);
 
   return (
-    <Dialog open={speaker !== null} onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
+    <Dialog
+      open={speaker !== null}
+      onOpenChange={(open) => {
+        if (!open && !saving) {
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPen className="h-5 w-5 text-blue-600" />
+          <DialogTitle className="flex items-center">
+            <UserPen className="h-5 w-5 text-info" />
             Rename speaker
           </DialogTitle>
           <DialogDescription>
-            Every line by {speaker ? <SpeakerChip speaker={speaker} /> : null} in this meeting gets the new name.
+            Every line by {speaker ? <SpeakerChip speaker={speaker} /> : null}{" "}
+            in this meeting gets the new name.
           </DialogDescription>
         </DialogHeader>
-        <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(name); }}>
-          <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-label="Speaker name" />
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit(name);
+          }}
+        >
+          <Input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-label="Speaker name"
+          />
           {choices.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {choices.map(choice => (
+              {choices.map((choice) => (
                 <button
-                  key={choice}
                   type="button"
+                  key={choice}
                   disabled={saving}
                   onClick={() => setName(choice)}
-                  className="rounded-full border border-gray-200 px-2.5 py-0.5 text-xs text-gray-700 hover:bg-gray-50"
+                  className="rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground hover:bg-muted/40"
                 >
                   {choice}
                 </button>
@@ -66,9 +107,19 @@ export function SpeakerRenameDialog({ speaker, suggestions, onClose, onRename }:
             </div>
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-            <Button type="submit" disabled={saving || !name.trim() || name.trim() === speaker}>
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving || !name.trim() || name.trim() === speaker}
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Rename
             </Button>
           </DialogFooter>

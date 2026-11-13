@@ -1,7 +1,9 @@
 "use client";
 
-import { Button } from '@/components/ui/button';
-import { ButtonGroup } from '@/components/ui/button-group';
+import { Sparkles, Cpu, FileText, Check, Square } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,9 +11,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Sparkles, Cpu, FileText, Check, Square } from 'lucide-react';
-import type { ModelOption, SummaryTemplate } from '@/types/voice';
+} from "@/components/ui/dropdown-menu";
+import type { ModelOption, SummaryTemplate } from "@/types/voice";
 
 interface SummaryGeneratorButtonGroupProps {
   summaryModel: string | null;
@@ -20,7 +21,13 @@ interface SummaryGeneratorButtonGroupProps {
   onGenerateSummary: (customPrompt: string) => Promise<void>;
   onStopGeneration: () => void;
   customPrompt: string;
-  summaryStatus: 'idle' | 'processing' | 'summarizing' | 'regenerating' | 'completed' | 'error';
+  summaryStatus:
+    | "idle"
+    | "processing"
+    | "summarizing"
+    | "regenerating"
+    | "completed"
+    | "error";
   availableTemplates: SummaryTemplate[];
   selectedTemplate: string;
   onTemplateSelect: (templateId: string, templateName: string) => void;
@@ -46,8 +53,15 @@ export function SummaryGeneratorButtonGroup({
     return null;
   }
 
-  const isGenerating = summaryStatus === 'processing' || summaryStatus === 'summarizing' || summaryStatus === 'regenerating';
-  const modelLabel = summaryModels.find(m => m.id === summaryModel)?.label ?? summaryModel ?? 'Model';
+  const isGenerating =
+    summaryStatus === "processing" ||
+    summaryStatus === "summarizing" ||
+    summaryStatus === "regenerating";
+
+  const modelLabel =
+    summaryModels.find((m) => m.id === summaryModel)?.label ??
+    summaryModel ??
+    "Model";
 
   return (
     <ButtonGroup>
@@ -55,7 +69,6 @@ export function SummaryGeneratorButtonGroup({
         <Button
           variant="outline"
           size="sm"
-          className="bg-gradient-to-r from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100 border-red-200 px-3 gap-2"
           onClick={onStopGeneration}
           title="Stop summary generation"
         >
@@ -66,18 +79,24 @@ export function SummaryGeneratorButtonGroup({
         <Button
           variant="outline"
           size="sm"
-          className="bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 border-blue-200 px-3 gap-2"
           onClick={() => void onGenerateSummary(customPrompt)}
-          title={hasSummary ? 'Regenerate summary' : 'Generate summary'}
+          title={hasSummary ? "Regenerate summary" : "Generate summary"}
         >
           <Sparkles size={18} />
-          <span className="hidden @[24rem]:inline">{hasSummary ? 'Regenerate Summary' : 'Generate Summary'}</span>
+          <span className="hidden @[24rem]:inline">
+            {hasSummary ? "Regenerate Summary" : "Generate Summary"}
+          </span>
         </Button>
       )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" title={`Summary model: ${modelLabel}`} disabled={isGenerating}>
+          <Button
+            variant="outline"
+            size="sm"
+            title={`Summary model: ${modelLabel}`}
+            disabled={isGenerating}
+          >
             <Cpu />
             <span className="hidden @[40rem]:inline">{modelLabel}</span>
           </Button>
@@ -91,10 +110,15 @@ export function SummaryGeneratorButtonGroup({
               disabled={!model.available}
               onClick={() => onSummaryModelChange(model.id)}
               title={model.note}
-              className="flex items-center justify-between gap-2"
+              className="flex items-center justify-between"
             >
-              <span>{model.label}{model.available ? '' : ' (unavailable)'}</span>
-              {summaryModel === model.id && <Check className="h-4 w-4 text-green-600" />}
+              <span>
+                {model.label}
+                {model.available ? "" : " (unavailable)"}
+              </span>
+              {summaryModel === model.id && (
+                <Check className="h-4 w-4 text-success" />
+              )}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -114,10 +138,12 @@ export function SummaryGeneratorButtonGroup({
                 key={template.id}
                 onClick={() => onTemplateSelect(template.id, template.name)}
                 title={template.description}
-                className="flex items-center justify-between gap-2"
+                className="flex items-center justify-between"
               >
                 <span>{template.name}</span>
-                {selectedTemplate === template.id && <Check className="h-4 w-4 text-green-600" />}
+                {selectedTemplate === template.id && (
+                  <Check className="h-4 w-4 text-success" />
+                )}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

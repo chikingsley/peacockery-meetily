@@ -182,16 +182,25 @@ impl TranscriptsRepository {
         Ok(result.rows_affected())
     }
 
-    /// Case-insensitive substring search over every transcript row.
+    /// Literal substring search over the best transcript, one hit per meeting, newest first.
     pub async fn search(pool: &SqlitePool, query: &str) -> Result<Vec<TranscriptSearchResult>, sqlx::Error> {
         if query.trim().is_empty() {
             return Ok(Vec::new());
         }
-        let pattern = format!("%{}%", query.to_lowercase());
+        let escaped = query.trim().to_lowercase().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+        let pattern = format!("%{}%", escaped);
         let rows = sqlx::query_as::<_, (String, String, String, Option<String>)>(
-            "SELECT m.id, m.title, t.transcript, t.timestamp
-             FROM meetings m JOIN transcripts t ON m.id = t.meeting_id
-             WHERE LOWER(t.transcript) LIKE ?",
+            "WITH matches AS (
+                SELECT m.id, m.title, m.created_at, t.transcript, t.timestamp,
+                       ROW_NUMBER() OVER (PARTITION BY m.id ORDER BY t.audio_start_time, t.sequence) AS hit
+                FROM meetings m JOIN transcripts t ON m.id = t.meeting_id
+                WHERE LOWER(t.transcript) LIKE ? ESCAPE '\\'
+                  AND (t.source = 'final' OR NOT EXISTS (
+                    SELECT 1 FROM transcripts f WHERE f.meeting_id = m.id AND f.source = 'final'
+                  ))
+             )
+             SELECT id, title, transcript, timestamp FROM matches WHERE hit = 1
+             ORDER BY created_at DESC, id LIMIT 100",
         )
         .bind(&pattern)
         .fetch_all(pool)
@@ -201,7 +210,7 @@ impl TranscriptsRepository {
             .map(|(id, title, transcript, timestamp)| TranscriptSearchResult {
                 id,
                 title,
-                match_context: match_context(&transcript, query),
+                match_context: match_context(&transcript, query.trim()),
                 timestamp,
             })
             .collect())
@@ -308,6 +317,18 @@ mod tests {
         assert_eq!(hits[0].title, "Call");
         assert!(hits[0].match_context.contains("Peacock build"));
         assert!(TranscriptsRepository::search(&pool, "  ").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn search_is_literal_deduplicated_and_prefers_final() {
+        let pool = pool_with_meeting().await;
+        TranscriptsRepository::insert(&pool, "m1", "live", &line("Me", "old draft", 0.0)).await.unwrap();
+        TranscriptsRepository::insert(&pool, "m1", "final", &line("Me", "100% ready_for review", 0.0)).await.unwrap();
+        TranscriptsRepository::insert(&pool, "m1", "final", &line("Me", "100% complete", 2.0)).await.unwrap();
+        assert_eq!(TranscriptsRepository::search(&pool, "  100%  ").await.unwrap().len(), 1);
+        assert_eq!(TranscriptsRepository::search(&pool, "_").await.unwrap().len(), 1);
+        assert!(TranscriptsRepository::search(&pool, "old draft").await.unwrap().is_empty());
+        assert!(TranscriptsRepository::search(&pool, "ready%for").await.unwrap().is_empty());
     }
 
     #[test]

@@ -1,19 +1,26 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { toast } from 'sonner';
-import type { MeetingSummary, SummaryProcessResponse } from '@/types';
-import type { MeetingMetadata, Transcript, TranscriptSource } from '@/types/voice';
-import { TranscriptPanel } from '@/components/MeetingDetails/TranscriptPanel';
-import { SummaryPanel } from '@/components/MeetingDetails/SummaryPanel';
-import { MeetingDetailsSplitView, type MeetingDetailsTab } from '@/components/MeetingDetails/MeetingDetailsSplitView';
-import { useMeetingData } from '@/hooks/meeting-details/useMeetingData';
-import { useSummaryGeneration } from '@/hooks/meeting-details/useSummaryGeneration';
-import { useTemplates } from '@/hooks/meeting-details/useTemplates';
-import { useCopyOperations } from '@/hooks/meeting-details/useCopyOperations';
-import { useFinalTranscript } from '@/hooks/meeting-details/useFinalTranscript';
-import { useConfig } from '@/contexts/ConfigContext';
-import { voiceService, errorMessage } from '@/services/voiceService';
+
+import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
+
+import { MeetingDetailsSplitView } from "@/components/MeetingDetails/MeetingDetailsSplitView";
+import type { MeetingDetailsTab } from "@/components/MeetingDetails/MeetingDetailsSplitView";
+import { SummaryPanel } from "@/components/MeetingDetails/SummaryPanel";
+import { TranscriptPanel } from "@/components/MeetingDetails/TranscriptPanel";
+import { useConfig } from "@/contexts/ConfigContext";
+import { useCopyOperations } from "@/hooks/meeting-details/useCopyOperations";
+import { useFinalTranscript } from "@/hooks/meeting-details/useFinalTranscript";
+import { useMeetingData } from "@/hooks/meeting-details/useMeetingData";
+import { useSummaryGeneration } from "@/hooks/meeting-details/useSummaryGeneration";
+import { useTemplates } from "@/hooks/meeting-details/useTemplates";
+import { voiceService, errorMessage } from "@/services/voiceService";
+import type { MeetingSummary, SummaryProcessResponse } from "@/types";
+import type {
+  MeetingMetadata,
+  Transcript,
+  TranscriptSource,
+} from "@/types/voice";
 
 export default function PageContent({
   meeting,
@@ -48,15 +55,17 @@ export default function PageContent({
   totalCount: number;
   onLoadMore: () => void;
 }) {
-  const [customPrompt, setCustomPrompt] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<MeetingDetailsTab>('transcript');
+  const [customPrompt, setCustomPrompt] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<MeetingDetailsTab>("transcript");
   const autoSwitchedSummaryMeetingIdsRef = useRef(new Set<string>());
   const manuallySelectedTabMeetingIdsRef = useRef(new Set<string>());
 
   const { voiceSettings, voiceModels } = useConfig();
   // Per-meeting override of the summary model; defaults to the Voice settings choice.
   const [summaryModel, setSummaryModel] = useState<string | null>(null);
-  const effectiveSummaryModel = summaryModel ?? voiceSettings?.summary_model ?? null;
+
+  const effectiveSummaryModel =
+    summaryModel ?? voiceSettings?.summary_model ?? null;
 
   const meetingData = useMeetingData({ meeting, summaryData });
   const templates = useTemplates();
@@ -65,35 +74,38 @@ export default function PageContent({
   const summaryGeneration = useSummaryGeneration({
     initialSummary,
     meeting,
-    selectedTemplate: templates.selectedTemplate,
-    summaryModel: effectiveSummaryModel,
     onMeetingUpdated,
-    updateMeetingTitle: meetingData.updateMeetingTitle,
+    selectedTemplate: templates.selectedTemplate,
     setAiSummary: meetingData.setAiSummary,
+    summaryModel: effectiveSummaryModel,
+    updateMeetingTitle: meetingData.updateMeetingTitle,
   });
 
   const copyOperations = useCopyOperations({
-    meeting,
-    meetingTitle: meetingData.meetingTitle,
     aiSummary: meetingData.aiSummary,
     blockNoteSummaryRef: meetingData.blockNoteSummaryRef,
-    transcriptSource: showingLiveDraft ? 'live' : 'best',
+    meeting,
+    meetingTitle: meetingData.meetingTitle,
+    transcriptSource: showingLiveDraft ? "live" : "best",
   });
 
   const handleOpenMeetingFolder = () => {
     voiceService.openMeetingFolder(meeting.id).catch((error) => {
-      toast.error('Failed to open recording folder', { description: errorMessage(error) });
+      toast.error("Failed to open recording folder", {
+        description: errorMessage(error),
+      });
     });
   };
 
   useEffect(() => {
     if (
-      (meetingData.aiSummary || summaryGeneration.summaryStatus === 'completed')
-      && !autoSwitchedSummaryMeetingIdsRef.current.has(meeting.id)
-      && !manuallySelectedTabMeetingIdsRef.current.has(meeting.id)
+      (meetingData.aiSummary ||
+        summaryGeneration.summaryStatus === "completed") &&
+      !autoSwitchedSummaryMeetingIdsRef.current.has(meeting.id) &&
+      !manuallySelectedTabMeetingIdsRef.current.has(meeting.id)
     ) {
       autoSwitchedSummaryMeetingIdsRef.current.add(meeting.id);
-      setActiveTab('summary');
+      setActiveTab("summary");
     }
   }, [meeting.id, meetingData.aiSummary, summaryGeneration.summaryStatus]);
 
@@ -101,10 +113,10 @@ export default function PageContent({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="flex flex-col h-screen min-w-0 bg-gray-50"
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="flex h-full min-w-0 flex-col bg-muted/40"
     >
-      <div className="flex flex-1 min-w-0 overflow-hidden">
+      <div className="flex min-w-0 flex-1 overflow-hidden">
         <MeetingDetailsSplitView
           activeTab={activeTab}
           onTabChange={(tab) => {
@@ -122,9 +134,13 @@ export default function PageContent({
               finalTranscript={finalTranscript}
               customPrompt={customPrompt}
               onPromptChange={setCustomPrompt}
-              onCopyTranscript={() => void copyOperations.handleCopyTranscript()}
+              onCopyTranscript={() =>
+                void copyOperations.handleCopyTranscript()
+              }
               onOpenMeetingFolder={handleOpenMeetingFolder}
-              onStartFinalTranscript={(model) => void finalTranscript.start(model)}
+              onStartFinalTranscript={(model) =>
+                void finalTranscript.start(model)
+              }
               hasMore={hasMore}
               isLoadingMore={isLoadingMore}
               totalCount={totalCount}
@@ -150,7 +166,9 @@ export default function PageContent({
               onSaveSummary={meetingData.handleSaveSummary}
               onDirtyChange={meetingData.setIsSummaryDirty}
               summaryError={summaryGeneration.summaryError}
-              getSummaryStatusMessage={summaryGeneration.getSummaryStatusMessage}
+              getSummaryStatusMessage={
+                summaryGeneration.getSummaryStatusMessage
+              }
               availableTemplates={templates.availableTemplates}
               selectedTemplate={templates.selectedTemplate}
               onTemplateSelect={templates.handleTemplateSelection}

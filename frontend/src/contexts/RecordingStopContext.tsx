@@ -1,11 +1,24 @@
-'use client';
+"use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
-import { voiceService, errorMessage } from '@/services/voiceService';
-import { useRecordingState, RecordingStatus, STOPPING_MESSAGE } from './RecordingStateContext';
-import { useSidebar } from '@/components/Sidebar/SidebarProvider';
+import { useRouter } from "next/navigation";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+} from "react";
+import type { ReactNode } from "react";
+import { toast } from "sonner";
+
+import { useSidebar } from "@/components/Sidebar/SidebarProvider";
+import { voiceService, errorMessage } from "@/services/voiceService";
+
+import {
+  useRecordingState,
+  RecordingStatus,
+  STOPPING_MESSAGE,
+} from "./RecordingStateContext";
 
 /**
  * The one owner of "recording stopped": the Stop button calls `stopRecording()`, and stops from
@@ -18,34 +31,61 @@ interface RecordingStopContextType {
   stopRecording: () => Promise<void>;
 }
 
-const RecordingStopContext = createContext<RecordingStopContextType | null>(null);
+const RecordingStopContext = createContext<RecordingStopContextType | null>(
+  null
+);
 
 export function useRecordingStop() {
   const ctx = useContext(RecordingStopContext);
-  if (!ctx) throw new Error('useRecordingStop must be used within RecordingStopProvider');
+
+  if (!ctx) {
+    throw new Error(
+      "useRecordingStop must be used within RecordingStopProvider"
+    );
+  }
+
   return ctx;
 }
 
 export function RecordingStopProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { setStatus } = useRecordingState();
-  const { refetchMeetings, setCurrentMeeting, setIsMeetingActive } = useSidebar();
+
+  const { refetchMeetings, setCurrentMeeting, setIsMeetingActive } =
+    useSidebar();
+
   const openedMeetingIdRef = useRef<string | null>(null);
   const stopInProgressRef = useRef(false);
 
-  const openStoppedMeeting = useCallback(async (meetingId: string, title?: string) => {
-    if (openedMeetingIdRef.current === meetingId) return;
-    openedMeetingIdRef.current = meetingId;
-    setIsMeetingActive(false);
-    await refetchMeetings();
-    if (title) setCurrentMeeting({ id: meetingId, title });
-    router.push(`/meeting-details?id=${encodeURIComponent(meetingId)}&source=recording`);
-  }, [refetchMeetings, router, setCurrentMeeting, setIsMeetingActive]);
+  const openStoppedMeeting = useCallback(
+    async (meetingId: string, title?: string) => {
+      if (openedMeetingIdRef.current === meetingId) {
+        return;
+      }
+
+      openedMeetingIdRef.current = meetingId;
+      setIsMeetingActive(false);
+      await refetchMeetings();
+
+      if (title) {
+        setCurrentMeeting({ id: meetingId, title });
+      }
+
+      router.push(
+        `/meeting-details?id=${encodeURIComponent(meetingId)}&source=recording`
+      );
+    },
+    [refetchMeetings, router, setCurrentMeeting, setIsMeetingActive]
+  );
 
   const stopRecording = useCallback(async () => {
-    if (stopInProgressRef.current) return;
+    if (stopInProgressRef.current) {
+      return;
+    }
+
     stopInProgressRef.current = true;
     setStatus(RecordingStatus.STOPPING, STOPPING_MESSAGE);
+
     try {
       // Resolves once the live transcript is drained and the audio is saved. A failed save still
       // resolves (audio_path null) and is reported once through `recording-error`.
@@ -55,7 +95,9 @@ export function RecordingStopProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       // Only "No recording in progress": nothing is stopping, so the controls go back to idle.
       setStatus(RecordingStatus.IDLE);
-      toast.error('Failed to stop recording', { description: errorMessage(error) });
+      toast.error("Failed to stop recording", {
+        description: errorMessage(error),
+      });
     } finally {
       stopInProgressRef.current = false;
     }
@@ -64,19 +106,33 @@ export function RecordingStopProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     let unlisten: (() => void) | undefined;
-    voiceService.onRecordingStopped(({ meeting_id, meeting_name }) => {
-      void openStoppedMeeting(meeting_id, meeting_name);
-    }).then((fn) => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    });
+    voiceService
+      .onRecordingStopped(({ meeting_id, meeting_name }) => {
+        void openStoppedMeeting(meeting_id, meeting_name);
+      })
+      .then((fn) => {
+        if (cancelled) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      })
+      .catch((error) =>
+        console.error("Native event synchronization failed", error)
+      );
+
     const resetOnStart = voiceService.onRecordingStarted(() => {
       openedMeetingIdRef.current = null;
     });
+
     return () => {
       cancelled = true;
       unlisten?.();
-      resetOnStart.then((fn) => fn());
+      resetOnStart
+        .then((fn) => fn())
+        .catch((error) =>
+          console.error("Native event synchronization failed", error)
+        );
     };
   }, [openStoppedMeeting]);
 

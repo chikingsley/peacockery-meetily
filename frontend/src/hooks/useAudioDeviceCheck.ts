@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { voiceService } from '@/services/voiceService';
+import { useCallback, useEffect, useState } from "react";
+
+import { voiceService } from "@/services/voiceService";
 
 /** Whether Windows reports any capture device (mic) and any render/loopback source (system). */
 export function useAudioDeviceCheck() {
@@ -9,12 +10,13 @@ export function useAudioDeviceCheck() {
 
   const check = useCallback(async () => {
     setIsChecking(true);
+
     try {
       const devices = await voiceService.getAudioDevices();
-      setHasMicrophone(devices.some(d => d.device_type === 'Input'));
-      setHasSystemAudio(devices.some(d => d.device_type === 'Output'));
+      setHasMicrophone(devices.some((d) => d.device_type === "Input"));
+      setHasSystemAudio(devices.some((d) => d.device_type === "Output"));
     } catch (error) {
-      console.error('get_audio_devices failed:', error);
+      console.error("get_audio_devices failed:", error);
       setHasMicrophone(false);
       setHasSystemAudio(false);
     } finally {
@@ -22,7 +24,9 @@ export function useAudioDeviceCheck() {
     }
   }, []);
 
-  useEffect(() => { void check(); }, [check]);
+  useEffect(() => {
+    void check();
+  }, [check]);
 
-  return { hasMicrophone, hasSystemAudio, isChecking, check };
+  return { check, hasMicrophone, hasSystemAudio, isChecking };
 }

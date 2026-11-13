@@ -1,26 +1,43 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useSidebar } from '@/components/Sidebar/SidebarProvider';
+import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 
-interface MainContentProps {
-  children: React.ReactNode;
-}
+import { useSidebar } from "@/components/Sidebar/SidebarProvider";
+import { Separator } from "@/components/ui/separator";
+import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { useRecordingState } from "@/contexts/RecordingStateContext";
+import { useDesktopRuntime } from "@/hooks/useDesktopRuntime";
 
-const MainContent: React.FC<MainContentProps> = ({ children }) => {
-  const { isCollapsed } = useSidebar();
+export default function MainContent({ children }: { children: ReactNode }) {
+  const path = usePathname();
+  const desktop = useDesktopRuntime();
+  const { currentMeeting } = useSidebar();
+  const { isRecording } = useRecordingState();
+
+  const title =
+    path === "/settings"
+      ? "Settings"
+      : path === "/meeting-details"
+        ? (currentMeeting?.title ?? "Meeting")
+        : isRecording
+          ? "Recording workspace"
+          : "New meeting";
 
   return (
-    <main
-      className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ${
-        isCollapsed ? 'ml-16' : 'ml-64'
-      }`}
-    >
-      <div className="pl-8 min-w-0 w-full max-w-full overflow-hidden">
-        {children}
-      </div>
-    </main>
+    <SidebarInset className="h-svh overflow-hidden">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
+        <SidebarTrigger />
+        <Separator orientation="vertical" className="h-4" />
+        <span className="truncate text-sm font-medium">{title}</span>
+      </header>
+      {!desktop && (
+        <p className="border-b px-4 py-2 text-xs text-muted-foreground">
+          Browser preview · Open Peacockery Meetily on your PC to record and
+          access saved meetings and settings.
+        </p>
+      )}
+      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+    </SidebarInset>
   );
-};
-
-export default MainContent;
+}

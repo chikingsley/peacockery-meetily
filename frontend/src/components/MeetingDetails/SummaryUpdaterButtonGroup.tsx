@@ -1,8 +1,9 @@
 "use client";
 
-import { Button } from '@/components/ui/button';
-import { ButtonGroup } from '@/components/ui/button-group';
-import { Copy, Save, Loader2 } from 'lucide-react';
+import { Copy, Save, Loader2 } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 
 interface SummaryUpdaterButtonGroupProps {
   isSaving: boolean;
@@ -23,13 +24,11 @@ export function SummaryUpdaterButtonGroup({
       <Button
         variant="outline"
         size="sm"
-        className={`${isDirty ? 'bg-green-200' : ""}`}
         title={isSaving ? "Saving" : "Save Changes"}
         onClick={() => {
-
           onSave();
         }}
-        disabled={isSaving}
+        disabled={isSaving || !isDirty}
       >
         {isSaving ? (
           <>
@@ -50,7 +49,6 @@ export function SummaryUpdaterButtonGroup({
         size="sm"
         title="Copy Summary"
         onClick={() => {
-
           onCopy();
         }}
         className="cursor-pointer"
@@ -58,7 +56,6 @@ export function SummaryUpdaterButtonGroup({
         <Copy />
         <span className="hidden @[40rem]:inline">Copy</span>
       </Button>
-
     </ButtonGroup>
   );
 }

@@ -1,57 +1,131 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { useEffect, useState } from 'react';
-import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { parseSummaryContent } from '../../src/lib/summary-content';
-import type { MeetingSummary, SummaryProcessResponse } from '../../src/types';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
+
+import { useEffect, useState } from "react";
+import { act, create } from "react-test-renderer";
+import type { ReactTestRenderer } from "react-test-renderer";
+
+import { parseSummaryContent } from "../../src/lib/summary-content";
+import type { MeetingSummary, SummaryProcessResponse } from "../../src/types";
 
 // Bun shares module mocks between test files; restore application modules after this suite.
-const originalToast = { ...await import('sonner') };
-const originalCore = { ...await import('@tauri-apps/api/core') };
-const originalEvent = { ...await import('@tauri-apps/api/event') };
-const originalNavigation = { ...await import('next/navigation') };
+const originalToast = { ...(await import("sonner")) };
+const originalCore = { ...(await import("@tauri-apps/api/core")) };
+const originalEvent = { ...(await import("@tauri-apps/api/event")) };
+const originalNavigation = { ...(await import("next/navigation")) };
+
 afterAll(() => {
-  mock.module('@tauri-apps/api/event', () => originalEvent);
-  mock.module('next/navigation', () => originalNavigation);
-  mock.module('sonner', () => originalToast);
-  mock.module('@tauri-apps/api/core', () => originalCore);
+  mock.module("@tauri-apps/api/event", () => originalEvent);
+  mock.module("next/navigation", () => originalNavigation);
+  mock.module("sonner", () => originalToast);
+  mock.module("@tauri-apps/api/core", () => originalCore);
 });
 
-mock.module('next/navigation', () => ({ ...originalNavigation, usePathname: () => '/meeting-details', useRouter: () => ({}) }));
-mock.module('../../src/contexts/RecordingStateContext', () => ({ useRecordingState: () => ({ isRecording: false }) }));
+mock.module("next/navigation", () => ({
+  ...originalNavigation,
+  usePathname: () => "/meeting-details",
+  useRouter: () => ({}),
+}));
+
+mock.module("../../src/contexts/RecordingStateContext", () => ({
+  useRecordingState: () => ({ isRecording: false }),
+}));
+
 const notify = mock(() => {});
-mock.module('sonner', () => ({ toast: { info: notify, error: notify, success: notify, warning: notify } }));
+
+mock.module("sonner", () => ({
+  toast: { error: notify, info: notify, success: notify, warning: notify },
+}));
+
 let startProcess: () => Promise<{ process_id: string }>;
 let getSummary: (meetingId: string) => Promise<SummaryProcessResponse>;
-const invoke = mock(async (command: string, args?: Record<string, unknown>): Promise<unknown> => {
-  if (command === 'api_get_meetings') return [];
-  if (command === 'api_get_summary') return getSummary(args!.meetingId as string);
-  if (command === 'api_process_transcript') return startProcess();
-  if (command === 'api_cancel_summary') return null;
-  throw new Error(`Unexpected command: ${command}`);
-});
-mock.module('@tauri-apps/api/core', () => ({ ...originalCore, invoke }));
-// No Tauri webview here: event listeners attach to nothing.
-mock.module('@tauri-apps/api/event', () => ({ ...originalEvent, listen: async () => () => {} }));
-const { SidebarProvider, useSidebar } = await import('../../src/components/Sidebar/SidebarProvider');
-const { useSummaryGeneration } = await import('../../src/hooks/meeting-details/useSummaryGeneration');
 
-const response = (overrides: Partial<SummaryProcessResponse> = {}): SummaryProcessResponse => ({
-  meeting_id: 'meeting-a', status: 'pending', start: 'attempt-a', end: null,
-  data: null, error: null, meetingName: 'Meeting A', ...overrides,
+const invoke = mock(
+  async (command: string, args?: Record<string, unknown>): Promise<unknown> => {
+    if (command === "api_get_meetings") {
+      return [];
+    }
+
+    if (command === "api_get_summary") {
+      return getSummary(args!.meetingId as string);
+    }
+
+    if (command === "api_process_transcript") {
+      return startProcess();
+    }
+
+    if (command === "api_cancel_summary") {
+      return null;
+    }
+
+    throw new Error(`Unexpected command: ${command}`);
+  }
+);
+
+mock.module("@tauri-apps/api/core", () => ({ ...originalCore, invoke }));
+
+// No Tauri webview here: event listeners attach to nothing.
+mock.module("@tauri-apps/api/event", () => ({
+  ...originalEvent,
+  listen: async () => () => {},
+}));
+
+const { SidebarProvider, useSidebar } =
+  await import("../../src/components/Sidebar/SidebarProvider");
+
+const { useSummaryGeneration } =
+  await import("../../src/hooks/meeting-details/useSummaryGeneration");
+
+const response = (
+  overrides: Partial<SummaryProcessResponse> = {}
+): SummaryProcessResponse => ({
+  data: null,
+  end: null,
+  error: null,
+  meetingName: "Meeting A",
+  meeting_id: "meeting-a",
+  start: "attempt-a",
+  status: "pending",
+  ...overrides,
 });
-let configuredModel: string | null = 'google-gemini-3.8-flash';
+
+let configuredModel: string | null = "google-gemini-3.8-flash";
 let state: ReturnType<typeof useSummaryGeneration>;
-function Status({ initialSummary, meetingId = 'meeting-a' }: {
-  initialSummary: SummaryProcessResponse; meetingId?: string;
+
+function Status({
+  initialSummary,
+  meetingId = "meeting-a",
+}: {
+  initialSummary: SummaryProcessResponse;
+  meetingId?: string;
 }) {
-  const [summary, setAiSummary] = useState<MeetingSummary | null>(() => parseSummaryContent(initialSummary.data));
-  const [title, updateMeetingTitle] = useState('Original title');
+  const [summary, setAiSummary] = useState<MeetingSummary | null>(() =>
+    parseSummaryContent(initialSummary.data)
+  );
+
+  const [title, updateMeetingTitle] = useState("Original title");
   state = useSummaryGeneration({
+    initialSummary,
     meeting: { id: meetingId },
-    summaryModel: configuredModel, selectedTemplate: 'daily_standup',
-    setAiSummary, updateMeetingTitle, initialSummary,
+    selectedTemplate: "daily_standup",
+    setAiSummary,
+    summaryModel: configuredModel,
+    updateMeetingTitle,
   });
-  return <output>{state.summaryStatus}:{state.summaryError}:{title}:{JSON.stringify(summary)}</output>;
+
+  return (
+    <output>
+      {state.summaryStatus}:{state.summaryError}:{title}:
+      {JSON.stringify(summary)}
+    </output>
+  );
 }
 
 let renderer: ReactTestRenderer;
@@ -59,209 +133,340 @@ const timers = new Map<number, () => Promise<void>>();
 let nextTimer = 0;
 const realSetInterval = globalThis.setInterval;
 const realClearInterval = globalThis.clearInterval;
+
 beforeEach(() => {
   renderer = undefined as unknown as ReactTestRenderer;
-  configuredModel = 'google-gemini-3.8-flash';
-  timers.clear(); notify.mockClear(); invoke.mockClear();
+  configuredModel = "google-gemini-3.8-flash";
+  timers.clear();
+  notify.mockClear();
+  invoke.mockClear();
   getSummary = async () => response();
-  startProcess = async () => ({ process_id: 'attempt-a' });
+  startProcess = async () => ({ process_id: "attempt-a" });
   globalThis.setInterval = ((callback: () => Promise<void>) => {
-    const id = ++nextTimer; timers.set(id, callback); return id;
+    const id = ++nextTimer;
+    timers.set(id, callback);
+
+    return id;
   }) as typeof setInterval;
-  globalThis.clearInterval = ((id: number) => { timers.delete(id); }) as typeof clearInterval;
+  globalThis.clearInterval = ((id: number) => {
+    timers.delete(id);
+  }) as typeof clearInterval;
 });
+
 afterEach(async () => {
-  if (renderer) await act(async () => renderer.unmount());
+  if (renderer) {
+    await act(async () => renderer.unmount());
+  }
+
   globalThis.setInterval = realSetInterval;
   globalThis.clearInterval = realClearInterval;
 });
-async function show(initialSummary: SummaryProcessResponse | null, meetingId = 'meeting-a') {
+
+async function show(
+  initialSummary: SummaryProcessResponse | null,
+  meetingId = "meeting-a"
+) {
   await act(async () => {
-    const view = <SidebarProvider>{initialSummary && <Status key={meetingId} initialSummary={initialSummary} meetingId={meetingId} />}</SidebarProvider>;
-    if (renderer) renderer.update(view); else renderer = create(view);
+    const view = (
+      <SidebarProvider>
+        {initialSummary && (
+          <Status
+            key={meetingId}
+            initialSummary={initialSummary}
+            meetingId={meetingId}
+          />
+        )}
+      </SidebarProvider>
+    );
+
+    if (renderer) {
+      renderer.update(view);
+    } else {
+      renderer = create(view);
+    }
   });
 }
+
 const text = () => JSON.stringify(renderer.toJSON());
+
 async function tick() {
-  await act(async () => { for (const callback of [...timers.values()]) callback(); });
+  await act(async () => {
+    for (const callback of [...timers.values()]) {
+      callback();
+    }
+  });
 }
 
-describe('summary state restored when returning to a meeting', () => {
-  test('repeated recovery read failures end regeneration and retain visible notes', async () => {
-    await show(response({ data: { markdown: 'Previous summary' } }));
-    getSummary = async () => { throw new Error('Database unavailable'); };
+describe("summary state restored when returning to a meeting", () => {
+  test("repeated recovery read failures end regeneration and retain visible notes", async () => {
+    await show(response({ data: { markdown: "Previous summary" } }));
+    getSummary = async () => {
+      throw new Error("Database unavailable");
+    };
+
     await tick();
-    expect(state.summaryStatus).toBe('error');
-    expect(state.summaryError).toContain('Database unavailable');
-    expect(text()).toContain('Previous summary');
+    expect(state.summaryStatus).toBe("error");
+    expect(state.summaryError).toContain("Database unavailable");
+    expect(text()).toContain("Previous summary");
     expect(timers.size).toBe(0);
   });
 
-  test('failed cancellation recovery ends loading without discarding visible notes', async () => {
-    await show(response({ data: { markdown: 'Previous summary' } }));
+  test("failed cancellation recovery ends loading without discarding visible notes", async () => {
+    await show(response({ data: { markdown: "Previous summary" } }));
     let reads = 0;
     getSummary = async () => {
-      if (++reads === 1) return response({ status: 'cancelled' });
-      throw new Error('Database unavailable');
+      if (++reads === 1) {
+        return response({ status: "cancelled" });
+      }
+
+      throw new Error("Database unavailable");
     };
+
     await tick();
-    expect(state.summaryStatus).toBe('error');
-    expect(text()).toContain('Previous summary');
+    expect(state.summaryStatus).toBe("error");
+    expect(text()).toContain("Previous summary");
     expect(timers.size).toBe(0);
   });
 
-  test.each(['read', 'callback'])('polling stops when %s fails and its error callback also rejects', async (failure) => {
-    function RejectingConsumer() {
-      const { startSummaryPolling } = useSidebar();
-      useEffect(() => {
-        startSummaryPolling('meeting-a', 'attempt-a', async () => {
-          throw new Error('Consumer failed');
+  test.each(["read", "callback"])(
+    "polling stops when %s fails and its error callback also rejects",
+    async (failure) => {
+      function RejectingConsumer() {
+        const { startSummaryPolling } = useSidebar();
+        useEffect(() => {
+          startSummaryPolling("meeting-a", "attempt-a", async () => {
+            throw new Error("Consumer failed");
+          });
+        }, [startSummaryPolling]);
+
+        return null;
+      }
+
+      await act(async () => {
+        renderer = create(
+          <SidebarProvider>
+            <RejectingConsumer />
+          </SidebarProvider>
+        );
+      });
+      getSummary = async () => {
+        if (failure === "read") {
+          throw new Error("Database unavailable");
+        }
+
+        return response({
+          data: { markdown: "Finished summary" },
+          status: "completed",
         });
-      }, [startSummaryPolling]);
-      return null;
-    }
-    await act(async () => {
-      renderer = create(<SidebarProvider><RejectingConsumer /></SidebarProvider>);
-    });
-    getSummary = async () => {
-      if (failure === 'read') throw new Error('Database unavailable');
-      return response({ status: 'completed', data: { markdown: 'Finished summary' } });
-    };
-    await tick();
-    expect(timers.size).toBe(0);
-  });
+      };
 
-  test('resumes pending generation after leaving and returning, then displays completion', async () => {
+      await tick();
+      expect(timers.size).toBe(0);
+    }
+  );
+
+  test("resumes pending generation after leaving and returning, then displays completion", async () => {
     await show(response());
-    expect(text()).toContain('processing');
+    expect(text()).toContain("processing");
     await show(null);
     expect(timers.size).toBe(0);
     await show(response());
-    expect(text()).toContain('processing');
-    getSummary = async () => response({ status: 'completed', data: { markdown: 'Finished summary' }, meetingName: 'New title' });
+    expect(text()).toContain("processing");
+    getSummary = async () =>
+      response({
+        data: { markdown: "Finished summary" },
+        meetingName: "New title",
+        status: "completed",
+      });
     await tick();
-    expect(text()).toContain('completed');
-    expect(text()).toContain('Finished summary');
-    expect(text()).toContain('New title');
+    expect(text()).toContain("completed");
+    expect(text()).toContain("Finished summary");
+    expect(text()).toContain("New title");
     expect(timers.size).toBe(0);
   });
 
-  test('keeps regeneration loading with old content and restores content on failure', async () => {
-    await show(response({ data: { markdown: 'Previous summary' } }));
-    expect(text()).toContain('processing');
-    getSummary = async () => response({ status: 'failed', error: 'Model unavailable', data: { markdown: 'Previous summary' } });
+  test("keeps regeneration loading with old content and restores content on failure", async () => {
+    await show(response({ data: { markdown: "Previous summary" } }));
+    expect(text()).toContain("processing");
+    getSummary = async () =>
+      response({
+        data: { markdown: "Previous summary" },
+        error: "Model unavailable",
+        status: "failed",
+      });
     await tick();
-    expect(text()).toContain('completed');
-    expect(text()).toContain('Previous summary');
+    expect(text()).toContain("completed");
+    expect(text()).toContain("Previous summary");
   });
 
-  test('shows a failure that happened while the meeting was closed', async () => {
-    await show(response({ status: 'failed', error: 'Model unavailable' }));
-    expect(text()).toContain('error');
-    expect(text()).toContain('Model unavailable');
+  test("shows a failure that happened while the meeting was closed", async () => {
+    await show(response({ error: "Model unavailable", status: "failed" }));
+    expect(text()).toContain("error");
+    expect(text()).toContain("Model unavailable");
     expect(timers.size).toBe(0);
   });
 
-  test('keeps restored notes and exposes a regeneration failure that happened while away', async () => {
-    await show(response({ status: 'failed', error: 'Model unavailable', data: { markdown: 'Previous summary' } }));
-    expect(state.summaryStatus).toBe('error');
-    expect(text()).toContain('Model unavailable');
-    expect(text()).toContain('Previous summary');
+  test("keeps restored notes and exposes a regeneration failure that happened while away", async () => {
+    await show(
+      response({
+        data: { markdown: "Previous summary" },
+        error: "Model unavailable",
+        status: "failed",
+      })
+    );
+    expect(state.summaryStatus).toBe("error");
+    expect(text()).toContain("Model unavailable");
+    expect(text()).toContain("Previous summary");
     expect(notify).not.toHaveBeenCalled();
   });
 
-  test('ordinary rerenders keep the existing poll attached', async () => {
+  test("ordinary rerenders keep the existing poll attached", async () => {
     const initial = response();
     await show(initial);
     const timer = [...timers.keys()][0];
     await show(initial);
     expect([...timers.keys()]).toEqual([timer]);
-    getSummary = async () => response({ status: 'completed', data: { markdown: 'Finished summary' } });
+    getSummary = async () =>
+      response({ data: { markdown: "Finished summary" }, status: "completed" });
     await tick();
-    expect(state.summaryStatus).toBe('completed');
+    expect(state.summaryStatus).toBe("completed");
   });
 
-  test('hydrates completed and cancelled records without replaying notifications', async () => {
-    await show(response({ status: 'completed', data: { markdown: 'Finished while away' } }));
-    expect(state.summaryStatus).toBe('completed');
-    expect(text()).toContain('Finished while away');
+  test("hydrates completed and cancelled records without replaying notifications", async () => {
+    await show(
+      response({
+        data: { markdown: "Finished while away" },
+        status: "completed",
+      })
+    );
+    expect(state.summaryStatus).toBe("completed");
+    expect(text()).toContain("Finished while away");
     await show(null);
-    await show(response({ status: 'cancelled', data: { markdown: 'Restored summary' } }));
-    expect(state.summaryStatus).toBe('completed');
-    expect(text()).toContain('Restored summary');
+    await show(
+      response({ data: { markdown: "Restored summary" }, status: "cancelled" })
+    );
+    expect(state.summaryStatus).toBe("completed");
+    expect(text()).toContain("Restored summary");
     expect(timers.size).toBe(0);
     expect(notify).not.toHaveBeenCalled();
   });
 
-  test('ignores a response belonging to another meeting', async () => {
-    await show(response({ meeting_id: 'meeting-b' }));
-    expect(state.summaryStatus).toBe('idle');
+  test("ignores a response belonging to another meeting", async () => {
+    await show(response({ meeting_id: "meeting-b" }));
+    expect(state.summaryStatus).toBe("idle");
     expect(timers.size).toBe(0);
   });
 
-  test('Stop uses the restored process token', async () => {
+  test("Stop uses the restored process token", async () => {
     await show(response());
     await act(async () => state.handleStopGeneration());
-    expect(invoke.mock.calls).toContainEqual(['api_cancel_summary', { meetingId: 'meeting-a', processId: 'attempt-a' }]);
-    expect(state.summaryStatus).toBe('idle');
+    expect(invoke.mock.calls).toContainEqual([
+      "api_cancel_summary",
+      { meetingId: "meeting-a", processId: "attempt-a" },
+    ]);
+    expect(state.summaryStatus).toBe("idle");
     expect(timers.size).toBe(0);
   });
 
-  test('a late completion from meeting A cannot change meeting B', async () => {
+  test("a late completion from meeting A cannot change meeting B", async () => {
     let resolve!: (value: SummaryProcessResponse) => void;
-    getSummary = () => new Promise(done => { resolve = done; });
+    getSummary = () =>
+      new Promise((done) => {
+        resolve = done;
+      });
     await show(response());
     await tick();
-    await show(response({ meeting_id: 'meeting-b', status: 'idle', start: null }), 'meeting-b');
-    await act(async () => resolve(response({ status: 'completed', data: { markdown: 'Wrong meeting' } })));
-    expect(state.summaryStatus).toBe('idle');
-    expect(text()).not.toContain('Wrong meeting');
+    await show(
+      response({ meeting_id: "meeting-b", start: null, status: "idle" }),
+      "meeting-b"
+    );
+    await act(async () =>
+      resolve(
+        response({ data: { markdown: "Wrong meeting" }, status: "completed" })
+      )
+    );
+    expect(state.summaryStatus).toBe("idle");
+    expect(text()).not.toContain("Wrong meeting");
     expect(notify).not.toHaveBeenCalled();
   });
 
-  test('leaving before the start response arrives keeps the backend job running for a later visit', async () => {
+  test("leaving before the start response arrives keeps the backend job running for a later visit", async () => {
     let resolve!: (value: { process_id: string }) => void;
-    startProcess = () => new Promise(done => { resolve = done; });
-    await show(response({ status: 'idle', start: null }));
+    startProcess = () =>
+      new Promise((done) => {
+        resolve = done;
+      });
+    await show(response({ start: null, status: "idle" }));
     let generation!: Promise<void>;
-    await act(async () => { generation = state.handleGenerateSummary(); });
+    await act(async () => {
+      generation = state.handleGenerateSummary();
+    });
     await show(null);
-    await act(async () => { resolve({ process_id: 'attempt-a' }); await generation; });
-    expect(invoke.mock.calls.filter(([command]) => command === 'api_cancel_summary')).toEqual([]);
+    await act(async () => {
+      resolve({ process_id: "attempt-a" });
+      await generation;
+    });
+    expect(
+      invoke.mock.calls.filter(([command]) => command === "api_cancel_summary")
+    ).toEqual([]);
     expect(timers.size).toBe(0);
     await show(response());
-    expect(state.summaryStatus).toBe('processing');
-    getSummary = async () => response({ status: 'completed', data: { markdown: 'Finished summary' } });
+    expect(state.summaryStatus).toBe("processing");
+    getSummary = async () =>
+      response({ data: { markdown: "Finished summary" }, status: "completed" });
     await tick();
-    expect(state.summaryStatus).toBe('completed');
+    expect(state.summaryStatus).toBe("completed");
   });
 
-  test('starts generation with the meeting, template, prompt and chosen summary model', async () => {
-    await show(response({ status: 'idle', start: null }));
-    await act(async () => state.handleGenerateSummary('  '));
-    expect(invoke.mock.calls).toContainEqual(['api_process_transcript', {
-      meetingId: 'meeting-a', templateId: 'daily_standup', customPrompt: null, model: 'google-gemini-3.8-flash',
-    }]);
+  test("starts generation with the meeting, template, prompt and chosen summary model", async () => {
+    await show(response({ start: null, status: "idle" }));
+    await act(async () => state.handleGenerateSummary("  "));
+    expect(invoke.mock.calls).toContainEqual([
+      "api_process_transcript",
+      {
+        customPrompt: null,
+        meetingId: "meeting-a",
+        model: "google-gemini-3.8-flash",
+        templateId: "daily_standup",
+      },
+    ]);
     configuredModel = null;
-    await show(response({ status: 'idle', start: null }));
-    await act(async () => state.handleRegenerateSummary('People: Ana, Bo'));
-    expect(invoke.mock.calls).toContainEqual(['api_process_transcript', {
-      meetingId: 'meeting-a', templateId: 'daily_standup', customPrompt: 'People: Ana, Bo', model: null,
-    }]);
-    expect(state.summaryStatus).toBe('regenerating');
+    await show(response({ start: null, status: "idle" }));
+    await act(async () => state.handleRegenerateSummary("People: Ana, Bo"));
+    expect(invoke.mock.calls).toContainEqual([
+      "api_process_transcript",
+      {
+        customPrompt: "People: Ana, Bo",
+        meetingId: "meeting-a",
+        model: null,
+        templateId: "daily_standup",
+      },
+    ]);
+    expect(state.summaryStatus).toBe("regenerating");
   });
 
-  test('old in-flight poll cannot stop a resumed poll for the same process', async () => {
+  test("old in-flight poll cannot stop a resumed poll for the same process", async () => {
     let resolve!: (value: SummaryProcessResponse) => void;
-    getSummary = () => new Promise(done => { resolve = done; });
+    getSummary = () =>
+      new Promise((done) => {
+        resolve = done;
+      });
     await show(response());
     await tick();
     await show(null);
     await show(response());
-    await act(async () => resolve(response({ status: 'completed', data: { markdown: 'Finished summary' } })));
-    getSummary = async () => response({ status: 'completed', data: { markdown: 'Finished summary' } });
+    await act(async () =>
+      resolve(
+        response({
+          data: { markdown: "Finished summary" },
+          status: "completed",
+        })
+      )
+    );
+    getSummary = async () =>
+      response({ data: { markdown: "Finished summary" }, status: "completed" });
     await tick();
-    expect(state.summaryStatus).toBe('completed');
-    expect(text()).toContain('Finished summary');
+    expect(state.summaryStatus).toBe("completed");
+    expect(text()).toContain("Finished summary");
   });
 });

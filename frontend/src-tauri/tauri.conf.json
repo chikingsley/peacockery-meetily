@@ -1,71 +1,70 @@
 {
-    "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-    "productName": "Peacockery Meetily",
-    "version": "0.5.0",
-    "identifier": "studio.peacockery.meetily",
-    "build": {
-        "frontendDist": "../out",
-        "devUrl": "http://localhost:3118",
-        "beforeDevCommand": "pnpm dev",
-        "beforeBuildCommand": "pnpm build"
-    },
-    "app": {
-        "windows": [
-            {
-                "title": "Peacockery Meetily",
-                "width": 1100,
-                "height": 700,
-                "resizable": true,
-                "fullscreen": false,
-                "theme": "Light",
-                "decorations": true
-            }
-        ],
-        "security": {
-            "csp": {
-                "default-src": "'self'",
-                "style-src": "'self' 'unsafe-inline'",
-                "img-src": "'self' asset: http://asset.localhost data:",
-                "media-src": "'self' asset: http://asset.localhost",
-                "connect-src": "'self' ipc: http://ipc.localhost"
-            },
-            "assetProtocol": {
-                "enable": true,
-                "scope": [
-                    "$APPDATA/**",
-                    "$AUDIO/**"
-                ]
-            },
-            "capabilities": [
-                {
-                    "identifier": "main",
-                    "description": "Main window",
-                    "windows": [
-                        "main"
-                    ],
-                    "permissions": [
-                        "core:default"
-                    ]
-                }
-            ]
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Peacockery Meetily",
+  "version": "0.6.0",
+  "identifier": "studio.peacockery.meetily",
+  "build": {
+    "frontendDist": "../out",
+    "devUrl": "http://localhost:3118",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Peacockery Meetily",
+        "width": 1100,
+        "height": 700,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' asset: http://asset.localhost data:",
+        "media-src": "'self' asset: http://asset.localhost",
+        "connect-src": "'self' ipc: http://ipc.localhost"
+      },
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$APPDATA/**",
+          "$AUDIO/**"
+        ]
+      },
+      "capabilities": [
+        {
+          "identifier": "main",
+          "description": "Main window",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            "core:default"
+          ]
         }
-    },
-    "bundle": {
-        "active": true,
-        "targets": [
-            "nsis"
-        ],
-        "icon": [
-            "icons/icon.png",
-            "icons/icon.ico"
-        ],
-        "externalBin": [
-            "binaries/ffmpeg"
-        ],
-        "windows": {
-            "nsis": {
-                "installMode": "currentUser"
-            }
-        }
+      ]
     }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/ffmpeg"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  }
 }

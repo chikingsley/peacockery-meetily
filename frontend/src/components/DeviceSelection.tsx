@@ -1,11 +1,25 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RefreshCw, Mic, Speaker } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { voiceService } from '@/services/voiceService';
-import type { AudioDevice, AudioLevels } from '@/types/voice';
-import { deviceLabel, deviceValue, inputDevices as inputsOf, systemDevices as systemsOf } from '@/lib/audio-devices';
-import type { SelectedDevices } from '@/contexts/ConfigContext';
+import { isTauri } from "@tauri-apps/api/core";
+import { RefreshCw, Mic, Speaker } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { SelectedDevices } from "@/contexts/ConfigContext";
+import { useDesktopRuntime } from "@/hooks/useDesktopRuntime";
+import {
+  deviceLabel,
+  deviceValue,
+  inputDevices as inputsOf,
+  systemDevices as systemsOf,
+} from "@/lib/audio-devices";
+import { voiceService } from "@/services/voiceService";
+import type { AudioDevice, AudioLevels } from "@/types/voice";
 
 interface DeviceSelectionProps {
   selectedDevices: SelectedDevices;
@@ -13,7 +27,12 @@ interface DeviceSelectionProps {
   disabled?: boolean;
 }
 
-export function DeviceSelection({ selectedDevices, onDeviceChange, disabled = false }: DeviceSelectionProps) {
+export function DeviceSelection({
+  selectedDevices,
+  onDeviceChange,
+  disabled = false,
+}: DeviceSelectionProps) {
+  const desktop = useDesktopRuntime();
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -21,51 +40,89 @@ export function DeviceSelection({ selectedDevices, onDeviceChange, disabled = fa
   const [isTesting, setIsTesting] = useState(false);
   const [levels, setLevels] = useState<AudioLevels | null>(null);
 
-  const inputDevices = inputsOf(devices);
-  const outputDevices = systemsOf(devices);
+  const inputDevices = React.useMemo(() => inputsOf(devices), [devices]);
+  const outputDevices = React.useMemo(() => systemsOf(devices), [devices]);
 
   const fetchDevices = useCallback(async () => {
+    if (!isTauri()) {
+      setLoading(false);
+      setRefreshing(false);
+
+      return;
+    }
+
     try {
       setError(null);
       setDevices(await voiceService.getAudioDevices());
-    } catch (err) {
-      console.error('get_audio_devices failed:', err);
-      setError('Failed to load audio devices. Check Windows sound settings.');
+    } catch (error_) {
+      console.error("get_audio_devices failed:", error_);
+      setError("Failed to load audio devices. Check Windows sound settings.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { void fetchDevices(); }, [fetchDevices]);
+  useEffect(() => {
+    void fetchDevices();
+  }, [fetchDevices]);
 
   // Reset a selection whose device is gone (e.g. the Jabra headset is off) back to the default.
   const onDeviceChangeRef = useRef(onDeviceChange);
-  useEffect(() => { onDeviceChangeRef.current = onDeviceChange; }, [onDeviceChange]);
   useEffect(() => {
-    if (loading || disabled) return;
+    onDeviceChangeRef.current = onDeviceChange;
+  }, [onDeviceChange]);
+  useEffect(() => {
+    if (loading || disabled) {
+      return;
+    }
+
     let next = selectedDevices;
-    if (selectedDevices.micDevice && inputDevices.length > 0
-      && !inputDevices.some(d => deviceValue(d) === selectedDevices.micDevice)) {
+
+    if (
+      selectedDevices.micDevice &&
+      inputDevices.length > 0 &&
+      !inputDevices.some((d) => deviceValue(d) === selectedDevices.micDevice)
+    ) {
       next = { ...next, micDevice: null };
     }
-    if (selectedDevices.systemDevice && outputDevices.length > 0
-      && !outputDevices.some(d => deviceValue(d) === selectedDevices.systemDevice)) {
+
+    if (
+      selectedDevices.systemDevice &&
+      outputDevices.length > 0 &&
+      !outputDevices.some(
+        (d) => deviceValue(d) === selectedDevices.systemDevice
+      )
+    ) {
       next = { ...next, systemDevice: null };
     }
-    if (next !== selectedDevices) onDeviceChangeRef.current(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [devices, loading, disabled, selectedDevices]);
+
+    if (next !== selectedDevices) {
+      onDeviceChangeRef.current(next);
+    }
+  }, [inputDevices, outputDevices, loading, disabled, selectedDevices]);
 
   // Device test: real RMS levels while monitoring.
   useEffect(() => {
-    if (!isTesting) return;
+    if (!isTesting) {
+      return;
+    }
+
     let cancelled = false;
     let unlisten: (() => void) | undefined;
-    voiceService.onAudioLevels(setLevels).then(fn => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    });
+    voiceService
+      .onAudioLevels(setLevels)
+      .then((fn) => {
+        if (cancelled) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      })
+      .catch((error_) =>
+        console.error("Native event synchronization failed", error_)
+      );
+
     return () => {
       cancelled = true;
       unlisten?.();
@@ -73,20 +130,37 @@ export function DeviceSelection({ selectedDevices, onDeviceChange, disabled = fa
   }, [isTesting]);
 
   // A device change during the test restarts monitoring on the new selection.
-  const testNames = [selectedDevices.micDevice, selectedDevices.systemDevice].filter((n): n is string => !!n);
-  const testKey = JSON.stringify(testNames);
+  const testNames = React.useMemo(
+    () =>
+      [selectedDevices.micDevice, selectedDevices.systemDevice].filter(
+        (n): n is string => !!n
+      ),
+    [selectedDevices.micDevice, selectedDevices.systemDevice]
+  );
+
   const isTestingRef = useRef(isTesting);
   isTestingRef.current = isTesting;
   useEffect(() => {
-    if (!isTestingRef.current) return;
-    voiceService.stopAudioLevelMonitoring()
-      .then(() => voiceService.startAudioLevelMonitoring(JSON.parse(testKey) as string[]))
-      .catch((err) => setError(`Device test failed: ${String(err)}`));
-  }, [testKey]);
+    if (!isTestingRef.current) {
+      return;
+    }
 
-  useEffect(() => () => {
-    void voiceService.stopAudioLevelMonitoring().catch(() => {});
-  }, []);
+    voiceService
+      .stopAudioLevelMonitoring()
+      .then(() => voiceService.startAudioLevelMonitoring(testNames))
+      .catch((error_) => setError(`Device test failed: ${String(error_)}`));
+  }, [testNames]);
+
+  useEffect(
+    () => () => {
+      void voiceService
+        .stopAudioLevelMonitoring()
+        .catch((error_) =>
+          console.error("Device monitoring cleanup failed", error_)
+        );
+    },
+    []
+  );
 
   const toggleTest = async () => {
     try {
@@ -98,18 +172,18 @@ export function DeviceSelection({ selectedDevices, onDeviceChange, disabled = fa
         await voiceService.startAudioLevelMonitoring(testNames);
         setIsTesting(true);
       }
-    } catch (err) {
-      console.error('audio level monitoring failed:', err);
-      setError('Failed to start the device test');
+    } catch (error_) {
+      console.error("audio level monitoring failed:", error_);
+      setError("Failed to start the device test");
     }
   };
 
   if (loading) {
     return (
-      <div className="p-4 animate-pulse">
-        <div className="h-4 bg-gray-200 rounded w-1/3 mb-4" />
-        <div className="h-10 bg-gray-200 rounded mb-3" />
-        <div className="h-10 bg-gray-200 rounded" />
+      <div className="animate-pulse p-4">
+        <div className="mb-4 h-4 w-1/3 rounded bg-muted" />
+        <div className="mb-3 h-10 rounded bg-muted" />
+        <div className="h-10 rounded bg-muted" />
       </div>
     );
   }
@@ -117,70 +191,104 @@ export function DeviceSelection({ selectedDevices, onDeviceChange, disabled = fa
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-gray-900">Audio Devices</h4>
+        <h4 className="text-sm font-medium text-foreground">Audio Devices</h4>
         <div className="flex items-center space-x-2">
           <button
+            type="button"
             onClick={() => void toggleTest()}
-            disabled={disabled}
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${isTesting
-              ? 'bg-red-100 text-red-700 hover:bg-red-200'
-              : 'bg-green-100 text-green-700 hover:bg-green-200'} disabled:pointer-events-none disabled:opacity-50`}
+            disabled={disabled || !desktop}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+              isTesting
+                ? "bg-destructive/10 text-destructive hover:bg-destructive/10"
+                : "bg-success/10 text-success hover:bg-success/10"
+            } disabled:pointer-events-none disabled:opacity-50`}
           >
-            {isTesting ? 'Stop test' : 'Test devices'}
+            {isTesting ? "Stop test" : "Test devices"}
           </button>
           <button
-            onClick={() => { setRefreshing(true); void fetchDevices(); }}
+            type="button"
+            onClick={() => {
+              setRefreshing(true);
+              void fetchDevices();
+            }}
             disabled={refreshing || disabled}
-            className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md p-0 hover:bg-muted/40 disabled:pointer-events-none disabled:opacity-50"
             title="Refresh devices"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md">{error}</div>
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
 
       <DeviceSelect
         id="mic-selection"
-        icon={<Mic className="h-4 w-4 text-gray-600" />}
+        icon={<Mic className="h-4 w-4 text-muted-foreground" />}
         label="Microphone"
         defaultLabel="Default microphone"
         devices={inputDevices}
         value={selectedDevices.micDevice}
-        onChange={(micDevice) => onDeviceChange({ ...selectedDevices, micDevice })}
+        onChange={(micDevice) =>
+          onDeviceChange({ ...selectedDevices, micDevice })
+        }
         disabled={disabled}
-        level={isTesting ? levels?.mic ?? 0 : null}
+        level={isTesting ? (levels?.mic ?? 0) : null}
       />
       <DeviceSelect
         id="system-selection"
-        icon={<Speaker className="h-4 w-4 text-gray-600" />}
-        label="Call / system audio"
+        icon={<Speaker className="h-4 w-4 text-muted-foreground" />}
+        label="Call and system audio"
         defaultLabel="Default playback device"
         devices={outputDevices}
         value={selectedDevices.systemDevice}
-        onChange={(systemDevice) => onDeviceChange({ ...selectedDevices, systemDevice })}
+        onChange={(systemDevice) =>
+          onDeviceChange({ ...selectedDevices, systemDevice })
+        }
         disabled={disabled}
-        level={isTesting ? levels?.system ?? 0 : null}
+        level={isTesting ? (levels?.system ?? 0) : null}
       />
 
-      <div className="rounded-md border border-blue-100 bg-blue-50 p-3 text-xs text-gray-700 space-y-1.5">
-        <p><strong>Microphone:</strong> your voice, normally the Jabra headset mic.</p>
+      <div className="space-y-1.5 rounded-md border border-info/30 bg-info/10 p-3 text-xs text-foreground">
         <p>
-          <strong>Call / system audio:</strong> choose <strong>Google Chrome app audio (Google Voice)</strong> for
-          Google Voice calls. It records only Chrome&apos;s sound, wherever it plays (the Jabra over Bluetooth included),
-          so notification sounds and other apps stay out of the recording. Choose a playback device instead to
-          record everything that device plays, e.g. a Teams or Zoom call in its own app.
+          <strong>Microphone:</strong> your voice, normally the Jabra headset
+          mic.
         </p>
-        <p>Use <strong>Test devices</strong> during a call: the system meter should move when the other side talks.</p>
+        <p>
+          <strong>Call and system audio:</strong> choose{" "}
+          <strong>Google Chrome app audio (Google Voice)</strong> for Google
+          Voice calls. It records only Chrome&apos;s sound, wherever it plays
+          (the Jabra over Bluetooth included), so notification sounds and other
+          apps stay out of the recording. Choose a playback device instead to
+          record everything that device plays, e.g. a Teams or Zoom call in its
+          own app.
+        </p>
+        <p>
+          Use <strong>Test devices</strong> during a call: the system meter
+          should move when the other side talks.
+        </p>
       </div>
     </div>
   );
 }
 
-function DeviceSelect({ id, icon, label, defaultLabel, devices, value, onChange, disabled, level }: {
+function DeviceSelect({
+  id,
+  icon,
+  label,
+  defaultLabel,
+  devices,
+  value,
+  onChange,
+  disabled,
+  level,
+}: {
   id: string;
   icon: React.ReactNode;
   label: string;
@@ -195,27 +303,36 @@ function DeviceSelect({ id, icon, label, defaultLabel, devices, value, onChange,
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         {icon}
-        <Label htmlFor={id} className="text-sm font-medium text-gray-700">{label}</Label>
+        <Label htmlFor={id}>{label}</Label>
       </div>
-      <Select value={value || 'default'} onValueChange={(v) => onChange(v === 'default' ? null : v)} disabled={disabled}>
+      <Select
+        value={value || "default"}
+        onValueChange={(v) => onChange(v === "default" ? null : v)}
+        disabled={disabled}
+      >
         <SelectTrigger id={id} className="w-full">
           <SelectValue placeholder={label} />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="default">{defaultLabel}</SelectItem>
-          {devices.map(device => (
-            <SelectItem key={deviceValue(device)} value={deviceValue(device)}>{deviceLabel(device)}</SelectItem>
+          {devices.map((device) => (
+            <SelectItem key={deviceValue(device)} value={deviceValue(device)}>
+              {deviceLabel(device)}
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      {devices.length === 0 && <p className="text-xs text-gray-500">No devices found</p>}
+      {devices.length === 0 && (
+        <p className="text-xs text-muted-foreground">No devices found</p>
+      )}
       {level !== null && (
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className={`h-full transition-[width] duration-100 ${level > 0.85 ? 'bg-red-500' : level > 0.6 ? 'bg-yellow-500' : 'bg-green-500'}`}
-            style={{ width: `${Math.round(Math.min(1, Math.max(0, level)) * 100)}%` }}
-          />
-        </div>
+        <meter
+          min={0}
+          max={1}
+          value={Math.min(1, Math.max(0, level))}
+          aria-label={`${label} level`}
+          className="h-2 w-full"
+        />
       )}
     </div>
   );

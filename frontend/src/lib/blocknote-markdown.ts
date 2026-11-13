@@ -1,7 +1,7 @@
 import type { Block } from "@blocknote/core";
 
 interface MarkdownCapableEditor {
-  blocksToMarkdownLossy: (blocks: Block[]) => Promise<string>;
+  blocksToMarkdownLossy: (blocks: Block[]) => Promise<string> | string;
 }
 
 interface MarkdownConversionOptions {
@@ -17,7 +17,7 @@ interface MarkdownConversionResult {
 export async function blocksToMarkdownSafely(
   editor: MarkdownCapableEditor,
   blocks: Block[],
-  options: MarkdownConversionOptions,
+  options: MarkdownConversionOptions
 ): Promise<MarkdownConversionResult> {
   try {
     return {
@@ -26,9 +26,9 @@ export async function blocksToMarkdownSafely(
     };
   } catch (error) {
     console.error("Failed to convert BlockNote blocks to markdown", {
-      source: options.source,
       blocksCount: blocks.length,
       error,
+      source: options.source,
     });
 
     return {

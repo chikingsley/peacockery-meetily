@@ -1,30 +1,25 @@
 // Summary and UI types. Contract payload types live in ./voice.
 
-export interface BlockNoteBlock {
-  id: string;
-  type: string;
-  props?: Record<string, unknown>;
-  content?: unknown[];
-  children?: BlockNoteBlock[];
-}
+import type { PartialBlock as BlockNoteBlock } from "@blocknote/core";
+
+export type { PartialBlock as BlockNoteBlock } from "@blocknote/core";
 
 export interface SummaryDataResponse {
   markdown?: string;
   summary_json?: BlockNoteBlock[];
   reasoning_stripped?: boolean;
-
 }
 
 export type MeetingSummary = SummaryDataResponse;
 
 export type SummaryProcessStatus =
-  | 'pending'
-  | 'processing'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-  | 'error'
-  | 'idle';
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "error"
+  | "idle";
 
 export interface SummaryProcessResponse {
   status: SummaryProcessStatus;

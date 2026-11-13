@@ -1,19 +1,28 @@
 "use client";
 
-import type { RefObject } from 'react';
-import type { MeetingSummary } from '@/types';
-import type { ModelOption, SummaryTemplate } from '@/types/voice';
-import { BlockNoteSummaryView, BlockNoteSummaryViewRef } from '@/components/AISummary/BlockNoteSummaryView';
-import { EmptyStateSummary } from '@/components/EmptyStateSummary';
-import { SummaryGeneratorButtonGroup } from './SummaryGeneratorButtonGroup';
-import { SummaryUpdaterButtonGroup } from './SummaryUpdaterButtonGroup';
-import { hasVisibleSummaryContent } from '@/lib/summary-content';
+import type { RefObject } from "react";
 
-type SummaryStatus = 'idle' | 'processing' | 'summarizing' | 'regenerating' | 'completed' | 'error';
+import type { BlockNoteSummaryViewRef } from "@/components/AISummary/BlockNoteSummaryView";
+import { BlockNoteSummaryView } from "@/components/AISummary/BlockNoteSummaryView";
+import { EmptyStateSummary } from "@/components/EmptyStateSummary";
+import { hasVisibleSummaryContent } from "@/lib/summary-content";
+import type { MeetingSummary } from "@/types";
+import type { ModelOption, SummaryTemplate } from "@/types/voice";
+
+import { SummaryGeneratorButtonGroup } from "./SummaryGeneratorButtonGroup";
+import { SummaryUpdaterButtonGroup } from "./SummaryUpdaterButtonGroup";
+
+type SummaryStatus =
+  | "idle"
+  | "processing"
+  | "summarizing"
+  | "regenerating"
+  | "completed"
+  | "error";
 
 interface SummaryPanelProps {
   isSummaryDirty: boolean;
-  summaryRef: RefObject<BlockNoteSummaryViewRef>;
+  summaryRef: RefObject<BlockNoteSummaryViewRef | null>;
   isSaving: boolean;
   onSaveAll: () => Promise<void>;
   onCopySummary: () => Promise<void>;
@@ -58,14 +67,18 @@ export function SummaryPanel({
   selectedTemplate,
   onTemplateSelect,
 }: SummaryPanelProps) {
-  const isSummaryLoading = summaryStatus === 'processing' || summaryStatus === 'summarizing' || summaryStatus === 'regenerating';
+  const isSummaryLoading =
+    summaryStatus === "processing" ||
+    summaryStatus === "summarizing" ||
+    summaryStatus === "regenerating";
+
   const hasSummary = hasVisibleSummaryContent(aiSummary);
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col bg-white overflow-hidden h-full w-full @container">
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-center w-full min-w-0 gap-2 flex-wrap">
-          <div className="flex-shrink-0 min-w-0">
+    <div className="@container flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
+      <div className="border-b border-border p-4">
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2">
+          <div className="min-w-0 flex-shrink-0">
             <SummaryGeneratorButtonGroup
               summaryModel={summaryModel}
               summaryModels={summaryModels}
@@ -96,22 +109,15 @@ export function SummaryPanel({
       </div>
 
       {isSummaryLoading ? (
-        <div className="flex items-center justify-center flex-1">
+        <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-            <p className="text-gray-600">Generating summary...</p>
+            <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-t-2 border-b-2 border-info/30" />
+            <p className="text-muted-foreground">Generating summary...</p>
           </div>
         </div>
-      ) : !hasSummary ? (
-        <EmptyStateSummary
-          onGenerate={() => onGenerateSummary(customPrompt)}
-          hasModel={!!summaryModel}
-          isGenerating={isSummaryLoading}
-          error={summaryError}
-        />
-      ) : (
-        <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
-          <div className="p-6 w-full">
+      ) : hasSummary ? (
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
+          <div className="mx-auto w-full max-w-3xl p-4">
             <BlockNoteSummaryView
               ref={summaryRef}
               summaryData={aiSummary}
@@ -119,15 +125,24 @@ export function SummaryPanel({
               onDirtyChange={onDirtyChange}
             />
           </div>
-          {summaryStatus !== 'idle' && (
-            <div className={`mt-4 p-4 rounded-lg ${summaryStatus === 'error' ? 'bg-red-100 text-red-700' :
-              summaryStatus === 'completed' ? 'bg-green-100 text-green-700' :
-                'bg-blue-100 text-blue-700'
-              }`}>
-              <p className="text-sm font-medium">{getSummaryStatusMessage(summaryStatus)}</p>
+          {summaryStatus !== "idle" && (
+            <div
+              className={`mt-4 rounded-lg p-4 ${
+                summaryStatus === "error"
+                  ? "bg-destructive/10 text-destructive"
+                  : summaryStatus === "completed"
+                    ? "bg-success/10 text-success"
+                    : "bg-info/10 text-info"
+              }`}
+            >
+              <p className="text-sm font-medium">
+                {getSummaryStatusMessage(summaryStatus)}
+              </p>
             </div>
           )}
         </div>
+      ) : (
+        <EmptyStateSummary error={summaryError} />
       )}
     </div>
   );

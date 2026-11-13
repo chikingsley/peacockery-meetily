@@ -1,6 +1,6 @@
 [package]
 name = "peacockery-meetily"
-version = "0.5.0"
+version = "0.6.0"
 description = "Peacockery Meetily: internal Windows call and meeting recorder on the Peacockery Voice API"
 authors = ["Peacockery Studio"]
 edition.workspace = true

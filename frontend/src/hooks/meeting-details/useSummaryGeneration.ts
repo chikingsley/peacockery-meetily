@@ -1,19 +1,46 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import type { MeetingSummary, SummaryProcessResponse } from '@/types';
-import { useSidebar } from '@/components/Sidebar/SidebarProvider';
-import { voiceService, errorMessage } from '@/services/voiceService';
-import { toast } from 'sonner';
-import { parseSummaryContent, readSummaryMetadata } from '@/lib/summary-content';
+import { useState, useCallback, useRef, useEffect } from "react";
+import { toast } from "sonner";
 
-type SummaryStatus = 'idle' | 'processing' | 'summarizing' | 'regenerating' | 'completed' | 'error';
+import { useSidebar } from "@/components/Sidebar/SidebarProvider";
+import {
+  parseSummaryContent,
+  readSummaryMetadata,
+} from "@/lib/summary-content";
+import { voiceService, errorMessage } from "@/services/voiceService";
+import type { MeetingSummary, SummaryProcessResponse } from "@/types";
 
-function restoredSummaryStatus(response?: SummaryProcessResponse | null): SummaryStatus {
-  if (!response) return 'idle';
-  if (response.status === 'pending' || response.status === 'processing') return 'processing';
-  if (response.status === 'error' || response.status === 'failed') return 'error';
-  if (parseSummaryContent(response.data)) return 'completed';
-  if (response.status === 'completed') return 'error';
-  return 'idle';
+type SummaryStatus =
+  | "idle"
+  | "processing"
+  | "summarizing"
+  | "regenerating"
+  | "completed"
+  | "error";
+
+function restoredSummaryStatus(
+  response?: SummaryProcessResponse | null
+): SummaryStatus {
+  if (!response) {
+    return "idle";
+  }
+
+  if (response.status === "pending" || response.status === "processing") {
+    return "processing";
+  }
+
+  if (response.status === "error" || response.status === "failed") {
+    return "error";
+  }
+
+  if (parseSummaryContent(response.data)) {
+    return "completed";
+  }
+
+  if (response.status === "completed") {
+    return "error";
+  }
+
+  return "idle";
 }
 
 interface UseSummaryGenerationProps {
@@ -41,13 +68,19 @@ export function useSummaryGeneration({
   updateMeetingTitle,
   setAiSummary,
 }: UseSummaryGenerationProps) {
-  const restored = initialSummary?.meeting_id === meeting.id ? initialSummary : null;
-  const [summaryStatus, setSummaryStatus] = useState<SummaryStatus>(() => restoredSummaryStatus(restored));
-  const [summaryError, setSummaryError] = useState<string | null>(() =>
-    restoredSummaryStatus(restored) === 'error'
-      ? restored?.error || 'Summary generation failed. Please retry.'
-      : null,
+  const restored =
+    initialSummary?.meeting_id === meeting.id ? initialSummary : null;
+
+  const [summaryStatus, setSummaryStatus] = useState<SummaryStatus>(() =>
+    restoredSummaryStatus(restored)
   );
+
+  const [summaryError, setSummaryError] = useState<string | null>(() =>
+    restoredSummaryStatus(restored) === "error"
+      ? restored?.error || "Summary generation failed. Please retry."
+      : null
+  );
+
   const mountedRef = useRef(true);
   const visibleMeetingIdRef = useRef(meeting.id);
   visibleMeetingIdRef.current = meeting.id;
@@ -57,126 +90,201 @@ export function useSummaryGeneration({
 
   const getSummaryStatusMessage = useCallback((status: SummaryStatus) => {
     switch (status) {
-      case 'processing':
-        return 'Processing transcript...';
-      case 'summarizing':
-        return 'Generating summary...';
-      case 'regenerating':
-        return 'Regenerating summary...';
-      case 'completed':
-        return 'Summary completed';
-      case 'error':
-        return 'Error generating summary';
-      default:
-        return '';
+      case "processing": {
+        return "Processing transcript...";
+      }
+
+      case "summarizing": {
+        return "Generating summary...";
+      }
+
+      case "regenerating": {
+        return "Regenerating summary...";
+      }
+
+      case "completed": {
+        return "Summary completed";
+      }
+
+      case "error": {
+        return "Error generating summary";
+      }
+
+      default: {
+        return "";
+      }
     }
   }, []);
 
-  const failGeneration = useCallback(async (
-    generationId: number,
-    isRegeneration: boolean,
-    message: string,
-  ) => {
-    if (!mountedRef.current || visibleMeetingIdRef.current !== meeting.id || generationId !== generationIdRef.current) {
-      return;
-    }
-    activeProcessIdRef.current = null;
-    setSummaryError(message);
-    setSummaryStatus('error');
-    toast.error(`Failed to ${isRegeneration ? 'regenerate' : 'generate'} summary`, {
-      description: message,
-    });
-  }, [meeting.id]);
+  const failGeneration = useCallback(
+    async (generationId: number, isRegeneration: boolean, message: string) => {
+      if (
+        !mountedRef.current ||
+        visibleMeetingIdRef.current !== meeting.id ||
+        generationId !== generationIdRef.current
+      ) {
+        return;
+      }
 
-  const handlePollingResult = useCallback(async (
-    pollingResult: SummaryProcessResponse,
-    generationId: number,
-    isRegeneration: boolean,
-  ) => {
-    if (!mountedRef.current || visibleMeetingIdRef.current !== meeting.id || generationId !== generationIdRef.current) {
-      return;
-    }
-    if (pollingResult.status === 'cancelled') {
-      let existing: SummaryProcessResponse;
-      try {
-        existing = await voiceService.getSummary(meeting.id);
-      } catch (error) {
-        console.error('Failed to reload summary after cancellation:', error);
-        await failGeneration(generationId, isRegeneration,
-          'Summary generation was cancelled, but the saved summary could not be reloaded. Please reopen this meeting.');
-        return;
-      }
-      if (!mountedRef.current || visibleMeetingIdRef.current !== meeting.id || generationId !== generationIdRef.current) {
-        return;
-      }
-      const restoredSummary = parseSummaryContent(existing.data);
-      setAiSummary(restoredSummary);
-      setSummaryStatus(restoredSummary ? 'completed' : 'idle');
-      setSummaryError(null);
       activeProcessIdRef.current = null;
-      return;
-    }
+      setSummaryError(message);
+      setSummaryStatus("error");
+      toast.error(
+        `Failed to ${isRegeneration ? "regenerate" : "generate"} summary`,
+        {
+          description: message,
+        }
+      );
+    },
+    [meeting.id]
+  );
 
-    if (pollingResult.status === 'error' || pollingResult.status === 'failed') {
-      const errorMessage = pollingResult.error
-        || `Summary ${isRegeneration ? 'regeneration' : 'generation'} failed`;
-      if (isRegeneration) {
+  const handlePollingResult = useCallback(
+    async (
+      pollingResult: SummaryProcessResponse,
+      generationId: number,
+      isRegeneration: boolean
+    ) => {
+      if (
+        !mountedRef.current ||
+        visibleMeetingIdRef.current !== meeting.id ||
+        generationId !== generationIdRef.current
+      ) {
+        return;
+      }
+
+      if (pollingResult.status === "cancelled") {
         let existing: SummaryProcessResponse;
+
         try {
           existing = await voiceService.getSummary(meeting.id);
         } catch (error) {
-          console.error('Failed to reload previous summary after generation failure:', error);
-          await failGeneration(generationId, isRegeneration,
-            `${errorMessage}. The saved summary could not be reloaded. Please reopen this meeting.`);
-          return;
-        }
-        if (!mountedRef.current || visibleMeetingIdRef.current !== meeting.id || generationId !== generationIdRef.current) {
-          return;
-        }
-        const restoredSummary = parseSummaryContent(existing.data);
-        if (restoredSummary) {
-          setAiSummary(restoredSummary);
-          setSummaryStatus('completed');
-          setSummaryError(null);
-          toast.error('Failed to regenerate summary', {
-            description: `${errorMessage}. Your previous summary has been restored.`,
-          });
-          activeProcessIdRef.current = null;
-          return;
-        }
-      }
-      await failGeneration(generationId, isRegeneration, errorMessage);
-      return;
-    }
+          console.error("Failed to reload summary after cancellation:", error);
+          await failGeneration(
+            generationId,
+            isRegeneration,
+            "Summary generation was cancelled, but the saved summary could not be reloaded. Please reopen this meeting."
+          );
 
-    if (pollingResult.status === 'completed') {
-      const summary = parseSummaryContent(pollingResult.data);
-      if (!summary) {
-        await failGeneration(generationId, isRegeneration,
-          'Summary generation completed without visible content. Please retry.',
-        );
+          return;
+        }
+
+        if (
+          !mountedRef.current ||
+          visibleMeetingIdRef.current !== meeting.id ||
+          generationId !== generationIdRef.current
+        ) {
+          return;
+        }
+
+        const restoredSummary = parseSummaryContent(existing.data);
+        setAiSummary(restoredSummary);
+        setSummaryStatus(restoredSummary ? "completed" : "idle");
+        setSummaryError(null);
+        activeProcessIdRef.current = null;
+
         return;
       }
-      const metadata = readSummaryMetadata(pollingResult.data);
-      const meetingName = pollingResult.meetingName;
-      if (meetingName) {
-        updateMeetingTitle(meetingName);
+
+      if (
+        pollingResult.status === "error" ||
+        pollingResult.status === "failed"
+      ) {
+        const failureMessage =
+          pollingResult.error ||
+          `Summary ${isRegeneration ? "regeneration" : "generation"} failed`;
+
+        if (isRegeneration) {
+          let existing: SummaryProcessResponse;
+
+          try {
+            existing = await voiceService.getSummary(meeting.id);
+          } catch (error) {
+            console.error(
+              "Failed to reload previous summary after generation failure:",
+              error
+            );
+            await failGeneration(
+              generationId,
+              isRegeneration,
+              `${failureMessage}. The saved summary could not be reloaded. Please reopen this meeting.`
+            );
+
+            return;
+          }
+
+          if (
+            !mountedRef.current ||
+            visibleMeetingIdRef.current !== meeting.id ||
+            generationId !== generationIdRef.current
+          ) {
+            return;
+          }
+
+          const restoredSummary = parseSummaryContent(existing.data);
+
+          if (restoredSummary) {
+            setAiSummary(restoredSummary);
+            setSummaryStatus("completed");
+            setSummaryError(null);
+            toast.error("Failed to regenerate summary", {
+              description: `${failureMessage}. Your previous summary has been restored.`,
+            });
+            activeProcessIdRef.current = null;
+
+            return;
+          }
+        }
+
+        await failGeneration(generationId, isRegeneration, failureMessage);
+
+        return;
       }
-      setAiSummary(summary);
-      setSummaryStatus('completed');
-      activeProcessIdRef.current = null;
-      setSummaryError(null);
-      toast.success('Summary generated successfully!', {
-        description: metadata.reasoningStripped
-          ? 'Your meeting summary is ready. Model reasoning was filtered out of the notes.'
-          : 'Your meeting summary is ready',
-        duration: 4000,
-      });
-      if (meetingName && onMeetingUpdated) {
-        await onMeetingUpdated();
+
+      if (pollingResult.status === "completed") {
+        const summary = parseSummaryContent(pollingResult.data);
+
+        if (!summary) {
+          await failGeneration(
+            generationId,
+            isRegeneration,
+            "Summary generation completed without visible content. Please retry."
+          );
+
+          return;
+        }
+
+        const metadata = readSummaryMetadata(pollingResult.data);
+        const { meetingName } = pollingResult;
+
+        if (meetingName) {
+          updateMeetingTitle(meetingName);
+        }
+
+        setAiSummary(summary);
+        setSummaryStatus("completed");
+        activeProcessIdRef.current = null;
+        setSummaryError(null);
+        toast.success("Summary generated successfully!", {
+          description: metadata.reasoningStripped
+            ? "Your meeting summary is ready. Model reasoning was filtered out of the notes."
+            : "Your meeting summary is ready",
+          duration: 4000,
+        });
+
+        if (meetingName && onMeetingUpdated) {
+          await onMeetingUpdated();
+        }
       }
-    }
-  }, [failGeneration, meeting.id, onMeetingUpdated, setAiSummary, updateMeetingTitle]);
+    },
+    [
+      failGeneration,
+      meeting.id,
+      onMeetingUpdated,
+      setAiSummary,
+      updateMeetingTitle,
+    ]
+  );
 
   // Keep polling attached across ordinary rerenders without retaining stale view callbacks.
   const pollingResultRef = useRef(handlePollingResult);
@@ -184,8 +292,10 @@ export function useSummaryGeneration({
 
   useEffect(() => {
     mountedRef.current = true;
+
     return () => {
       mountedRef.current = false;
+
       if (activeProcessIdRef.current) {
         stopSummaryPolling(meeting.id, activeProcessIdRef.current);
       }
@@ -193,91 +303,149 @@ export function useSummaryGeneration({
   }, [meeting.id, stopSummaryPolling]);
 
   useEffect(() => {
-    if (!initialSummary || initialSummary.meeting_id !== meeting.id) return;
+    if (!initialSummary || initialSummary.meeting_id !== meeting.id) {
+      return;
+    }
+
     // A reread of an older attempt must not clobber the attempt this view is polling.
-    if (activeProcessIdRef.current && initialSummary.start !== activeProcessIdRef.current) return;
+    if (
+      activeProcessIdRef.current &&
+      initialSummary.start !== activeProcessIdRef.current
+    ) {
+      return;
+    }
+
     const status = restoredSummaryStatus(initialSummary);
     setSummaryStatus(status);
-    setSummaryError(status === 'error'
-      ? initialSummary.error || 'Summary generation failed. Please retry.'
-      : null);
-    if (status !== 'processing' || !initialSummary.start) return;
+    setSummaryError(
+      status === "error"
+        ? initialSummary.error || "Summary generation failed. Please retry."
+        : null
+    );
+
+    if (status !== "processing" || !initialSummary.start) {
+      return;
+    }
 
     const generationId = ++generationIdRef.current;
     activeProcessIdRef.current = initialSummary.start;
     const isRegeneration = !!parseSummaryContent(initialSummary.data);
-    startSummaryPolling(meeting.id, initialSummary.start, result =>
-      pollingResultRef.current(result, generationId, isRegeneration));
+    startSummaryPolling(meeting.id, initialSummary.start, (result) =>
+      pollingResultRef.current(result, generationId, isRegeneration)
+    );
   }, [initialSummary, meeting.id, startSummaryPolling]);
 
-  const processSummary = useCallback(async (customPrompt: string, isRegeneration: boolean) => {
-    const generationId = ++generationIdRef.current;
-    activeProcessIdRef.current = null;
-    setSummaryStatus(isRegeneration ? 'regenerating' : 'processing');
-    setSummaryError(null);
+  const processSummary = useCallback(
+    async (customPrompt: string, isRegeneration: boolean) => {
+      const generationId = ++generationIdRef.current;
+      activeProcessIdRef.current = null;
+      setSummaryStatus(isRegeneration ? "regenerating" : "processing");
+      setSummaryError(null);
 
-    try {
-      const result = await voiceService.processTranscript(
-        meeting.id,
-        selectedTemplate,
-        customPrompt.trim() ? customPrompt : null,
-        summaryModel,
-      );
-      const processId = result.process_id;
-      // Leaving the meeting keeps the backend job running; a later visit re-attaches to it.
-      if (!mountedRef.current || visibleMeetingIdRef.current !== meeting.id) return;
-      if (generationId !== generationIdRef.current) return;
-      activeProcessIdRef.current = processId;
+      try {
+        const result = await voiceService.processTranscript(
+          meeting.id,
+          selectedTemplate,
+          customPrompt.trim() ? customPrompt : null,
+          summaryModel
+        );
 
-      startSummaryPolling(meeting.id, processId, result =>
-        pollingResultRef.current(result, generationId, isRegeneration));
-    } catch (error) {
-      await failGeneration(generationId, isRegeneration, errorMessage(error));
-    }
-  }, [failGeneration, meeting.id, selectedTemplate, startSummaryPolling, summaryModel]);
+        const processId = result.process_id;
 
-  const handleGenerateSummary = useCallback(async (customPrompt: string = '') => {
-    await processSummary(customPrompt, false);
-  }, [processSummary]);
+        // Leaving the meeting keeps the backend job running; a later visit re-attaches to it.
+        if (!mountedRef.current || visibleMeetingIdRef.current !== meeting.id) {
+          return;
+        }
 
-  const handleRegenerateSummary = useCallback(async (customPrompt: string = '') => {
-    await processSummary(customPrompt, true);
-  }, [processSummary]);
+        if (generationId !== generationIdRef.current) {
+          return;
+        }
+
+        activeProcessIdRef.current = processId;
+
+        startSummaryPolling(meeting.id, processId, (pollResult) =>
+          pollingResultRef.current(pollResult, generationId, isRegeneration)
+        );
+      } catch (error) {
+        await failGeneration(generationId, isRegeneration, errorMessage(error));
+      }
+    },
+    [
+      failGeneration,
+      meeting.id,
+      selectedTemplate,
+      startSummaryPolling,
+      summaryModel,
+    ]
+  );
+
+  const handleGenerateSummary = useCallback(
+    async (customPrompt = "") => {
+      await processSummary(customPrompt, false);
+    },
+    [processSummary]
+  );
+
+  const handleRegenerateSummary = useCallback(
+    async (customPrompt = "") => {
+      await processSummary(customPrompt, true);
+    },
+    [processSummary]
+  );
 
   const handleStopGeneration = useCallback(async () => {
     const generationId = generationIdRef.current;
     const processId = activeProcessIdRef.current;
-    if (!processId) return;
+
+    if (!processId) {
+      return;
+    }
+
     try {
       await voiceService.cancelSummary(meeting.id, processId);
     } catch {
-      if (generationId === generationIdRef.current && activeProcessIdRef.current === processId) {
-        toast.error('Failed to stop summary generation', {
-          description: 'Generation is still running; waiting for its latest status.',
+      if (
+        generationId === generationIdRef.current &&
+        activeProcessIdRef.current === processId
+      ) {
+        toast.error("Failed to stop summary generation", {
+          description:
+            "Generation is still running; waiting for its latest status.",
         });
       }
+
       return;
     }
-    if (!mountedRef.current || visibleMeetingIdRef.current !== meeting.id || generationId !== generationIdRef.current) {
+
+    if (
+      !mountedRef.current ||
+      visibleMeetingIdRef.current !== meeting.id ||
+      generationId !== generationIdRef.current
+    ) {
       return;
     }
+
     generationIdRef.current += 1;
     activeProcessIdRef.current = null;
-    if (processId) stopSummaryPolling(meeting.id, processId);
-    setSummaryStatus('idle');
+
+    if (processId) {
+      stopSummaryPolling(meeting.id, processId);
+    }
+
+    setSummaryStatus("idle");
     setSummaryError(null);
-    toast.info('Summary generation stopped', {
-      description: 'You can generate a new summary anytime',
+    toast.info("Summary generation stopped", {
+      description: "You can generate a new summary anytime",
       duration: 3000,
     });
   }, [meeting.id, stopSummaryPolling]);
 
   return {
-    summaryStatus,
-    summaryError,
+    getSummaryStatusMessage,
     handleGenerateSummary,
     handleRegenerateSummary,
     handleStopGeneration,
-    getSummaryStatusMessage,
+    summaryError,
+    summaryStatus,
   };
 }
