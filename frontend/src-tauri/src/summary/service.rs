@@ -105,7 +105,7 @@ impl SummaryService {
                 {
                     Ok(true) => {
                         if let Some(title) = title {
-                            if let Err(e) = MeetingsRepository::update_title(&pool, &job.meeting_id, &title).await {
+                            if let Err(e) = MeetingsRepository::update_generated_title(&pool, &job.meeting_id, &title).await {
                                 log::error!("Failed to rename meeting {}: {}", job.meeting_id, e);
                             }
                         }

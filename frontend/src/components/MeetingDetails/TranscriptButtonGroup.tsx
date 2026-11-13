@@ -81,9 +81,7 @@ export function TranscriptButtonGroup({
           ) : (
             <RefreshCw className="@[22rem]:mr-2" size={18} />
           )}
-          <span className="hidden @[22rem]:inline">
-            {hasFinal ? "Re-run final transcript" : "Run final transcript"}
-          </span>
+          <span>Reprocess audio…</span>
         </Button>
       </ButtonGroup>
 

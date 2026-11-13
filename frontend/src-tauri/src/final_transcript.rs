@@ -54,6 +54,7 @@ pub struct FinalJob {
     pub options: TranscribeOptions,
     pub me_label: String,
     pub them_label: String,
+    pub transcript_corrections: Vec<crate::voice::corrections::TranscriptCorrection>,
     /// Wall-clock start of the recording, for the `HH:MM:SS` row timestamps (`None` for imports).
     pub recorded_at: Option<DateTime<Local>>,
 }
@@ -78,6 +79,7 @@ impl FinalJob {
             options,
             me_label: settings.me_label.clone(),
             them_label: settings.them_label.clone(),
+            transcript_corrections: settings.transcript_corrections.clone(),
             recorded_at,
         }
     }
@@ -175,7 +177,8 @@ pub async fn store_final(
 ) -> Result<FinalOutcome, FinalError> {
     let (turns, turn_source) = turns_with_source(artifact);
     let energy = load_energy(&job.folder);
-    let named = name_speakers(&turns, energy.as_ref(), &job.me_label, &job.them_label);
+    let mut named = name_speakers(&turns, energy.as_ref(), &job.me_label, &job.them_label);
+    for turn in &mut named { turn.text = crate::voice::corrections::correct_text(&turn.text, &job.transcript_corrections); }
     let rows = rows_from_turns(&named, job.recorded_at);
 
     let failed = |what: &str, e: &dyn std::fmt::Display| FinalError::Failed(format!("Could not save {}: {}", what, e));

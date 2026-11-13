@@ -90,6 +90,18 @@ impl MeetingsRepository {
         Ok(unfinished)
     }
 
+    /// Summaries may name timestamp placeholders; user titles stay authoritative.
+    pub async fn update_generated_title(pool: &SqlitePool, meeting_id: &str, title: &str) -> Result<bool, sqlx::Error> {
+        let Some(meeting) = Self::get(pool, meeting_id).await? else { return Ok(false) };
+        let placeholder = ["Call ", "Meeting "].iter().any(|prefix| {
+            meeting.title.strip_prefix(prefix).is_some_and(|date| chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%d %H:%M").is_ok())
+        });
+        if !placeholder { return Ok(false); }
+        let result = sqlx::query("UPDATE meetings SET title = ?, updated_at = ? WHERE id = ? AND title = ?")
+            .bind(title).bind(now_rfc3339()).bind(meeting_id).bind(&meeting.title).execute(pool).await?;
+        Ok(result.rows_affected() == 1)
+    }
+
     pub async fn update_title(pool: &SqlitePool, meeting_id: &str, title: &str) -> Result<bool, sqlx::Error> {
         let result = sqlx::query("UPDATE meetings SET title = ?, updated_at = ? WHERE id = ?")
             .bind(title)
@@ -172,6 +184,17 @@ mod tests {
         )
         .await
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn summaries_name_placeholders_and_preserve_custom_titles() {
+        let pool = test_pool().await;
+        seed(&pool, "title-test", meeting_status::STOPPED).await;
+        assert!(!MeetingsRepository::update_generated_title(&pool, "title-test", "AI title").await.unwrap());
+        MeetingsRepository::update_title(&pool, "title-test", "Call 2026-11-13 10:00").await.unwrap();
+        assert!(MeetingsRepository::update_generated_title(&pool, "title-test", "AI title").await.unwrap());
+        assert!(!MeetingsRepository::update_generated_title(&pool, "title-test", "Another AI title").await.unwrap());
+        assert_eq!(MeetingsRepository::get(&pool, "title-test").await.unwrap().unwrap().title, "AI title");
     }
 
     #[tokio::test]

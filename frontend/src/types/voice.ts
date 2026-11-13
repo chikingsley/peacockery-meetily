@@ -21,6 +21,7 @@ export interface VoiceSettings {
   /** ISO-639-1 code, or "auto". */
   language: string;
   keyterms: string[];
+  transcript_corrections?: { heard: string; replacement: string }[];
   me_label: string;
   them_label: string;
   summary_model: string;

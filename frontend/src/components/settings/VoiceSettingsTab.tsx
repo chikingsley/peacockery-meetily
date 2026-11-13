@@ -250,6 +250,27 @@ function LanguageSection({
     update({ keyterms: parseKeyterms(text) })
   );
 
+  const corrections = useCommitDraft(
+    (settings.transcript_corrections ?? [])
+      .map((rule) => `${rule.heard} => ${rule.replacement}`)
+      .join("\n"),
+    (text) =>
+      update({
+        transcript_corrections: text.split("\n").flatMap((line) => {
+          const separator = line.indexOf("=>");
+
+          if (separator < 1) {
+            return [];
+          }
+
+          const heard = line.slice(0, separator).trim();
+          const replacement = line.slice(separator + 2).trim();
+
+          return heard && replacement ? [{ heard, replacement }] : [];
+        }),
+      })
+  );
+
   const meLabel = useCommitDraft(settings.me_label, (me_label) =>
     update({ me_label: me_label.trim() || "Me" })
   );
@@ -309,6 +330,22 @@ function LanguageSection({
         </p>
       </div>
 
+      <div className="space-y-1.5">
+        <Label htmlFor="transcript-corrections">Recognition corrections</Label>
+        <Textarea
+          id="transcript-corrections"
+          rows={3}
+          value={corrections.draft}
+          onChange={(e) => corrections.setDraft(e.target.value)}
+          onBlur={corrections.flush}
+          placeholder="Sika Huntech => Cica-Huntek"
+        />
+        <p className="text-xs text-muted-foreground">
+          One heard phrase =&gt; correct spelling per line. Applies to future
+          live and reprocessed transcripts; original provider artifacts stay
+          preserved.
+        </p>
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="me-label">Your label</Label>

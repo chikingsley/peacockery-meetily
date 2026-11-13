@@ -44,6 +44,7 @@ pub struct LiveConfig {
     /// `None` = provider detects.
     pub language: Option<String>,
     pub keyterms: Vec<String>,
+    pub transcript_corrections: Vec<crate::voice::corrections::TranscriptCorrection>,
     pub me_label: String,
     pub them_label: String,
     /// Wall clock of recording time 0 (line timestamps); `RecordingManager::start` sets it
@@ -60,6 +61,7 @@ impl LiveConfig {
             diarize: settings.live_diarize,
             language: (settings.language != "auto").then(|| settings.language.clone()),
             keyterms: settings.keyterms.clone(),
+            transcript_corrections: settings.transcript_corrections.clone(),
             me_label: settings.me_label.clone(),
             them_label: settings.them_label.clone(),
             started_at: Local::now(),
@@ -221,7 +223,7 @@ impl Shared {
                     meeting_id: self.config.meeting_id.clone(),
                     channel,
                     speaker,
-                    text,
+                    text: crate::voice::corrections::correct_text(&text, &self.config.transcript_corrections),
                 }),
                 LineUpdate::Final { channel, speaker, text, start, end } => self.final_line(channel, speaker, text, start, end),
             }
@@ -229,7 +231,7 @@ impl Shared {
     }
 
     fn final_line(&self, channel: Channel, speaker: Option<String>, text: String, start: f64, end: f64) {
-        let text = text.trim().to_string();
+        let text = crate::voice::corrections::correct_text(text.trim(), &self.config.transcript_corrections);
         if text.is_empty() {
             return;
         }

@@ -25,6 +25,8 @@ pub struct VoiceSettings {
     /// ISO-639-1, or `auto`.
     pub language: String,
     pub keyterms: Vec<String>,
+    #[serde(default)]
+    pub transcript_corrections: Vec<super::corrections::TranscriptCorrection>,
     pub me_label: String,
     pub them_label: String,
     pub summary_model: String,
@@ -45,6 +47,7 @@ impl Default for VoiceSettings {
             auto_final: false,
             language: "en".to_string(),
             keyterms: Vec::new(),
+            transcript_corrections: Vec::new(),
             me_label: "Me".to_string(),
             them_label: "Them".to_string(),
             summary_model: "google-gemini-3.8-flash".to_string(),
@@ -232,7 +235,7 @@ mod tests {
         assert_eq!(value["live_mode"], "split");
         assert_eq!(value["base_url"], "https://voice-lab.peacockery.studio");
         assert_eq!(value["summary_fallback_models"], json!(["deepseek-deepseek-v4-flash", "google-gemini-3.1-flash-lite"]));
-        assert_eq!(value.as_object().unwrap().len(), 15);
+        assert_eq!(value.as_object().unwrap().len(), 16);
     }
 
     #[test]

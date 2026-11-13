@@ -26,7 +26,6 @@ interface FinalTranscriptDialogProps {
 export function FinalTranscriptDialog({
   open,
   onOpenChange,
-  hasFinal,
   onStart,
 }: FinalTranscriptDialogProps) {
   const { voiceSettings, voiceModels } = useConfig();
@@ -44,7 +43,7 @@ export function FinalTranscriptDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <AudioLines className="h-5 w-5 text-info" />
-            {hasFinal ? "Re-run final transcript" : "Run final transcript"}
+            Reprocess audio…
           </DialogTitle>
           <DialogDescription>
             Uploads this meeting&apos;s recording to Peacockery Voice and
@@ -54,7 +53,7 @@ export function FinalTranscriptDialog({
         {model !== null && (
           <ModelSelect
             id="final-run-model"
-            label="Final model"
+            label="Transcription model"
             value={model}
             options={voiceModels?.final ?? []}
             onChange={setModel}

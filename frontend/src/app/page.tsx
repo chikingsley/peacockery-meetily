@@ -56,7 +56,7 @@ export default function Home() {
               }}
             >
               <div className="space-y-2">
-                <Label htmlFor="meeting-title">Meeting title</Label>
+                <Label htmlFor="meeting-title">Meeting title (optional)</Label>
                 <Input
                   id="meeting-title"
                   value={title}
