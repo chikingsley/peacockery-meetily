@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { voiceService, errorMessage } from "@/services/voiceService";
 
+import { AppUpdates } from "./AppUpdates";
 import { useRecordingPreferences } from "./RecordingTab";
 import { SettingsSection } from "./SettingsParts";
 
@@ -65,6 +66,7 @@ export function GeneralTab() {
           Open folder
         </Button>
       </SettingsSection>
+      <AppUpdates />
       <About />
     </div>
   );

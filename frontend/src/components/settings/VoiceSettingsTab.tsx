@@ -1,5 +1,6 @@
 "use client";
 
+import { invoke } from "@tauri-apps/api/core";
 import {
   AudioLines,
   CheckCircle2,
@@ -317,12 +318,32 @@ function ApiKeySection() {
     refreshVoiceModels,
     keyStatus,
     setKeyStatus,
+    refreshKeyStatus,
   } = useConfig();
 
   const keyInputRef = useRef<HTMLInputElement>(null);
   const [hasKeyInput, setHasKeyInput] = useState(false);
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+
+  const activate = async () => {
+    setIsSavingKey(true);
+
+    try {
+      const recipient = await invoke<string | null>("activate_access");
+
+      if (recipient) {
+        await saveVoiceSettings(await voiceService.getSettings());
+        await refreshKeyStatus();
+        await refreshVoiceModels();
+        toast.success(`Access activated for ${recipient}`);
+      }
+    } catch (error) {
+      toast.error("Activation failed", { description: errorMessage(error) });
+    } finally {
+      setIsSavingKey(false);
+    }
+  };
 
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(
     null
@@ -402,128 +423,140 @@ function ApiKeySection() {
   };
 
   return (
-    <SettingsSection title="Connection" icon={<KeyRound className="h-5 w-5" />}>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="font-medium text-foreground">API key</span>
-          {keyStatus?.configured ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-              <CheckCircle2 className="h-3 w-3" /> Stored ·{" "}
-              <span className="font-mono">{keyStatus.masked}</span>
-            </span>
-          ) : (
-            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-              Not set
-            </span>
-          )}
-        </div>
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void saveKey();
-          }}
-        >
-          <Input
-            ref={keyInputRef}
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            aria-label="Peacockery Voice API key"
-            placeholder={
-              keyStatus?.configured
-                ? "Paste a new key to replace the stored one"
-                : "pv_lab_…"
-            }
-            onChange={(e) => setHasKeyInput(e.target.value.trim().length > 0)}
-          />
-          <Button type="submit" disabled={!hasKeyInput || isSavingKey}>
-            {isSavingKey ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : keyStatus?.configured ? (
-              "Replace"
+    <SettingsSection title="Access" icon={<KeyRound className="h-5 w-5" />}>
+      <p className="text-sm text-muted-foreground">
+        Choose the private activation file supplied with your invitation. Access
+        is stored securely on this PC.
+      </p>
+      <Button disabled={isSavingKey} onClick={() => void activate()}>
+        Activate access
+      </Button>
+      <details>
+        <summary className="cursor-pointer text-sm text-muted-foreground">
+          Advanced connection settings
+        </summary>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-medium text-foreground">API key</span>
+            {keyStatus?.configured ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                <CheckCircle2 className="h-3 w-3" /> Stored ·{" "}
+                <span className="font-mono">{keyStatus.masked}</span>
+              </span>
             ) : (
-              "Save"
+              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                Not set
+              </span>
             )}
-          </Button>
-          {keyStatus?.configured && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void clearKey()}
-            >
-              Clear
-            </Button>
-          )}
-        </form>
-        <p className="text-xs text-muted-foreground">
-          Kept in Windows Credential Manager, never in the app&apos;s files.
-        </p>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="base-url">Server</Label>
-        <div className="flex gap-2">
-          <Input
-            id="base-url"
-            spellCheck={false}
-            value={baseUrl.draft}
-            onChange={(e) => baseUrl.setDraft(e.target.value)}
-            onBlur={baseUrl.flush}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                baseUrl.flush();
-              }
+          </div>
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void saveKey();
             }}
-          />
-          {voiceSettings && voiceSettings.base_url !== DEFAULT_BASE_URL && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => baseUrl.commitNow(DEFAULT_BASE_URL)}
-            >
-              Use lab
+          >
+            <Input
+              ref={keyInputRef}
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              aria-label="Peacockery Voice API key"
+              placeholder={
+                keyStatus?.configured
+                  ? "Paste a new key to replace the stored one"
+                  : "pv_lab_…"
+              }
+              onChange={(e) => setHasKeyInput(e.target.value.trim().length > 0)}
+            />
+            <Button type="submit" disabled={!hasKeyInput || isSavingKey}>
+              {isSavingKey ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : keyStatus?.configured ? (
+                "Replace"
+              ) : (
+                "Save"
+              )}
             </Button>
-          )}
+            {keyStatus?.configured && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void clearKey()}
+              >
+                Clear
+              </Button>
+            )}
+          </form>
+          <p className="text-xs text-muted-foreground">
+            Kept in Windows Credential Manager, never in the app&apos;s files.
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Lab keys (pv_lab_…) only work on {DEFAULT_BASE_URL}.
-        </p>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void testConnection()}
-          disabled={isTesting || !keyStatus?.configured}
-        >
-          {isTesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Test connection
-        </Button>
-        {testResult &&
-          (testResult.ok ? (
-            <span className="flex items-center gap-1 text-sm text-success">
-              <CheckCircle2 className="h-4 w-4" />
-              Connected
-              {testResult.environment
-                ? ` (${testResult.environment})`
-                : ""} ·{" "}
-              {testResult.latency_ms} ms
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-sm text-destructive">
-              <XCircle className="h-4 w-4" />
-              {testResult.error ?? "Connection failed"}
-            </span>
-          ))}
-      </div>
-      {keyStatus?.configured && voiceModels?.error && (
-        <p className="text-sm text-warning" role="status">
-          Could not read the server&apos;s model list ({voiceModels.error}). The
-          pickers below show the built-in list.
-        </p>
-      )}
+        <div className="space-y-1.5">
+          <Label htmlFor="base-url">Server</Label>
+          <div className="flex gap-2">
+            <Input
+              id="base-url"
+              spellCheck={false}
+              value={baseUrl.draft}
+              onChange={(e) => baseUrl.setDraft(e.target.value)}
+              onBlur={baseUrl.flush}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  baseUrl.flush();
+                }
+              }}
+            />
+            {voiceSettings && voiceSettings.base_url !== DEFAULT_BASE_URL && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => baseUrl.commitNow(DEFAULT_BASE_URL)}
+              >
+                Use lab
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Lab keys (pv_lab_…) only work on {DEFAULT_BASE_URL}.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void testConnection()}
+            disabled={isTesting || !keyStatus?.configured}
+          >
+            {isTesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Test connection
+          </Button>
+          {testResult &&
+            (testResult.ok ? (
+              <span className="flex items-center gap-1 text-sm text-success">
+                <CheckCircle2 className="h-4 w-4" />
+                Connected
+                {testResult.environment
+                  ? ` (${testResult.environment})`
+                  : ""} ·{" "}
+                {testResult.latency_ms} ms
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-sm text-destructive">
+                <XCircle className="h-4 w-4" />
+                {testResult.error ?? "Connection failed"}
+              </span>
+            ))}
+        </div>
+        {keyStatus?.configured && voiceModels?.error && (
+          <p className="text-sm text-warning" role="status">
+            Could not read the server&apos;s model list ({voiceModels.error}).
+            The pickers below show the built-in list.
+          </p>
+        )}
+      </details>
     </SettingsSection>
   );
 }

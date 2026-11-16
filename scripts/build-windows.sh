@@ -39,6 +39,8 @@ fi
 export PATH="$nsis/Bin:$HOME/.cargo/bin:$PATH"
 cd "$repo/frontend"
 pnpm install --frozen-lockfile
-pnpm tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis --no-sign --ci
+signing_args=()
+if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then signing_args+=(--no-sign); fi
+pnpm tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis "${signing_args[@]}" --ci
 
 ls -1 "$repo"/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe

@@ -38,7 +38,7 @@ static IS_RECORDING_STOPPING: AtomicBool = AtomicBool::new(false);
 static RECORDING_MANAGER: Mutex<Option<RecordingManager>> = Mutex::new(None);
 
 /// Serializes start and stop so they never interleave.
-static LIFECYCLE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+pub(crate) static LIFECYCLE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Recording is live and not being torn down.
 fn recording_live() -> bool {

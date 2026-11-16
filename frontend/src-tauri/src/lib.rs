@@ -10,6 +10,7 @@ mod recording_context;
 pub mod summary;
 pub mod tray;
 pub mod utils;
+mod updates;
 pub mod voice;
 
 use log::LevelFilter;
@@ -72,6 +73,7 @@ pub fn run() {
             tray::focus_main_window(app);
         }))
         .plugin(log_plugin())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .setup(setup)
@@ -87,6 +89,8 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            updates::check_app_update,
+            updates::install_app_update,
             // Recording
             audio::recording_commands::get_audio_devices,
             audio::recording_commands::start_recording_with_devices_and_meeting,
@@ -116,6 +120,7 @@ pub fn run() {
             final_transcript::start_final_transcript,
             final_transcript::get_final_transcript_status,
             // Voice settings
+            voice::activation::activate_access,
             voice::commands::voice_get_settings,
             voice::commands::voice_save_settings,
             voice::commands::voice_get_key_status,

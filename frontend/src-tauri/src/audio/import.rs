@@ -17,6 +17,8 @@ use crate::database::models::meeting_status;
 use crate::database::repositories::meeting::{MeetingsRepository, NewMeeting};
 use crate::state::AppState;
 
+pub(crate) fn is_import_active() -> bool { IMPORT_IN_PROGRESS.load(Ordering::SeqCst) }
+
 static IMPORT_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 static IMPORT_CANCELLED: AtomicBool = AtomicBool::new(false);
 

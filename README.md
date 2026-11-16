@@ -7,7 +7,7 @@ Fork of [Meetily](https://github.com/Zackriya-Solutions/meeting-minutes) (MIT, s
 ## Using it
 
 1. Start **Peacockery Meetily** from the Start menu.
-1. First run only: **Settings → Voice** → paste the Peacockery Voice API key → **Test connection**. The key is kept in Windows Credential Manager.
+1. First run only: **Settings → Voice → Activate access** and choose your private activation file. Access is kept in Windows Credential Manager. Advanced connection settings remain available for operators.
 1. Pick the microphone and the system source next to the record button:
    - the default speakers: everything the PC plays;
    - **Google Chrome app audio (Google Voice)**: only Chrome's sound, so other apps stay out of the recording. Chrome must be running. This captures every Chrome tab, not only Google Voice.
@@ -72,3 +72,7 @@ The live-API tests in `crates/peacockery-voice` are ignored by default; run them
 The UI uses Next.js 16, React 19, Tailwind 4 and shadcn components. General settings include light, dark and system themes. Use `pnpm format` to apply the Ultracite/Oxfmt preset and `pnpm lint` for the Oxlint core, React, Next.js, anti-slop and shadcn checks.
 
 After `pnpm build`, run `scripts/preview.sh up` from the repository root for the supervised browser preview. Use `scripts/preview.sh status` to inspect it and `scripts/preview.sh down` to stop it and remove its tunnel. The browser preview shows UI; recording runs in the desktop app.
+
+## Sharing and updating
+
+See [Distribution and updates](DISTRIBUTION.md) for the download link, per-person activation, signed release workflow and calendar prerequisites.

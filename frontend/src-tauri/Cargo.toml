@@ -1,6 +1,6 @@
 [package]
 name = "peacockery-meetily"
-version = "0.6.5"
+version = "0.6.6"
 description = "Peacockery Meetily: internal Windows call and meeting recorder on the Peacockery Voice API"
 authors = ["Peacockery Studio"]
 edition.workspace = true
@@ -51,6 +51,7 @@ tauri-plugin-store = "2.4.0"
 # Peacockery Voice API client and Chrome process-tree loopback (workspace crates)
 peacockery-voice = { path = "../../crates/peacockery-voice" }
 app-loopback = { path = "../../crates/app-loopback" }
+tauri-plugin-updater = "2"
 
 [target.'cfg(windows)'.dependencies]
 # API key in Windows Credential Manager (ARCHITECTURE.md §2)

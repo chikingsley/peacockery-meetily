@@ -14,7 +14,7 @@ const CATALOG_TTL: Duration = Duration::from_secs(5 * 60);
 /// Longest provider/server body quoted in a user-facing message.
 const MAX_BODY_CHARS: usize = 300;
 
-pub const NO_KEY_MESSAGE: &str = "No Peacockery Voice API key is set. Add it in Settings.";
+pub const NO_KEY_MESSAGE: &str = "Activate your access in Settings to start transcription.";
 
 pub struct VoiceService {
     settings: RwLock<VoiceSettings>,

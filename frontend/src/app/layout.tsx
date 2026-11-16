@@ -1,8 +1,9 @@
 "use client";
 
+import { isTauri } from "@tauri-apps/api/core";
+
 import "./globals.css";
 import "sonner/dist/styles.css";
-import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { ThemeProvider } from "next-themes";
@@ -12,6 +13,7 @@ import { Toaster, toast } from "sonner";
 
 import { ImportAudioDialog, ImportDropOverlay } from "@/components/ImportAudio";
 import MainContent from "@/components/MainContent";
+import { UpdateNotice } from "@/components/settings/AppUpdates";
 import Sidebar from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/Sidebar/SidebarProvider";
 import { SidebarProvider as ShellSidebarProvider } from "@/components/ui/sidebar";
@@ -129,6 +131,7 @@ export default function RootLayout({
           <RecordingStateProvider>
             <TranscriptProvider>
               <ConfigProvider>
+                <UpdateNotice />
                 <SidebarProvider>
                   <RecordingStopProvider>
                     <TooltipProvider>

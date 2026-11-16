@@ -1,5 +1,6 @@
 //! Peacockery Voice integration: settings, the API key, the managed client and their commands.
 
+pub mod activation;
 pub mod commands;
 pub mod corrections;
 pub mod credential;
