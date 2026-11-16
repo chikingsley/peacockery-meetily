@@ -68,14 +68,13 @@ impl LiveConfig {
         }
     }
 
-    /// Diarization is supported by Scribe v3 and Voxtral realtime 3; it applies to the system session (split)
-    /// or the mixed session.
+    /// Separate voices on every captured channel, including a shared room microphone.
     pub fn diarize_for(&self, channel: Channel) -> bool {
         self.diarize_for_model(channel, &self.model)
     }
 
-    pub fn diarize_for_model(&self, channel: Channel, model: &str) -> bool {
-        self.diarize && channel != Channel::Mic && (ModelFamily::of(model) == ModelFamily::VoxtralRealtime3 || model == "elevenlabs-scribe_v3")
+    pub fn diarize_for_model(&self, _channel: Channel, model: &str) -> bool {
+        self.diarize && (ModelFamily::of(model) == ModelFamily::VoxtralRealtime3 || matches!(model, "elevenlabs-scribe_v3" | "deepgram-nova-3"))
     }
 
     pub fn mode_name(&self) -> &'static str {
@@ -384,10 +383,10 @@ mod tests {
         };
         let config = LiveConfig::from_settings("m", &settings);
         assert_eq!(config.language, None);
-        assert!(!config.diarize_for(Channel::Mic));
+        assert!(config.diarize_for(Channel::Mic));
         assert!(config.diarize_for(Channel::System));
         let nova = LiveConfig { model: "deepgram-nova-3".into(), ..config };
-        assert!(!nova.diarize_for(Channel::Mixed), "diarization is Voxtral-only");
+        assert!(nova.diarize_for(Channel::Mixed), "Nova fallback keeps speaker separation");
     }
 
     #[test]

@@ -10,6 +10,9 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import type { SummaryDataResponse, SummaryProcessResponse } from "@/types";
 import type {
   AudioDevice,
+  CalendarEvent,
+  CalendarSnapshot,
+  RecordingMode,
   AudioFileInfo,
   AudioLevels,
   ConnectionTestResult,
@@ -83,15 +86,21 @@ function on<T>(
 
 export const voiceService = {
   // --- Recording ---------------------------------------------------------
+  getRecordingCalendar: () =>
+    invoke<CalendarSnapshot | null>("get_recording_calendar"),
   getAudioDevices: () => invoke<AudioDevice[]>("get_audio_devices"),
   startRecording: (
     micDeviceName: string | null,
     systemDeviceName: string | null,
-    meetingName: string | null
+    meetingName: string | null,
+    recordingMode: RecordingMode = "in_person",
+    calendarEvent: CalendarEvent | null = null
   ) =>
     withTimeout(
       invoke<StartRecordingResult>("start_recording_with_devices_and_meeting", {
         meetingName,
+        recordingMode,
+        calendarEvent,
         micDeviceName,
         systemDeviceName,
       }),

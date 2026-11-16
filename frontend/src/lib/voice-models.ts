@@ -67,7 +67,9 @@ export function modelOptionText(option: ModelOption): string {
 
 export function supportsLiveSpeakerLabels(modelId: string): boolean {
   return (
-    modelId === LIVE_SPEAKER_LABEL_MODEL || modelId === "elevenlabs-scribe_v3"
+    modelId === LIVE_SPEAKER_LABEL_MODEL ||
+    modelId === "elevenlabs-scribe_v3" ||
+    modelId === "deepgram-nova-3"
   );
 }
 
@@ -77,7 +79,7 @@ export function liveSpeakerLabelsHelp(
   themLabel: string
 ): string {
   return mode === "split"
-    ? `Split mode already knows who is who (your mic vs. the call). Turning this on also numbers the people on the call side: "${themLabel} 1", "${themLabel} 2".`
+    ? `Numbers voices on both sides: "Local speaker 1" for the microphone and "${themLabel} 1" for computer audio.`
     : 'Mixed mode hears one combined stream. Turning this on labels lines "Speaker 1", "Speaker 2"; without it, live lines have no speaker.';
 }
 

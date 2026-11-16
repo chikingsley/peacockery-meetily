@@ -44,7 +44,7 @@ impl Default for VoiceSettings {
             live_diarize: true,
             final_model: "elevenlabs-scribe_v3".to_string(),
             final_diarize: true,
-            auto_final: false,
+            auto_final: true,
             language: "en".to_string(),
             keyterms: Vec::new(),
             transcript_corrections: Vec::new(),

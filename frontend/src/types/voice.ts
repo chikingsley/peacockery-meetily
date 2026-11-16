@@ -146,6 +146,10 @@ export interface MeetingMetadata {
   final_updated_at: string | null;
   has_live: boolean;
   has_final: boolean;
+  recording_context?: {
+    mode: RecordingMode;
+    calendar_event: CalendarEvent | null;
+  } | null;
 }
 
 export interface Transcript {
@@ -334,4 +338,27 @@ export interface ImportCompleteEvent {
 export interface ImportErrorEvent {
   meeting_id: string;
   error: string;
+}
+
+export type RecordingMode = "in_person" | "online" | "phone";
+
+export interface CalendarPerson {
+  name: string;
+  email: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  location: string;
+  online: boolean;
+  organizer: CalendarPerson | null;
+  invitees: CalendarPerson[];
+}
+
+export interface CalendarSnapshot {
+  observed: string;
+  events: CalendarEvent[];
 }

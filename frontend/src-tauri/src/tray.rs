@@ -156,7 +156,7 @@ fn build_menu(app: &AppHandle, state: RecordingState) -> tauri::Result<Menu<taur
 
     builder = match state {
         RecordingState::Stopped => {
-            builder.item(&MenuItemBuilder::with_id("start_recording", "Start Recording").build(app)?)
+            builder.item(&MenuItemBuilder::with_id("start_recording", "New recording…").build(app)?)
         }
         RecordingState::Starting => builder.item(&disabled("Starting Recording...")?),
         RecordingState::Recording => builder

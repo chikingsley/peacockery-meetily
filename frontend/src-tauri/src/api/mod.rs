@@ -27,6 +27,7 @@ pub struct MeetingMetadata {
     pub audio_path: Option<String>,
     pub has_live: bool,
     pub has_final: bool,
+    pub recording_context: Option<crate::recording_context::RecordingContext>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -119,7 +120,9 @@ pub async fn api_get_meeting_metadata(
             log::warn!("Failed to allow {} for audio playback: {}", path.display(), e);
         }
     }
+    let recording_context = meeting.folder_path.as_deref().and_then(|p| crate::recording_context::RecordingContext::load(std::path::Path::new(p)));
     Ok(MeetingMetadata {
+        recording_context,
         meeting,
         audio_path: audio.map(|path| path.to_string_lossy().to_string()),
         has_live: live > 0,
@@ -243,6 +246,7 @@ mod tests {
             final_updated_at: None,
         };
         let value = serde_json::to_value(MeetingMetadata {
+            recording_context: None,
             meeting,
             audio_path: Some("C:/Music/Call/audio.m4a".into()),
             has_live: true,

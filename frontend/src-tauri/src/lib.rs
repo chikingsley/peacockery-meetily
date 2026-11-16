@@ -6,6 +6,7 @@ pub mod database;
 pub mod final_transcript;
 pub mod live;
 pub mod state;
+mod recording_context;
 pub mod summary;
 pub mod tray;
 pub mod utils;
@@ -111,6 +112,7 @@ pub fn run() {
             api::api_delete_meeting,
             api::open_meeting_folder,
             api::rename_speaker,
+            recording_context::get_recording_calendar,
             final_transcript::start_final_transcript,
             final_transcript::get_final_transcript_status,
             // Voice settings

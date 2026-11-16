@@ -37,8 +37,6 @@ interface MeetingContextType {
   isMeetingActive: boolean;
   setIsMeetingActive: (active: boolean) => void;
   handleRecordingToggle: () => void;
-  requestedStart: boolean;
-  setRequestedStart: (requested: boolean) => void;
   searchTranscripts: (query: string) => Promise<void>;
   searchResults: TranscriptSearchResult[];
   isSearching: boolean;
@@ -71,7 +69,6 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     title: "+ New Call",
   });
 
-  const [requestedStart, setRequestedStart] = useState(false);
   const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
   const meetingsRef = React.useRef(meetings);
   meetingsRef.current = meetings;
@@ -158,12 +155,11 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
   // Function to handle recording toggle from sidebar
   const handleRecordingToggle = () => {
     if (!isRecording) {
-      setRequestedStart(true);
       router.push("/");
     }
   };
 
-  // The tray's "Start Recording" takes the same path as the sidebar button.
+  // The tray and sidebar open recording setup before capture begins.
   const recordingToggleRef = React.useRef(handleRecordingToggle);
   recordingToggleRef.current = handleRecordingToggle;
   useEffect(() => {
@@ -189,8 +185,6 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
       value={{
         currentMeeting,
         handleRecordingToggle,
-        requestedStart,
-        setRequestedStart,
         isMeetingActive,
         isSearching,
         meetings,

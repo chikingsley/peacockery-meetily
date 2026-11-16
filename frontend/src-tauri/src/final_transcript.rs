@@ -176,7 +176,9 @@ pub async fn store_final(
     artifact: &Artifact,
 ) -> Result<FinalOutcome, FinalError> {
     let (turns, turn_source) = turns_with_source(artifact);
-    let energy = load_energy(&job.folder);
+    // A microphone can contain several people. New recordings retain generic speaker
+    // identities; channel energy cannot establish which person is the user.
+    let energy = if crate::recording_context::RecordingContext::load(&job.folder).is_some() { None } else { load_energy(&job.folder) };
     let mut named = name_speakers(&turns, energy.as_ref(), &job.me_label, &job.them_label);
     for turn in &mut named { turn.text = crate::voice::corrections::correct_text(&turn.text, &job.transcript_corrections); }
     let rows = rows_from_turns(&named, job.recorded_at);
@@ -198,6 +200,32 @@ pub async fn store_final(
         .await
         .map_err(|e| failed("the final transcript", &e))?;
     Ok(FinalOutcome { job_id: job_id.to_string(), segments_count: rows.len(), turn_source })
+}
+
+/// Large source files are encoded as one complete speech-quality file for upload.
+/// The original recording and its timeline remain unchanged; no segmentation occurs.
+const MAX_DIRECT_INPUT_BYTES: u64 = 20 * 1024 * 1024;
+
+async fn prepare_audio(audio: &Path, cancel: &CancellationToken) -> Result<Option<tempfile::TempPath>, FinalError> {
+    let size = std::fs::metadata(audio).map_err(|e| FinalError::Failed(e.to_string()))?.len();
+    if size <= MAX_DIRECT_INPUT_BYTES { return Ok(None); }
+    let temp = tempfile::Builder::new().prefix("meetily-asr-").suffix(".m4a").tempfile()
+        .map_err(|e| FinalError::Failed(e.to_string()))?.into_temp_path();
+    let mut command = tokio::process::Command::from(crate::audio::ffmpeg::ffmpeg_command()
+        .map_err(|e| FinalError::Failed(e.to_string()))?);
+    command.args(["-nostdin", "-y", "-i"]).arg(audio)
+        .args(["-vn", "-ac", "1", "-ar", "16000", "-c:a", "aac", "-b:a", "32k", "-movflags", "+faststart"])
+        .arg(&temp).kill_on_drop(true);
+    let output = tokio::select! {
+        _ = cancel.cancelled() => return Err(FinalError::Cancelled),
+        result = command.output() => result.map_err(|e| FinalError::Failed(e.to_string()))?,
+    };
+    if !output.status.success() {
+        return Err(FinalError::Failed(format!("Could not prepare complete recording for transcription: {}", String::from_utf8_lossy(&output.stderr))));
+    }
+    let prepared = std::fs::metadata(&temp).map_err(|e| FinalError::Failed(e.to_string()))?.len();
+    log::info!("Prepared complete recording for transcription: {} to {} bytes; original preserved", size, prepared);
+    Ok(Some(temp))
 }
 
 /// Upload, transcribe, name speakers and store. `on_progress` is called from the running task.
@@ -222,7 +250,9 @@ pub async fn run_final_transcript(
         }
         BatchProgress::Uploaded { .. } | BatchProgress::Job { .. } => {}
     });
-    let done = client.transcribe_file(&job.audio, &job.options, cancel, progress).await?;
+    let prepared = prepare_audio(&job.audio, cancel).await?;
+    let audio = prepared.as_deref().unwrap_or(&job.audio);
+    let done = client.transcribe_file(audio, &job.options, cancel, progress).await?;
     if cancel.is_cancelled() {
         return Err(FinalError::Cancelled);
     }
@@ -694,5 +724,32 @@ mod tests {
         assert!(SLOTS.lock().unwrap().contains_key("slot-test"), "a stale run does not remove its replacement");
         unregister("slot-test", g2);
         assert!(!SLOTS.lock().unwrap().contains_key("slot-test"));
+    }
+}
+
+#[cfg(test)]
+mod whole_audio_preparation_tests {
+    use super::*;
+    #[tokio::test]
+    async fn complete_audio_duration_and_original_survive_preparation() {
+        if crate::audio::ffmpeg::find_ffmpeg_path().is_none() { return; }
+        let folder = tempfile::tempdir().unwrap();
+        let original = folder.path().join("original.wav");
+        let spec = hound::WavSpec { channels: 2, sample_rate: 48_000, bits_per_sample: 16, sample_format: hound::SampleFormat::Int };
+        let mut writer = hound::WavWriter::create(&original, spec).unwrap();
+        for _ in 0..(120 * 48_000 * 2) { writer.write_sample(0i16).unwrap(); }
+        writer.finalize().unwrap();
+        let original_size = std::fs::metadata(&original).unwrap().len();
+        assert!(original_size > MAX_DIRECT_INPUT_BYTES);
+        let prepared = prepare_audio(&original, &CancellationToken::new()).await.unwrap().unwrap();
+        assert!(std::fs::metadata(&prepared).unwrap().len() < MAX_DIRECT_INPUT_BYTES);
+        let output = std::process::Command::new("ffprobe").args(["-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1"]).arg(&prepared).output().unwrap();
+        assert!(output.status.success());
+        let duration: f64 = String::from_utf8(output.stdout).unwrap().trim().parse().unwrap();
+        assert!((duration - 120.0).abs() < 0.1, "full timeline retained: {duration}");
+        assert_eq!(std::fs::metadata(&original).unwrap().len(), original_size);
+        let temporary = prepared.to_path_buf();
+        drop(prepared);
+        assert!(!temporary.exists(), "temporary input is cleaned automatically");
     }
 }

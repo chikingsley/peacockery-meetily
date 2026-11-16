@@ -77,7 +77,7 @@ pub enum SpeakerLabels {
 }
 
 impl SpeakerLabels {
-    /// The §5 rule: split mic → `me`; split system → `them` (or `them 1/2/…` with diarize);
+    /// Split channels keep distinct local and remote speaker numbering when diarized;
     /// mixed + diarize → `Speaker 1/2/…`; otherwise none.
     pub fn for_session(
         mode: LiveMode,
@@ -87,7 +87,10 @@ impl SpeakerLabels {
         them: &str,
     ) -> Self {
         match (mode, channel, diarize) {
-            (LiveMode::Split, Channel::Mic, _) => SpeakerLabels::Fixed(me.into()),
+            (LiveMode::Split, Channel::Mic, false) => SpeakerLabels::Fixed(me.into()),
+            (LiveMode::Split, Channel::Mic, true) => SpeakerLabels::Numbered {
+                prefix: "Local speaker".into(), fallback: Some("Local speaker".into()),
+            },
             (LiveMode::Split, _, false) => SpeakerLabels::Fixed(them.into()),
             (LiveMode::Split, _, true) => SpeakerLabels::Numbered {
                 prefix: them.into(),
@@ -523,7 +526,7 @@ mod tests {
         );
         assert_eq!(
             SpeakerLabels::for_session(LiveMode::Split, Channel::Mic, true, "Me", "Them"),
-            SpeakerLabels::Fixed("Me".into())
+            SpeakerLabels::Numbered { prefix: "Local speaker".into(), fallback: Some("Local speaker".into()) }
         );
         assert_eq!(
             SpeakerLabels::for_session(LiveMode::Split, Channel::System, false, "Me", "Them"),

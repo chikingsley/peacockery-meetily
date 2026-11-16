@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { toast } from "sonner";
 
 import { useSidebar } from "@/components/Sidebar/SidebarProvider";
@@ -9,6 +9,7 @@ import {
 } from "@/contexts/RecordingStateContext";
 import { useTranscripts } from "@/contexts/TranscriptContext";
 import { voiceService, errorMessage } from "@/services/voiceService";
+import type { CalendarEvent, RecordingMode } from "@/types/voice";
 
 function generateMeetingTitle(now = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -17,7 +18,7 @@ function generateMeetingTitle(now = new Date()): string {
 }
 
 /**
- * Starts a recording from the button, the sidebar event or the auto-start flag.
+ * Starts a recording after the user has chosen the capture mode on the recording screen.
  * Live transcription needs a Peacockery Voice key; without one `onVoiceNotConfigured` runs.
  */
 export function useRecordingStart(onVoiceNotConfigured: () => void) {
@@ -25,8 +26,7 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
   const isStartingRef = useRef(false);
   const { clearTranscripts, setMeetingTitle } = useTranscripts();
 
-  const { setIsMeetingActive, requestedStart, setRequestedStart } =
-    useSidebar();
+  const { setIsMeetingActive } = useSidebar();
 
   const { selectedDevices, refreshKeyStatus } = useConfig();
 
@@ -34,7 +34,11 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
     useRecordingState();
 
   const startRecording = useCallback(
-    async (meetingTitle?: string) => {
+    async (
+      meetingTitle?: string,
+      recordingMode: RecordingMode = "in_person",
+      calendarEvent: CalendarEvent | null = null
+    ) => {
       if (isStartingRef.current || isRecording || isStopping) {
         return;
       }
@@ -58,7 +62,9 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
         const result = await voiceService.startRecording(
           selectedDevices.micDevice,
           selectedDevices.systemDevice,
-          title
+          title,
+          recordingMode,
+          calendarEvent
         );
 
         setMeetingId(result.meeting_id);
@@ -95,13 +101,6 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
       setIsMeetingActive,
     ]
   );
-
-  useEffect(() => {
-    if (requestedStart) {
-      setRequestedStart(false);
-      void startRecording();
-    }
-  }, [requestedStart, setRequestedStart, startRecording]);
 
   return { startRecording };
 }

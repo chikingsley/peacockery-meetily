@@ -346,6 +346,12 @@ async fn finish(
     Ended::Stopped
 }
 
+fn should_fallback(model: &str, failures: usize, error: &Error) -> bool {
+    model == "elevenlabs-scribe_v3"
+        && !matches!(error, Error::Unauthorized | Error::Forbidden(_) | Error::Cancelled)
+        && (failures >= 2 || !retryable(error))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -382,10 +388,4 @@ mod tests {
         assert!(!retryable(&Error::BadRequest { status: 400, body: String::new() }));
         assert!(!retryable(&Error::Config("x".into())));
     }
-}
-
-fn should_fallback(model: &str, failures: usize, error: &Error) -> bool {
-    model == "elevenlabs-scribe_v3"
-        && !matches!(error, Error::Unauthorized | Error::Forbidden(_) | Error::Cancelled)
-        && (failures >= 2 || !retryable(error))
 }

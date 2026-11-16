@@ -20,6 +20,7 @@ use super::stream::{SystemSource, CHROME_APP_DEVICE, CHROME_APP_LABEL};
 use super::{default_input_device, default_output_device, parse_audio_device, AudioDevice, DeviceType};
 use crate::live::{LiveConfig, LiveLine, TauriLiveSink};
 use crate::voice::VoiceService;
+use crate::recording_context::{RecordingMode, RecordingContext, CalendarEvent};
 use crate::database::models::meeting_status;
 use crate::database::repositories::meeting::{MeetingsRepository, NewMeeting};
 use crate::state::AppState;
@@ -205,12 +206,14 @@ pub async fn start_recording_with_devices_and_meeting(
     mic_device_name: Option<String>,
     system_device_name: Option<String>,
     meeting_name: Option<String>,
+    recording_mode: Option<RecordingMode>,
+    calendar_event: Option<CalendarEvent>,
 ) -> Result<RecordingStarted, String> {
     let _lifecycle = LIFECYCLE_LOCK.lock().await;
     if IS_RECORDING.load(Ordering::SeqCst) {
         return Err("Recording already in progress".to_string());
     }
-    let result = start_recording(&app, mic_device_name, system_device_name, meeting_name).await;
+    let result = start_recording(&app, mic_device_name, system_device_name, meeting_name, recording_mode, calendar_event).await;
     // Every outcome, failures included, puts the tray back in step with the real state.
     crate::tray::update_tray_menu(&app);
     result
@@ -221,6 +224,8 @@ async fn start_recording(
     mic_device_name: Option<String>,
     system_device_name: Option<String>,
     meeting_name: Option<String>,
+    recording_mode: Option<RecordingMode>,
+    calendar_event: Option<CalendarEvent>,
 ) -> Result<RecordingStarted, String> {
     info!(
         "Starting recording: mic={:?}, system={:?}, meeting={:?}",
@@ -233,7 +238,11 @@ async fn start_recording(
     let mic_name = mic_device_name.or(preferences.preferred_mic_device);
     let system_name = system_device_name.or(preferences.preferred_system_device);
     let microphone_device = resolve_mic_or_default(app, mic_name.as_deref());
-    let system_source = resolve_system_or_default(system_name.as_deref())?;
+    let mode = recording_mode.unwrap_or_default();
+    let system_source = if mode.captures_system() { resolve_system_or_default(system_name.as_deref())? } else { None };
+    if !mode.captures_system() && microphone_device.is_none() {
+        return Err("In-person recording needs an available microphone".into());
+    }
     // The device test holds the same devices open.
     super::level_monitor::stop_monitoring();
 
@@ -247,6 +256,11 @@ async fn start_recording(
     let folder_path = folder.to_string_lossy().to_string();
     let meeting_id = format!("meeting-{}", uuid::Uuid::new_v4());
 
+    let context = RecordingContext { mode, calendar_event };
+    if let Err(e) = context.save(&folder) {
+        remove_folder(&folder);
+        return Err(format!("Could not save recording options: {e}"));
+    }
     let pool = app.state::<AppState>().db_manager.pool().clone();
     if let Err(e) = MeetingsRepository::create(
         &pool,
@@ -259,7 +273,7 @@ async fn start_recording(
     }
 
     let target = MeetingTarget { meeting_id: meeting_id.clone(), meeting_name: title, folder: folder.clone() };
-    let live = live_setup(app, &meeting_id, &pool);
+    let live = live_setup(app, &meeting_id, &pool, mode);
     let app_for_levels = app.clone();
     let levels = Box::new(move |levels: super::levels::AudioLevels| {
         let _ = app_for_levels.emit("audio-levels", levels);
@@ -296,15 +310,18 @@ async fn start_recording(
 }
 
 /// Live transcription for a new recording, per the voice settings (`None` when disabled).
-fn live_setup(app: &AppHandle, meeting_id: &str, pool: &sqlx::SqlitePool) -> Option<LiveSetup> {
+fn live_setup(app: &AppHandle, meeting_id: &str, pool: &sqlx::SqlitePool, mode: RecordingMode) -> Option<LiveSetup> {
     let service = app.state::<VoiceService>();
     let settings = service.settings();
     if !settings.live_enabled {
         info!("Live transcription is off");
         return None;
     }
+    let mut config = LiveConfig::from_settings(meeting_id, &settings);
+    config.mode = mode.live_mode();
+    config.diarize = true;
     Some(LiveSetup {
-        config: LiveConfig::from_settings(meeting_id, &settings),
+        config,
         client: service.client(),
         sink: Arc::new(TauriLiveSink::new(app.clone())),
         pool: Some(pool.clone()),

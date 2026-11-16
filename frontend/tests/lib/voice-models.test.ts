@@ -63,9 +63,10 @@ describe("model options", () => {
     expect(modelOptionText(live[1])).toBe("DEEPGRAM-NOVA-3 · unavailable");
   });
 
-  test("only Voxtral realtime 3 offers live speaker labels", () => {
+  test("Scribe v3, Voxtral realtime 3 and Nova support live speaker labels", () => {
     expect(supportsLiveSpeakerLabels(LIVE_SPEAKER_LABEL_MODEL)).toBe(true);
-    expect(supportsLiveSpeakerLabels("deepgram-nova-3")).toBe(false);
+    expect(supportsLiveSpeakerLabels("deepgram-nova-3")).toBe(true);
+    expect(supportsLiveSpeakerLabels("elevenlabs-scribe_v3")).toBe(true);
     expect(supportsLiveSpeakerLabels("elevenlabs-scribe_v2")).toBe(false);
   });
 

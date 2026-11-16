@@ -30,16 +30,11 @@ import {
   DEFAULT_BASE_URL,
   LANGUAGES,
   formatKeyterms,
-  liveSpeakerLabelsHelp,
   parseKeyterms,
   supportsLiveSpeakerLabels,
 } from "@/lib/voice-models";
 import { voiceService, errorMessage } from "@/services/voiceService";
-import type {
-  ConnectionTestResult,
-  LiveMode,
-  VoiceSettings,
-} from "@/types/voice";
+import type { ConnectionTestResult, VoiceSettings } from "@/types/voice";
 
 import {
   ModelSelect,
@@ -47,25 +42,6 @@ import {
   ToggleRow,
   useCommitDraft,
 } from "./SettingsParts";
-
-const LIVE_MODES: {
-  value: LiveMode;
-  title: string;
-  badge?: string;
-  body: string;
-}[] = [
-  {
-    badge: "Recommended for headset calls",
-    body: "Your mic and the call audio are transcribed as two streams, so every line is labelled with who said it.",
-    title: "Split “Me / Them”",
-    value: "split",
-  },
-  {
-    body: "One stream of the mic and call audio together. Use it for a room or speakerphone, where the mic hears everyone.",
-    title: "Mixed",
-    value: "mixed",
-  },
-];
 
 /** Settings → Peacockery Voice: key, connection, live / final / summary models and transcript options. */
 export function VoiceSettingsTab() {
@@ -88,10 +64,6 @@ export function VoiceSettingsTab() {
       })
     );
   };
-
-  const speakerLabelsSupported = supportsLiveSpeakerLabels(
-    voiceSettings.live_model
-  );
 
   return (
     <div className="space-y-6">
@@ -127,72 +99,17 @@ export function VoiceSettingsTab() {
             })
           }
         />
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Mode</p>
-          <div
-            role="radiogroup"
-            aria-label="Live mode"
-            className="grid gap-3 md:grid-cols-2"
-          >
-            {LIVE_MODES.map((mode) => {
-              const selected = voiceSettings.live_mode === mode.value;
-
-              return (
-                <button
-                  type="button"
-                  key={mode.value}
-                  role="radio"
-                  aria-checked={selected}
-                  disabled={!voiceSettings.live_enabled}
-                  onClick={() => update({ live_mode: mode.value })}
-                  className={`rounded-lg border p-3 text-left transition-colors disabled:opacity-50 ${
-                    selected
-                      ? "border-info/30 bg-info/10 ring-1 ring-info"
-                      : "border-border hover:border-border hover:bg-muted/40"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`h-3.5 w-3.5 rounded-full border ${selected ? "border-4 border-info/30" : "border-border"}`}
-                    />
-                    <span className="text-sm font-medium text-foreground">
-                      {mode.title}
-                    </span>
-                  </div>
-                  {mode.badge && (
-                    <span className="mt-1 inline-block text-xs font-medium text-info">
-                      {mode.badge}
-                    </span>
-                  )}
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {mode.body}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <ToggleRow
-          id="live-diarize"
-          label="Live speaker labels"
-          description={
-            speakerLabelsSupported
-              ? liveSpeakerLabelsHelp(
-                  voiceSettings.live_mode,
-                  voiceSettings.them_label
-                )
-              : "Scribe v3 Live and Voxtral Mini Realtime 3 support live speaker labels."
-          }
-          checked={speakerLabelsSupported && voiceSettings.live_diarize}
-          disabled={!voiceSettings.live_enabled || !speakerLabelsSupported}
-          onChange={(live_diarize) => update({ live_diarize })}
-        />
+        <p className="text-sm text-muted-foreground">
+          Choose In person, Online meeting or Phone call on the recording
+          screen. Speaker separation applies to every captured channel when the
+          live model supports it.
+        </p>
       </SettingsSection>
 
       <SettingsSection
-        title="Optional final transcript"
+        title="Final transcript"
         icon={<FileText className="h-5 w-5" />}
-        description="Optionally reprocess the saved audio. Summaries use this version when available, or your saved live transcript."
+        description="Process the complete saved audio after recording for the final transcript and speaker labels."
       >
         <ModelSelect
           id="final-model"
@@ -204,7 +121,7 @@ export function VoiceSettingsTab() {
         <ToggleRow
           id="final-diarize"
           label="Speaker labels"
-          description={`Speakers are named "${voiceSettings.me_label}" and "${voiceSettings.them_label}" from which side of the call they were heard on.`}
+          description="Uses numbered speakers. A microphone may contain several people; names can be verified afterward."
           checked={voiceSettings.final_diarize}
           onChange={(final_diarize) => update({ final_diarize })}
         />

@@ -12,8 +12,11 @@ import { useConfig } from "@/contexts/ConfigContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { useDesktopRuntime } from "@/hooks/useDesktopRuntime";
 import { useRecordingStart } from "@/hooks/useRecordingStart";
+import { suggestedMode } from "@/lib/recording-context";
+import type { CalendarEvent, RecordingMode } from "@/types/voice";
 
 import { LiveQuickSettings } from "./_components/LiveQuickSettings";
+import { RecordingSetup } from "./_components/RecordingSetup";
 import { TranscriptPanel } from "./_components/TranscriptPanel";
 import { VoiceNotConfiguredDialog } from "./_components/VoiceNotConfiguredDialog";
 
@@ -21,6 +24,21 @@ export default function Home() {
   const desktop = useDesktopRuntime();
   const [showVoiceDialog, setShowVoiceDialog] = useState(false);
   const [title, setTitle] = useState("");
+  const [mode, setMode] = useState<RecordingMode>("in_person");
+
+  const [calendarEvent, setCalendarEvent] = useState<CalendarEvent | null>(
+    null
+  );
+
+  const selectEvent = (event: CalendarEvent | null) => {
+    setCalendarEvent(event);
+
+    if (event) {
+      setTitle(event.title);
+      setMode(suggestedMode(event));
+    }
+  };
+
   const { isRecording, isStartingRecording, isStopping } = useRecordingState();
   const { selectedDevices, setSelectedDevices } = useConfig();
   const onVoiceNotConfigured = useCallback(() => setShowVoiceDialog(true), []);
@@ -39,7 +57,9 @@ export default function Home() {
             <TranscriptPanel />
           </div>
           <div className="flex shrink-0 justify-center border-t p-4">
-            <RecordingControls onStart={() => startRecording(title)} />
+            <RecordingControls
+              onStart={() => startRecording(title, mode, calendarEvent)}
+            />
           </div>
         </>
       ) : (
@@ -51,10 +71,16 @@ export default function Home() {
                 event.preventDefault();
 
                 if (desktop) {
-                  void startRecording(title);
+                  void startRecording(title, mode, calendarEvent);
                 }
               }}
             >
+              <RecordingSetup
+                mode={mode}
+                onModeChange={setMode}
+                event={calendarEvent}
+                onEventChange={selectEvent}
+              />
               <div className="space-y-2">
                 <Label htmlFor="meeting-title">Meeting title (optional)</Label>
                 <Input
@@ -70,7 +96,8 @@ export default function Home() {
                   Start recording
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Uses your saved audio and voice settings.
+                  Separates speakers in the live transcript and the final
+                  transcript.
                 </p>
               </div>
               <details className="rounded-lg border p-4">
