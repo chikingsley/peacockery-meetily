@@ -19,3 +19,7 @@ The update feed is GitHub Releases. A startup notice links to Settings > General
 The current calendar source is an account-specific private snapshot supplied by the GMK CICA collector. It is optional and ships separately from the app. Each coworker needs their own source; each source belongs to its authorized account.
 
 For self-service calendar connection, the intended integration is a dedicated Microsoft Entra public-client app, browser authorization with PKCE, delegated Calendars.Read, account/calendar selection, OS-protected refresh tokens, and Disconnect. CICA's recorded November 13 delegated-consent attempt required administrator approval. Tenant approval and the coworker's own sign-in are prerequisites for that integration. The present release provides recording without calendar access while this separate integration is arranged. Calendar access is separate from Voice activation.
+
+## Verified rollout
+
+The first published release is 0.6.7. An installed 0.6.6 build on CICA discovered the public feed, downloaded the signed installer through the app, installed and relaunched as 0.6.7. A second check reported that the installation was current. All 28 existing recording files matched their backup hashes and Voice settings were byte-identical. Validation also passed 150 Rust tests, 67 frontend tests, lint, formatting, type checking and the production build. Per-person access was checked against the model catalog and a real text request; administrative calls returned HTTP 403.
