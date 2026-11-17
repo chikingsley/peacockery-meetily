@@ -91,9 +91,10 @@ pub async fn install_app_update(
         .clone();
     let jobs: i64 = sqlx::query_scalar("SELECT (SELECT COUNT(*) FROM meetings WHERE final_status IN ('queued','uploading','transcribing')) + (SELECT COUNT(*) FROM summary_processes WHERE LOWER(status) = 'pending')")
         .fetch_one(&pool).await.map_err(|e| e.to_string())?;
-    if jobs > 0 || crate::audio::import::is_import_active() {
+    if jobs > 0 || crate::audio::import::is_import_active() || crate::publication::is_busy() {
         return Err(
-            "Wait for audio processing and summaries to finish, then install the update.".into(),
+            "Wait for audio processing, summaries and uploads to finish, then install the update."
+                .into(),
         );
     }
     sqlx::query("PRAGMA wal_checkpoint(FULL)")

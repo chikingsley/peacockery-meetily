@@ -75,7 +75,15 @@ mod tests {
                 .fetch_all(db.pool())
                 .await
                 .unwrap();
-        assert_eq!(tables, vec!["meetings", "summary_processes", "transcripts"]);
+        assert_eq!(
+            tables,
+            vec![
+                "meeting_publications",
+                "meetings",
+                "summary_processes",
+                "transcripts"
+            ]
+        );
         db.cleanup().await;
 
         // Re-opening an existing database is a no-op migration.

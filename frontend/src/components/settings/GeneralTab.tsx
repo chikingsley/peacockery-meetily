@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { toast } from "sonner";
 
 import { About } from "@/components/About";
+import { PublicationSettings } from "@/components/Publication";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -68,6 +69,7 @@ export function GeneralTab() {
         </Button>
       </SettingsSection>
       <OutlookCalendar />
+      <PublicationSettings />
       <AppUpdates />
       <About />
     </div>

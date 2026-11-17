@@ -24,7 +24,7 @@ Identity: productName `Peacockery Meetily`, identifier `studio.peacockery.meetil
 
 ## 2. Credential and settings
 
-`activate_access(code)` redeems an eight-digit invitation at the activation Worker. A Durable Object atomically binds the code to the persistent installation UUID, permits that installation's retries, and enforces seven-day expiry. The Rust command validates the returned host and credential, verifies Voice model access, then saves the credential and settings with rollback. The webview receives the recipient name. Operators issue and revoke invitations using private credentials; recipients enter their code.
+`activate_access(code)` redeems an eight-digit invitation at the activation Worker. A Durable Object atomically binds the code to the persistent installation UUID, permits that installation's retries, and enforces seven-day expiry. The Rust command validates the returned host and credential, verifies Voice model access, then saves the credential and settings with rollback. The webview receives the recipient name. Operators use `node scripts/access.mjs invite Name` to resolve a verified contact, ensure a separate Voice user, issue scoped access and return the installer/code. Repeated invites reuse access; `--new-device` creates another revocable credential, and `status`/`revoke` manage it. `/admin/status` returns invitation state and expiry to the operator while preserving the claim. Recipients enter their code.
 
 - API key: Windows Credential Manager, generic credential, target name **`studio.peacockery.meetily/peacockery-voice-api-key`** (via the `keyring` crate, `Entry::new_with_target(TARGET, "studio.peacockery.meetily", "peacockery-voice-api-key")`). The key never reaches the webview or SQLite. Paste it in Settings, or run `cmdkey /generic:<target> /user:peacockery-voice-api-key /pass:<key>` in the desktop session (an ssh session cannot write it).
 - Settings: Rust-owned store file `voice-settings.json` (tauri-plugin-store), shape `VoiceSettings`:
@@ -190,6 +190,12 @@ Summaries:
 - `mic-device-switched`, `mic-unavailable`, `mic-swap-failed`, `mic-recovery-exhausted`, `recording-error {message}`
 - `import-progress`, `import-complete {meeting_id}`, `import-error`
 - summary events as before; `voice-settings-updated`
+
+## Automatic publication
+
+`publication.rs` owns a persistent `meeting_publications` queue. `publication-settings.json` stores the default for future recordings (true when absent). Recording setup visibly sends `publish_to_cica`; an omitted argument defaults to false for headless callers. A true choice creates a queue row with the new meeting. Existing meetings receive zero queue rows during migration. The worker waits for saved audio and the stopped/interrupted meeting state, then sends the original audio through the existing CICA multipart upload API. The website generates its own notes and transcript; local edits retain their local scope.
+
+Commands: `publication_default`, `publication_set_default(enabled)`, `publication_status(meeting_id)`, `publication_retry(meeting_id)` and `publication_open(meeting_id)`. States: queued, uploading, processing, published, failed. Status includes bytes sent, total bytes, error and website URL. The database persists upload ID and part receipts; retry first reconciles the remote ID to avoid duplicate publication after a lost completion response. The UI polls every three seconds; the worker checks every twenty seconds with a one-minute failure backoff and five-attempt limit for uploads. Processing state continues polling the website. Data preservation covers the original recording, local transcripts, settings and all historical meetings.
 
 ## 10. Build and install
 

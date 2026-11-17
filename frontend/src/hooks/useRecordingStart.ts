@@ -37,7 +37,8 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
     async (
       meetingTitle?: string,
       recordingMode: RecordingMode = "in_person",
-      calendarEvent: CalendarEvent | null = null
+      calendarEvent: CalendarEvent | null = null,
+      publishToCica = false
     ) => {
       if (isStartingRef.current || isRecording || isStopping) {
         return;
@@ -64,7 +65,8 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
           selectedDevices.systemDevice,
           title,
           recordingMode,
-          calendarEvent
+          calendarEvent,
+          publishToCica
         );
 
         setMeetingId(result.meeting_id);

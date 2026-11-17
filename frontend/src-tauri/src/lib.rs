@@ -7,6 +7,7 @@ pub mod final_transcript;
 pub mod live;
 mod outlook_calendar;
 mod outlook_secret;
+pub mod publication;
 mod recording_context;
 pub mod state;
 pub mod summary;
@@ -56,6 +57,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(AppState { db_manager });
     app.manage(VoiceService::load(app.handle()));
     audio::recording_preferences::allow_recordings_folder(app.handle());
+    publication::start(app.handle());
 
     let handle = app.handle().clone();
     tauri::async_runtime::spawn(async move {
@@ -126,6 +128,11 @@ pub fn run() {
             outlook_calendar::outlook_connect,
             outlook_calendar::outlook_select,
             outlook_calendar::outlook_disconnect,
+            publication::publication_default,
+            publication::publication_set_default,
+            publication::publication_status,
+            publication::publication_retry,
+            publication::publication_open,
             final_transcript::start_final_transcript,
             final_transcript::get_final_transcript_status,
             // Voice settings

@@ -242,6 +242,7 @@ pub async fn start_recording_with_devices_and_meeting(
     meeting_name: Option<String>,
     recording_mode: Option<RecordingMode>,
     calendar_event: Option<CalendarEvent>,
+    publish_to_cica: Option<bool>,
 ) -> Result<RecordingStarted, String> {
     let _lifecycle = LIFECYCLE_LOCK.lock().await;
     if IS_RECORDING.load(Ordering::SeqCst) {
@@ -254,6 +255,7 @@ pub async fn start_recording_with_devices_and_meeting(
         meeting_name,
         recording_mode,
         calendar_event,
+        publish_to_cica.unwrap_or(false),
     )
     .await;
     // Every outcome, failures included, puts the tray back in step with the real state.
@@ -268,6 +270,7 @@ async fn start_recording(
     meeting_name: Option<String>,
     recording_mode: Option<RecordingMode>,
     calendar_event: Option<CalendarEvent>,
+    publish_to_cica: bool,
 ) -> Result<RecordingStarted, String> {
     info!(
         "Starting recording: mic={:?}, system={:?}, meeting={:?}",
@@ -326,6 +329,16 @@ async fn start_recording(
         return Err(format!("Failed to create meeting: {}", e));
     }
 
+    if publish_to_cica {
+        if let Err(error) = crate::publication::enqueue(&pool, &meeting_id).await {
+            let _ = sqlx::query("DELETE FROM meetings WHERE id=?")
+                .bind(&meeting_id)
+                .execute(&pool)
+                .await;
+            remove_folder(&folder);
+            return Err(format!("Could not save publishing preference: {error}"));
+        }
+    }
     let target = MeetingTarget {
         meeting_id: meeting_id.clone(),
         meeting_name: title,

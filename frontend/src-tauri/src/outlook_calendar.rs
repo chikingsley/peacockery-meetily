@@ -271,6 +271,29 @@ async fn capture(app: &tauri::AppHandle, interactive: bool) -> Result<Connection
     }
     #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
+        for hive in ["HKCU", "HKLM"] {
+            {
+                let (policy, blocked) = ("RemoteDebuggingAllowed", "0x0");
+                let output = std::process::Command::new("reg.exe")
+                    .args([
+                        "query",
+                        &format!("{hive}\\SOFTWARE\\Policies\\Microsoft\\Edge"),
+                        "/v",
+                        policy,
+                    ])
+                    .creation_flags(0x08000000)
+                    .output();
+                if output.ok().filter(|o| o.status.success()).is_some_and(|o| {
+                    String::from_utf8_lossy(&o.stdout).lines().any(|line| {
+                        let words: Vec<_> = line.split_whitespace().collect();
+                        words.first() == Some(&policy) && words.last() == Some(&blocked)
+                    })
+                }) {
+                    return Err("Your organization’s Edge policy blocks the calendar connection. Your IT administrator can review the Meetily Outlook connection; recording remains available.".into());
+                }
+            }
+        }
         let dir = app
             .path()
             .app_data_dir()
@@ -286,7 +309,6 @@ async fn capture(app: &tauri::AppHandle, interactive: bool) -> Result<Connection
         .map(|p| std::path::PathBuf::from(p).join("Microsoft/Edge/Application/msedge.exe"))
         .find(|p| p.exists())
         .ok_or("Install Microsoft Edge to connect Outlook.")?;
-        use std::os::windows::process::CommandExt;
         let mut command = std::process::Command::new(edge);
         command.args([
             "--remote-debugging-port=0",

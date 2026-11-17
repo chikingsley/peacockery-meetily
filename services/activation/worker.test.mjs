@@ -125,3 +125,30 @@ test("expired grants fail and guessed codes are rate limited", async () => {
     429
   );
 });
+test("operator status is private, secret-free and preserves the invitation", async () => {
+  const env = environment(),
+    code = await issue(env);
+  assert.equal((await post(env, "/admin/status", { code })).status, 403);
+  const ready = await (await post(env, "/admin/status", { code }, true)).json();
+  assert.equal(ready.status, "ready");
+  assert.ok(ready.expires_at);
+  assert.equal(JSON.stringify(ready).includes("pv_lab_"), false);
+  assert.equal(
+    (
+      await post(env, "/redeem", {
+        code,
+        installation: "11111111-1111-1111-1111-111111111111",
+      })
+    ).status,
+    200
+  );
+  assert.equal(
+    (await (await post(env, "/admin/status", { code }, true)).json()).status,
+    "activated"
+  );
+  await post(env, "/admin/revoke", { code }, true);
+  assert.equal(
+    (await (await post(env, "/admin/status", { code }, true)).json()).status,
+    "unavailable"
+  );
+});

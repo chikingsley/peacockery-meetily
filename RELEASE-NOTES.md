@@ -1,6 +1,3 @@
-Simple activation and personal Outlook calendars
+New meetings include a visible Publish to CICA meetings switch, enabled by default, plus a global default in Settings. Selected recordings upload automatically after stop. The website generates the shared transcript and notes and publishes audio. Progress, restart recovery, retries and website links appear in the meeting view. Existing recordings keep their current publication state.
 
-- Enter an eight-digit code on first launch to activate your installation. Access is personal and revocable.
-- Connect your own work Outlook account in Settings > General, choose a calendar, and use its meetings when starting a recording.
-- Outlook sessions are protected by Windows and renew from the saved browser sign-in. Reconnect prompts appear when Microsoft needs fresh authentication.
-- Get new releases through Settings > General > App updates, then install and restart. Recordings and preferences stay in place.
+Operators can issue, inspect and revoke access with one name-based command. Repeat invites reuse the existing credential and code; additional computers receive independent access. Outlook connection errors now identify Edge policy restrictions early.

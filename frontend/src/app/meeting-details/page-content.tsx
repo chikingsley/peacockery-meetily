@@ -8,6 +8,7 @@ import { MeetingDetailsSplitView } from "@/components/MeetingDetails/MeetingDeta
 import type { MeetingDetailsTab } from "@/components/MeetingDetails/MeetingDetailsSplitView";
 import { SummaryPanel } from "@/components/MeetingDetails/SummaryPanel";
 import { TranscriptPanel } from "@/components/MeetingDetails/TranscriptPanel";
+import { PublicationProgress } from "@/components/Publication";
 import { useConfig } from "@/contexts/ConfigContext";
 import { useCopyOperations } from "@/hooks/meeting-details/useCopyOperations";
 import { useFinalTranscript } from "@/hooks/meeting-details/useFinalTranscript";
@@ -116,6 +117,7 @@ export default function PageContent({
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="flex h-full min-w-0 flex-col bg-muted/40"
     >
+      <PublicationProgress key={meeting.id} meetingId={meeting.id} />
       <div className="flex min-w-0 flex-1 overflow-hidden">
         <MeetingDetailsSplitView
           activeTab={activeTab}

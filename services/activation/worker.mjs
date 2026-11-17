@@ -40,6 +40,14 @@ export class ActivationState {
         return json({}, 201);
       }
       const grant = await store.get("grant");
+      if (action === "status") {
+        if (!grant || grant.until <= now)
+          return json({ status: "unavailable" });
+        return json({
+          status: grant.installation ? "activated" : "ready",
+          expires_at: new Date(grant.until).toISOString(),
+        });
+      }
       if (
         !grant ||
         grant.until <= now ||
@@ -82,10 +90,10 @@ export default {
     }
     if (!body || typeof body !== "object" || Array.isArray(body))
       return json({}, 400);
-    if (path === "/admin/revoke") {
+    if (path === "/admin/revoke" || path === "/admin/status") {
       if (!/^\d{8}$/.test(body.code ?? "")) return json({}, 400);
       return call(env, "code:" + (await digest(body.code)), {
-        action: "revoke",
+        action: path === "/admin/status" ? "status" : "revoke",
       });
     }
     if (path === "/admin/codes") {

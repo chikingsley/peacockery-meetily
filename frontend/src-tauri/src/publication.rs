@@ -1,0 +1,541 @@
+//! Durable delivery through the CICA site's existing recording upload queue.
+//! The website produces its transcript and generated minutes from the original audio.
+use crate::{database::repositories::meeting::MeetingsRepository, state::AppState};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use sqlx::SqlitePool;
+use std::{
+    path::Path,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
+use tauri::{AppHandle, Manager};
+use tauri_plugin_store::StoreExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
+
+const SITE: &str = "https://cica.grassinside.com";
+const PART_SIZE: usize = 10 * 1024 * 1024;
+static BUSY: AtomicBool = AtomicBool::new(false);
+struct Guard;
+impl Drop for Guard {
+    fn drop(&mut self) {
+        BUSY.store(false, Ordering::SeqCst);
+    }
+}
+pub fn is_busy() -> bool {
+    BUSY.load(Ordering::SeqCst)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Publication {
+    pub meeting_id: String,
+    pub state: String,
+    pub upload_id: Option<String>,
+    pub bytes_sent: i64,
+    pub total_bytes: i64,
+    pub error: Option<String>,
+}
+#[derive(Serialize)]
+pub struct Status {
+    #[serde(flatten)]
+    pub publication: Publication,
+    pub url: Option<String>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Part {
+    etag: String,
+    part_number: u64,
+}
+
+#[tauri::command]
+pub fn publication_default(app: AppHandle) -> Result<bool, String> {
+    let store = app
+        .store("publication-settings.json")
+        .map_err(|e| e.to_string())?;
+    Ok(store
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true))
+}
+#[tauri::command]
+pub fn publication_set_default(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let store = app
+        .store("publication-settings.json")
+        .map_err(|e| e.to_string())?;
+    store.set("enabled", enabled);
+    store.save().map_err(|e| e.to_string())
+}
+pub async fn enqueue(pool: &SqlitePool, meeting_id: &str) -> Result<(), String> {
+    sqlx::query("INSERT INTO meeting_publications (meeting_id) VALUES (?) ON CONFLICT(meeting_id) DO NOTHING")
+        .bind(meeting_id).execute(pool).await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+#[tauri::command]
+pub async fn publication_status(
+    app: AppHandle,
+    meeting_id: String,
+) -> Result<Option<Status>, String> {
+    let pool = app.state::<AppState>().db_manager.pool().clone();
+    let row = get(&pool, &meeting_id).await?;
+    Ok(row.map(|publication| Status {
+        url: publication
+            .upload_id
+            .as_ref()
+            .map(|id| format!("{SITE}/#meetings/{id}")),
+        publication,
+    }))
+}
+#[tauri::command]
+pub async fn publication_retry(app: AppHandle, meeting_id: String) -> Result<(), String> {
+    let pool = app.state::<AppState>().db_manager.pool().clone();
+    sqlx::query("UPDATE meeting_publications SET state='queued', error=NULL, attempts=0, retry_at=0 WHERE meeting_id=? AND state='failed'")
+        .bind(meeting_id).execute(&pool).await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+#[tauri::command]
+pub async fn publication_open(app: AppHandle, meeting_id: String) -> Result<(), String> {
+    let pool = app.state::<AppState>().db_manager.pool().clone();
+    let publication = get(&pool, &meeting_id)
+        .await?
+        .ok_or("Meeting has a local recording.")?;
+    let url = match (publication.state.as_str(), publication.upload_id) {
+        ("published", Some(id)) if id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') => {
+            format!("{SITE}/#meetings/{id}")
+        }
+        _ => format!("{SITE}/#meetings"),
+    };
+    #[cfg(windows)]
+    {
+        std::process::Command::new("explorer.exe")
+            .arg(url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = url;
+        Err("Open the website from the Windows app.".into())
+    }
+    #[cfg(windows)]
+    Ok(())
+}
+async fn get(pool: &SqlitePool, id: &str) -> Result<Option<Publication>, String> {
+    sqlx::query_as("SELECT meeting_id,state,upload_id,bytes_sent,total_bytes,error FROM meeting_publications WHERE meeting_id=?")
+        .bind(id).fetch_optional(pool).await.map_err(|e| e.to_string())
+}
+async fn state(pool: &SqlitePool, id: &str, value: &str) -> Result<(), String> {
+    sqlx::query("UPDATE meeting_publications SET state=?, error=NULL WHERE meeting_id=?")
+        .bind(value)
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+fn client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(180))
+        .build()
+        .map_err(|e| e.to_string())
+}
+async fn checked(request: reqwest::RequestBuilder) -> Result<Value, String> {
+    let response = request.send().await.map_err(|_| {
+        "Website connection interrupted. The saved recording is ready to retry.".to_string()
+    })?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Website returned HTTP {}. Upload will retry.",
+            response.status().as_u16()
+        ));
+    }
+    response
+        .json()
+        .await
+        .map_err(|_| "Website returned an unreadable response.".into())
+}
+async fn remote_status(
+    http: &reqwest::Client,
+    site: &str,
+    id: &str,
+) -> Result<Option<&'static str>, String> {
+    let response = http
+        .get(format!("{site}/api/meetings/{id}"))
+        .send()
+        .await
+        .map_err(|_| "Website status check failed.".to_string())?;
+    if response.status().is_success() {
+        let record: Value = response
+            .json()
+            .await
+            .map_err(|_| "Website meeting response is unreadable.".to_string())?;
+        if record["recordings"]
+            .as_array()
+            .is_some_and(|r| !r.is_empty())
+            && record["transcript"].is_object()
+            && record["minutesSource"]
+                .as_str()
+                .is_some_and(|s| s != "none")
+        {
+            return Ok(Some("published"));
+        }
+        return Ok(Some("processing"));
+    }
+    if response.status() != reqwest::StatusCode::NOT_FOUND {
+        return Err("Website status check failed. Upload identity is preserved for retry.".into());
+    }
+    let index = checked(http.get(format!("{site}/api/meetings"))).await?;
+    Ok(index["pending"]
+        .as_array()
+        .is_some_and(|items| items.iter().any(|x| x["id"] == id))
+        .then_some("processing"))
+}
+
+async fn upload(pool: &SqlitePool, row: &Publication, site: &str) -> Result<(), String> {
+    let http = client()?;
+    if let Some(id) = &row.upload_id {
+        if let Some(status) = remote_status(&http, site, id).await? {
+            return state(pool, &row.meeting_id, status).await;
+        }
+        if row.state == "processing" {
+            return Err(
+                "The website is processing this recording. Check its meetings page.".into(),
+            );
+        }
+    }
+    let meeting = MeetingsRepository::get(pool, &row.meeting_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Meeting was removed.")?;
+    let folder = meeting
+        .folder_path
+        .as_ref()
+        .ok_or("Recording folder is unavailable.")?;
+    let mut audio = tokio::fs::File::open(Path::new(folder).join("audio.mp4"))
+        .await
+        .map_err(|_| {
+            "The saved audio is unavailable. Open the recording folder to check it.".to_string()
+        })?;
+    let size = audio.metadata().await.map_err(|e| e.to_string())?.len();
+    if size == 0 || size > 4 * 1024 * 1024 * 1024 {
+        return Err("Website uploads support recordings between 1 byte and 4 GiB.".into());
+    }
+    if row.upload_id.is_some() && row.total_bytes != size as i64 {
+        return Err(
+            "The recording size changed. Preserve the original audio before resuming this upload."
+                .into(),
+        );
+    }
+    let id = if let Some(id) = &row.upload_id {
+        id.clone()
+    } else {
+        let created = chrono::DateTime::parse_from_rfc3339(
+            meeting
+                .created_at
+                .as_deref()
+                .ok_or("Meeting date needs attention.")?,
+        )
+        .map_err(|_| "Meeting date needs attention.".to_string())?;
+        // The current calendar and website both use Arizona time (UTC-7 year-round).
+        let local = created
+            .with_timezone(&chrono::FixedOffset::west_opt(7 * 3600).expect("Arizona offset"));
+        let response = checked(http.post(format!("{site}/api/uploads")).header("Origin", site).json(&json!({
+            "category":"internal", "company":"Cica-Huntek", "title":meeting.title.chars().take(200).collect::<String>(),
+            "date":local.format("%Y-%m-%d").to_string(), "time":local.format("%I:%M %p").to_string(),
+            "filename":"audio.mp4", "contentType":"audio/mp4", "size":size,
+        }))).await?;
+        let id = response["id"]
+            .as_str()
+            .filter(|s| {
+                !s.is_empty()
+                    && s.len() <= 120
+                    && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+            })
+            .ok_or("Website returned an invalid upload identity.")?
+            .to_string();
+        if response["partSize"].as_u64() != Some(PART_SIZE as u64) {
+            return Err("Website upload protocol changed. Update Meetily before retrying.".into());
+        }
+        sqlx::query("UPDATE meeting_publications SET upload_id=?,total_bytes=?,state='uploading' WHERE meeting_id=?")
+            .bind(&id).bind(size as i64).bind(&row.meeting_id).execute(pool).await.map_err(|e| e.to_string())?;
+        id
+    };
+    state(pool, &row.meeting_id, "uploading").await?;
+    let saved: String =
+        sqlx::query_scalar("SELECT parts_json FROM meeting_publications WHERE meeting_id=?")
+            .bind(&row.meeting_id)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    let mut parts: Vec<Part> = serde_json::from_str(&saved)
+        .map_err(|_| "Upload checkpoint needs attention.".to_string())?;
+    let mut sent = (parts.len() * PART_SIZE) as u64;
+    if sent > size {
+        sent = size;
+    }
+    audio
+        .seek(std::io::SeekFrom::Start(sent))
+        .await
+        .map_err(|e| e.to_string())?;
+    while sent < size {
+        let mut bytes = vec![0; (size - sent).min(PART_SIZE as u64) as usize];
+        audio.read_exact(&mut bytes).await.map_err(|_| {
+            "Audio changed during upload. Retry from the saved original.".to_string()
+        })?;
+        let length = bytes.len() as u64;
+        let number = parts.len() as u64 + 1;
+        let response = http
+            .put(format!("{site}/api/uploads/{id}/parts/{number}"))
+            .header("Origin", site)
+            .body(bytes)
+            .send()
+            .await
+            .map_err(|_| "Upload connection interrupted. Saved parts will resume.".to_string())?;
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            // remote_status above confirmed this ID is absent from the published and pending lists.
+            // The site's open-upload receipt expires after two days; start a fresh upload next time.
+            sqlx::query("UPDATE meeting_publications SET upload_id=NULL,parts_json='[]',bytes_sent=0,total_bytes=0 WHERE meeting_id=?")
+                .bind(&row.meeting_id).execute(pool).await.map_err(|e| e.to_string())?;
+            return Err(
+                "The upload session expired. A fresh upload will start automatically.".into(),
+            );
+        }
+        if !response.status().is_success() {
+            return Err(format!(
+                "Website returned HTTP {}. Upload will retry.",
+                response.status().as_u16()
+            ));
+        }
+        let value = response
+            .json::<Value>()
+            .await
+            .map_err(|_| "Website part receipt is unreadable.".to_string())?;
+        let part: Part = serde_json::from_value(value)
+            .map_err(|_| "Website part receipt is unreadable.".to_string())?;
+        if part.part_number != number {
+            return Err("Website returned an unexpected part receipt.".into());
+        }
+        parts.push(part);
+        sent += length;
+        sqlx::query("UPDATE meeting_publications SET parts_json=?,bytes_sent=? WHERE meeting_id=?")
+            .bind(serde_json::to_string(&parts).map_err(|e| e.to_string())?)
+            .bind(sent as i64)
+            .bind(&row.meeting_id)
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    checked(
+        http.post(format!("{site}/api/uploads/{id}/complete"))
+            .header("Origin", site)
+            .json(&json!({"parts":parts})),
+    )
+    .await?;
+    state(pool, &row.meeting_id, "processing").await
+}
+
+/// Runs on startup and every 20 seconds. Only opt-in rows with saved audio are eligible.
+pub async fn tick(pool: &SqlitePool) -> Result<(), String> {
+    tick_at(pool, SITE).await
+}
+async fn tick_at(pool: &SqlitePool, site: &str) -> Result<(), String> {
+    if BUSY
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Ok(());
+    }
+    let _guard = Guard;
+    let rows: Vec<Publication> = sqlx::query_as("SELECT p.meeting_id,p.state,p.upload_id,p.bytes_sent,p.total_bytes,p.error FROM meeting_publications p JOIN meetings m ON m.id=p.meeting_id WHERE m.status IN ('stopped','interrupted') AND p.state IN ('queued','uploading','processing') AND p.retry_at <= ? ORDER BY (p.state='processing'),m.created_at LIMIT 10")
+        .bind(chrono::Utc::now().timestamp()).fetch_all(pool).await.map_err(|e| e.to_string())?;
+    for row in rows {
+        if let Err(error) = upload(pool, &row, site).await {
+            sqlx::query("UPDATE meeting_publications SET attempts=attempts+1, state=CASE WHEN state='processing' THEN 'processing' WHEN attempts>=4 THEN 'failed' ELSE 'queued' END,error=?,retry_at=? WHERE meeting_id=?")
+                .bind(error).bind(chrono::Utc::now().timestamp() + 60).bind(&row.meeting_id).execute(pool).await.map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+pub fn start(app: &AppHandle) {
+    let pool = app.state::<AppState>().db_manager.pool().clone();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            if let Err(error) = tick(&pool).await {
+                log::warn!("Publication queue: {error}");
+            }
+            tokio::time::sleep(Duration::from_secs(20)).await;
+        }
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::repositories::meeting::NewMeeting;
+    use std::sync::{Arc, Mutex};
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn consent_checkpoint_resume_and_lost_completion_preserve_one_upload() {
+        let pool = crate::database::test_pool().await;
+        let dir = tempfile::tempdir().unwrap();
+        let audio = vec![0x42u8; PART_SIZE + 5];
+        tokio::fs::write(dir.path().join("audio.mp4"), &audio)
+            .await
+            .unwrap();
+        MeetingsRepository::create(
+            &pool,
+            &NewMeeting {
+                id: "meeting",
+                title: "Test meeting",
+                folder_path: dir.path().to_str().unwrap(),
+                status: "stopped",
+            },
+        )
+        .await
+        .unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let site = format!("http://{}", listener.local_addr().unwrap());
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let observed = requests.clone();
+        let completed = Arc::new(AtomicBool::new(false));
+        let published = Arc::new(AtomicBool::new(false));
+        let is_published = published.clone();
+        let server = tokio::spawn(async move {
+            let mut second_attempts = 0;
+            loop {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let mut header = vec![];
+                while !header.ends_with(b"\r\n\r\n") {
+                    header.push(socket.read_u8().await.unwrap());
+                }
+                let header = String::from_utf8(header).unwrap();
+                let line = header.lines().next().unwrap().to_string();
+                let length = header
+                    .lines()
+                    .find_map(|l| {
+                        l.to_lowercase()
+                            .strip_prefix("content-length: ")
+                            .map(str::to_string)
+                    })
+                    .map(|n| n.parse::<usize>().unwrap())
+                    .unwrap_or(0);
+                let mut body = vec![0; length];
+                socket.read_exact(&mut body).await.unwrap();
+                observed.lock().unwrap().push(line.clone());
+                let (code, response) = if line.starts_with("POST /api/uploads ") {
+                    let body: Value = serde_json::from_slice(&body).unwrap();
+                    assert_eq!(body["size"], PART_SIZE + 5);
+                    assert_eq!(body["title"], "Test meeting");
+                    assert!(header.to_lowercase().contains("origin: http://127.0.0.1:"));
+                    (200, json!({"id":"test-upload", "partSize":PART_SIZE}))
+                } else if line.starts_with("PUT ") {
+                    let number = if line.contains("/parts/1 ") { 1 } else { 2 };
+                    assert_eq!(body, vec![0x42; if number == 1 { PART_SIZE } else { 5 }]);
+                    if number == 2 {
+                        second_attempts += 1;
+                    }
+                    if number == 2 && second_attempts == 1 {
+                        (500, json!({}))
+                    } else {
+                        (
+                            200,
+                            json!({"etag":format!("part-{number}"),"partNumber":number}),
+                        )
+                    }
+                } else if line.starts_with("POST ") && line.contains("/complete ") {
+                    assert_eq!(
+                        serde_json::from_slice::<Value>(&body).unwrap()["parts"]
+                            .as_array()
+                            .unwrap()
+                            .len(),
+                        2
+                    );
+                    completed.store(true, Ordering::SeqCst);
+                    (500, json!({})) // Server completed the upload; client lost the receipt.
+                } else if line.starts_with("GET /api/meetings/test-upload ") {
+                    if is_published.load(Ordering::SeqCst) {
+                        (
+                            200,
+                            json!({"transcript":{},"minutesSource":"generated","recordings":[{"label":"Audio"}]}),
+                        )
+                    } else {
+                        (404, json!({}))
+                    }
+                } else if line.starts_with("GET /api/meetings ") {
+                    (
+                        200,
+                        json!({"pending": if completed.load(Ordering::SeqCst) { vec![json!({"id":"test-upload"})] } else { vec![] }}),
+                    )
+                } else {
+                    panic!("Unexpected request: {line}");
+                };
+                use tokio::io::AsyncWriteExt;
+                let body = response.to_string();
+                socket.write_all(format!("HTTP/1.1 {code} Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes()).await.unwrap();
+            }
+        });
+        tick_at(&pool, &site).await.unwrap(); // Historical meetings have no publication row.
+        assert!(requests.lock().unwrap().is_empty());
+        enqueue(&pool, "meeting").await.unwrap();
+        enqueue(&pool, "meeting").await.unwrap();
+        sqlx::query("UPDATE meetings SET status='recording'")
+            .execute(&pool)
+            .await
+            .unwrap();
+        tick_at(&pool, &site).await.unwrap();
+        assert!(requests.lock().unwrap().is_empty());
+        sqlx::query("UPDATE meetings SET status='stopped'")
+            .execute(&pool)
+            .await
+            .unwrap();
+        tick_at(&pool, &site).await.unwrap();
+        assert_eq!(
+            get(&pool, "meeting").await.unwrap().unwrap().bytes_sent,
+            PART_SIZE as i64
+        );
+        for _ in 0..2 {
+            sqlx::query("UPDATE meeting_publications SET retry_at=0")
+                .execute(&pool)
+                .await
+                .unwrap();
+            tick_at(&pool, &site).await.unwrap();
+        }
+        assert_eq!(
+            get(&pool, "meeting").await.unwrap().unwrap().state,
+            "processing"
+        );
+        published.store(true, Ordering::SeqCst);
+        tick_at(&pool, &site).await.unwrap();
+        assert_eq!(
+            get(&pool, "meeting").await.unwrap().unwrap().state,
+            "published"
+        );
+        assert_eq!(
+            tokio::fs::read(dir.path().join("audio.mp4")).await.unwrap(),
+            audio
+        );
+        let requests = requests.lock().unwrap();
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|r| r.starts_with("POST /api/uploads "))
+                .count(),
+            1
+        );
+        assert_eq!(
+            requests.iter().filter(|r| r.contains("/parts/1 ")).count(),
+            1
+        );
+        assert_eq!(
+            requests.iter().filter(|r| r.contains("/parts/2 ")).count(),
+            2
+        );
+        assert_eq!(
+            requests.iter().filter(|r| r.contains("/complete ")).count(),
+            1
+        );
+        server.abort();
+    }
+}

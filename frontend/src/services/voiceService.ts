@@ -94,13 +94,15 @@ export const voiceService = {
     systemDeviceName: string | null,
     meetingName: string | null,
     recordingMode: RecordingMode = "in_person",
-    calendarEvent: CalendarEvent | null = null
+    calendarEvent: CalendarEvent | null = null,
+    publishToCica = false
   ) =>
     withTimeout(
       invoke<StartRecordingResult>("start_recording_with_devices_and_meeting", {
         meetingName,
         recordingMode,
         calendarEvent,
+        publishToCica,
         micDeviceName,
         systemDeviceName,
       }),

@@ -4,6 +4,10 @@ import { Mic, SlidersHorizontal } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { DeviceSelection } from "@/components/DeviceSelection";
+import {
+  PublicationChoice,
+  usePublicationDefault,
+} from "@/components/Publication";
 import { RecordingControls } from "@/components/RecordingControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +26,10 @@ import { VoiceNotConfiguredDialog } from "./_components/VoiceNotConfiguredDialog
 
 export default function Home() {
   const desktop = useDesktopRuntime();
+
+  const { enabled: publishToCica, setEnabled: setPublishToCica } =
+    usePublicationDefault();
+
   const [showVoiceDialog, setShowVoiceDialog] = useState(false);
   const [activationDismissed, setActivationDismissed] = useState(false);
   const [title, setTitle] = useState("");
@@ -68,7 +76,14 @@ export default function Home() {
           </div>
           <div className="flex shrink-0 justify-center border-t p-4">
             <RecordingControls
-              onStart={() => startRecording(title, mode, calendarEvent)}
+              onStart={() =>
+                startRecording(
+                  title,
+                  mode,
+                  calendarEvent,
+                  publishToCica ?? false
+                )
+              }
             />
           </div>
         </>
@@ -81,7 +96,12 @@ export default function Home() {
                 event.preventDefault();
 
                 if (desktop) {
-                  void startRecording(title, mode, calendarEvent);
+                  void startRecording(
+                    title,
+                    mode,
+                    calendarEvent,
+                    publishToCica ?? false
+                  );
                 }
               }}
             >
@@ -100,8 +120,15 @@ export default function Home() {
                   placeholder="Untitled meeting"
                 />
               </div>
+              <PublicationChoice
+                enabled={publishToCica}
+                onChange={setPublishToCica}
+              />
               <div className="flex flex-wrap items-center gap-4">
-                <Button type="submit" disabled={active || !desktop}>
+                <Button
+                  type="submit"
+                  disabled={active || !desktop || publishToCica === null}
+                >
                   <Mic />
                   Start recording
                 </Button>

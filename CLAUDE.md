@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Peacockery Meetily is an internal Windows-only meeting and call recorder (Tauri 2, Rust, Next.js 14
+Peacockery Meetily is an internal Windows-only meeting and call recorder (Tauri 2, Rust, Next.js 16
 static export). No local models: live transcript, final transcript and summaries all go through
 the Peacockery Voice API.
 
