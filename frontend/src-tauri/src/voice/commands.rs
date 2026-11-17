@@ -71,7 +71,10 @@ pub async fn voice_get_key_status() -> Result<KeyStatus, String> {
 }
 
 #[tauri::command]
-pub async fn voice_set_api_key(voice: State<'_, VoiceService>, key: String) -> Result<KeyStatus, String> {
+pub async fn voice_set_api_key(
+    voice: State<'_, VoiceService>,
+    key: String,
+) -> Result<KeyStatus, String> {
     let status = credential::store_key(&key)?;
     voice.invalidate();
     Ok(status)
@@ -85,7 +88,9 @@ pub async fn voice_clear_api_key(voice: State<'_, VoiceService>) -> Result<KeySt
 }
 
 #[tauri::command]
-pub async fn voice_test_connection(voice: State<'_, VoiceService>) -> Result<ConnectionTest, String> {
+pub async fn voice_test_connection(
+    voice: State<'_, VoiceService>,
+) -> Result<ConnectionTest, String> {
     let started = Instant::now();
     let result = match voice.client() {
         Ok(client) => client.health().await.map_err(|e| describe_error(&e)),
@@ -99,7 +104,12 @@ pub async fn voice_test_connection(voice: State<'_, VoiceService>) -> Result<Con
             latency_ms,
             error: (!health.ok).then(|| "The server reported it is not healthy".to_string()),
         },
-        Err(error) => ConnectionTest { ok: false, environment: None, latency_ms, error: Some(error) },
+        Err(error) => ConnectionTest {
+            ok: false,
+            environment: None,
+            latency_ms,
+            error: Some(error),
+        },
     })
 }
 
@@ -124,7 +134,11 @@ mod tests {
         assert_eq!(lists.live.len(), 5);
         assert_eq!(lists.final_models.len(), 6);
         assert_eq!(lists.summary.len(), 5);
-        assert!(lists.live.iter().chain(&lists.final_models).all(|o| !o.available));
+        assert!(lists
+            .live
+            .iter()
+            .chain(&lists.final_models)
+            .all(|o| !o.available));
         let json = serde_json::to_value(&lists).unwrap();
         assert!(json.get("final").is_some());
         assert_eq!(json["error"], "offline");
@@ -137,7 +151,11 @@ mod tests {
         ))
         .unwrap();
         let lists = ModelLists::from_catalog(&catalog, None);
-        let scribe = lists.final_models.iter().find(|o| o.id == "elevenlabs-scribe_v2").unwrap();
+        let scribe = lists
+            .final_models
+            .iter()
+            .find(|o| o.id == "elevenlabs-scribe_v2")
+            .unwrap();
         assert!(scribe.available && scribe.supports_diarization && !scribe.recommended);
     }
 }

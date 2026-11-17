@@ -20,6 +20,9 @@ pub(crate) async fn test_pool() -> sqlx::SqlitePool {
         .connect_with(options)
         .await
         .expect("in-memory database");
-    sqlx::migrate!("./migrations").run(&pool).await.expect("migrations");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("migrations");
     pool
 }

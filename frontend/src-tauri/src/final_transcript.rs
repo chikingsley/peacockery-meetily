@@ -12,8 +12,8 @@ use std::sync::{Arc, LazyLock, Mutex};
 
 use chrono::{DateTime, Local};
 use peacockery_voice::{
-    name_speakers, turns_with_source, Artifact, BatchProgress, CancellationToken, EnergyTrack, Error, ModelFamily,
-    ProgressFn, TranscribeOptions, Turn, TurnSource, VoiceClient,
+    name_speakers, turns_with_source, Artifact, BatchProgress, CancellationToken, EnergyTrack,
+    Error, ModelFamily, ProgressFn, TranscribeOptions, Turn, TurnSource, VoiceClient,
 };
 use serde::Serialize;
 use sqlx::SqlitePool;
@@ -61,7 +61,13 @@ pub struct FinalJob {
 
 impl FinalJob {
     /// Job options from the settings for `model`.
-    pub fn new(meeting: &Meeting, folder: PathBuf, audio: PathBuf, model: &str, settings: &VoiceSettings) -> Self {
+    pub fn new(
+        meeting: &Meeting,
+        folder: PathBuf,
+        audio: PathBuf,
+        model: &str,
+        settings: &VoiceSettings,
+    ) -> Self {
         let mut options = TranscribeOptions::new(model);
         // Cohere has no diarization; asking for it fails the job.
         options.diarize = settings.final_diarize && ModelFamily::of(model) != ModelFamily::Cohere;
@@ -178,14 +184,25 @@ pub async fn store_final(
     let (turns, turn_source) = turns_with_source(artifact);
     // A microphone can contain several people. New recordings retain generic speaker
     // identities; channel energy cannot establish which person is the user.
-    let energy = if crate::recording_context::RecordingContext::load(&job.folder).is_some() { None } else { load_energy(&job.folder) };
+    let energy = if crate::recording_context::RecordingContext::load(&job.folder).is_some() {
+        None
+    } else {
+        load_energy(&job.folder)
+    };
     let mut named = name_speakers(&turns, energy.as_ref(), &job.me_label, &job.them_label);
-    for turn in &mut named { turn.text = crate::voice::corrections::correct_text(&turn.text, &job.transcript_corrections); }
+    for turn in &mut named {
+        turn.text =
+            crate::voice::corrections::correct_text(&turn.text, &job.transcript_corrections);
+    }
     let rows = rows_from_turns(&named, job.recorded_at);
 
-    let failed = |what: &str, e: &dyn std::fmt::Display| FinalError::Failed(format!("Could not save {}: {}", what, e));
-    let artifact_json = serde_json::to_vec_pretty(&artifact.raw).map_err(|e| failed(ARTIFACT_FILE, &e))?;
-    write_atomic(&job.folder.join(ARTIFACT_FILE), &artifact_json).map_err(|e| failed(ARTIFACT_FILE, &e))?;
+    let failed = |what: &str, e: &dyn std::fmt::Display| {
+        FinalError::Failed(format!("Could not save {}: {}", what, e))
+    };
+    let artifact_json =
+        serde_json::to_vec_pretty(&artifact.raw).map_err(|e| failed(ARTIFACT_FILE, &e))?;
+    write_atomic(&job.folder.join(ARTIFACT_FILE), &artifact_json)
+        .map_err(|e| failed(ARTIFACT_FILE, &e))?;
     let transcript_json = serde_json::to_vec_pretty(&TranscriptFile {
         meeting_id: &job.meeting_id,
         model: &job.options.asr_model,
@@ -194,37 +211,78 @@ pub async fn store_final(
         turns: &named,
     })
     .map_err(|e| failed(TRANSCRIPT_FILE, &e))?;
-    write_atomic(&job.folder.join(TRANSCRIPT_FILE), &transcript_json).map_err(|e| failed(TRANSCRIPT_FILE, &e))?;
+    write_atomic(&job.folder.join(TRANSCRIPT_FILE), &transcript_json)
+        .map_err(|e| failed(TRANSCRIPT_FILE, &e))?;
 
     TranscriptsRepository::replace_source(pool, &job.meeting_id, transcript_source::FINAL, &rows)
         .await
         .map_err(|e| failed("the final transcript", &e))?;
-    Ok(FinalOutcome { job_id: job_id.to_string(), segments_count: rows.len(), turn_source })
+    Ok(FinalOutcome {
+        job_id: job_id.to_string(),
+        segments_count: rows.len(),
+        turn_source,
+    })
 }
 
 /// Large source files are encoded as one complete speech-quality file for upload.
 /// The original recording and its timeline remain unchanged; no segmentation occurs.
 const MAX_DIRECT_INPUT_BYTES: u64 = 20 * 1024 * 1024;
 
-async fn prepare_audio(audio: &Path, cancel: &CancellationToken) -> Result<Option<tempfile::TempPath>, FinalError> {
-    let size = std::fs::metadata(audio).map_err(|e| FinalError::Failed(e.to_string()))?.len();
-    if size <= MAX_DIRECT_INPUT_BYTES { return Ok(None); }
-    let temp = tempfile::Builder::new().prefix("meetily-asr-").suffix(".m4a").tempfile()
-        .map_err(|e| FinalError::Failed(e.to_string()))?.into_temp_path();
-    let mut command = tokio::process::Command::from(crate::audio::ffmpeg::ffmpeg_command()
-        .map_err(|e| FinalError::Failed(e.to_string()))?);
-    command.args(["-nostdin", "-y", "-i"]).arg(audio)
-        .args(["-vn", "-ac", "1", "-ar", "16000", "-c:a", "aac", "-b:a", "32k", "-movflags", "+faststart"])
-        .arg(&temp).kill_on_drop(true);
+async fn prepare_audio(
+    audio: &Path,
+    cancel: &CancellationToken,
+) -> Result<Option<tempfile::TempPath>, FinalError> {
+    let size = std::fs::metadata(audio)
+        .map_err(|e| FinalError::Failed(e.to_string()))?
+        .len();
+    if size <= MAX_DIRECT_INPUT_BYTES {
+        return Ok(None);
+    }
+    let temp = tempfile::Builder::new()
+        .prefix("meetily-asr-")
+        .suffix(".m4a")
+        .tempfile()
+        .map_err(|e| FinalError::Failed(e.to_string()))?
+        .into_temp_path();
+    let mut command = tokio::process::Command::from(
+        crate::audio::ffmpeg::ffmpeg_command().map_err(|e| FinalError::Failed(e.to_string()))?,
+    );
+    command
+        .args(["-nostdin", "-y", "-i"])
+        .arg(audio)
+        .args([
+            "-vn",
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "32k",
+            "-movflags",
+            "+faststart",
+        ])
+        .arg(&temp)
+        .kill_on_drop(true);
     let output = tokio::select! {
         _ = cancel.cancelled() => return Err(FinalError::Cancelled),
         result = command.output() => result.map_err(|e| FinalError::Failed(e.to_string()))?,
     };
     if !output.status.success() {
-        return Err(FinalError::Failed(format!("Could not prepare complete recording for transcription: {}", String::from_utf8_lossy(&output.stderr))));
+        return Err(FinalError::Failed(format!(
+            "Could not prepare complete recording for transcription: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
     }
-    let prepared = std::fs::metadata(&temp).map_err(|e| FinalError::Failed(e.to_string()))?.len();
-    log::info!("Prepared complete recording for transcription: {} to {} bytes; original preserved", size, prepared);
+    let prepared = std::fs::metadata(&temp)
+        .map_err(|e| FinalError::Failed(e.to_string()))?
+        .len();
+    log::info!(
+        "Prepared complete recording for transcription: {} to {} bytes; original preserved",
+        size,
+        prepared
+    );
     Ok(Some(temp))
 }
 
@@ -239,20 +297,29 @@ pub async fn run_final_transcript(
     let last_percent = AtomicU32::new(u32::MAX);
     let progress: ProgressFn = Arc::new(move |p| match p {
         BatchProgress::Uploading { sent, total } => {
-            let percent = sent.saturating_mul(100).checked_div(total).map_or(100, |p| p as u32) / 10 * 10;
+            let percent = sent
+                .saturating_mul(100)
+                .checked_div(total)
+                .map_or(100, |p| p as u32)
+                / 10
+                * 10;
             if last_percent.swap(percent, Ordering::Relaxed) != percent {
                 on_progress(FinalProgress::Uploading { percent });
             }
         }
         BatchProgress::JobCreated { job_id } => on_progress(FinalProgress::Transcribing { job_id }),
-        BatchProgress::Job { job_id, error: Some(message), .. } => {
-            on_progress(FinalProgress::Waiting { job_id, message })
-        }
+        BatchProgress::Job {
+            job_id,
+            error: Some(message),
+            ..
+        } => on_progress(FinalProgress::Waiting { job_id, message }),
         BatchProgress::Uploaded { .. } | BatchProgress::Job { .. } => {}
     });
     let prepared = prepare_audio(&job.audio, cancel).await?;
     let audio = prepared.as_deref().unwrap_or(&job.audio);
-    let done = client.transcribe_file(audio, &job.options, cancel, progress).await?;
+    let done = client
+        .transcribe_file(audio, &job.options, cancel, progress)
+        .await?;
     if cancel.is_cancelled() {
         return Err(FinalError::Cancelled);
     }
@@ -285,13 +352,23 @@ fn register(meeting_id: &str) -> (u64, CancellationToken, Arc<tokio::sync::Mutex
         }
         None => Arc::new(tokio::sync::Mutex::new(())),
     };
-    slots.insert(meeting_id.to_string(), Slot { generation, token: token.clone(), lock: lock.clone() });
+    slots.insert(
+        meeting_id.to_string(),
+        Slot {
+            generation,
+            token: token.clone(),
+            lock: lock.clone(),
+        },
+    );
     (generation, token, lock)
 }
 
 fn unregister(meeting_id: &str, generation: u64) {
     let mut slots = SLOTS.lock().unwrap_or_else(|p| p.into_inner());
-    if slots.get(meeting_id).is_some_and(|slot| slot.generation == generation) {
+    if slots
+        .get(meeting_id)
+        .is_some_and(|slot| slot.generation == generation)
+    {
         slots.remove(meeting_id);
     }
 }
@@ -325,16 +402,39 @@ struct Reporter {
 }
 
 impl Reporter {
-    async fn report(&self, state: &str, message: Option<String>, segments_count: Option<usize>, store: bool) {
+    async fn report(
+        &self,
+        state: &str,
+        message: Option<String>,
+        segments_count: Option<usize>,
+        store: bool,
+    ) {
         if self.token.is_cancelled() {
             return;
         }
         if store {
-            let job_id = self.job_id.lock().unwrap_or_else(|p| p.into_inner()).clone();
-            let error = (state == final_state::FAILED).then_some(message.as_deref()).flatten();
-            let row = FinalState { status: state, model: &self.model, job_id: job_id.as_deref(), error };
-            if let Err(e) = MeetingsRepository::set_final_state(&self.pool, &self.meeting_id, &row).await {
-                log::error!("Failed to store final transcript state of {}: {}", self.meeting_id, e);
+            let job_id = self
+                .job_id
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .clone();
+            let error = (state == final_state::FAILED)
+                .then_some(message.as_deref())
+                .flatten();
+            let row = FinalState {
+                status: state,
+                model: &self.model,
+                job_id: job_id.as_deref(),
+                error,
+            };
+            if let Err(e) =
+                MeetingsRepository::set_final_state(&self.pool, &self.meeting_id, &row).await
+            {
+                log::error!(
+                    "Failed to store final transcript state of {}: {}",
+                    self.meeting_id,
+                    e
+                );
             }
         }
         let _ = self.app.emit(
@@ -354,15 +454,22 @@ impl Reporter {
             FinalProgress::Uploading { percent } => {
                 let store = !*uploading_stored;
                 *uploading_stored = true;
-                self.report(final_state::UPLOADING, Some(format!("Uploading audio ({}%)", percent)), None, store)
-                    .await;
+                self.report(
+                    final_state::UPLOADING,
+                    Some(format!("Uploading audio ({}%)", percent)),
+                    None,
+                    store,
+                )
+                .await;
             }
             FinalProgress::Transcribing { job_id } => {
                 *self.job_id.lock().unwrap_or_else(|p| p.into_inner()) = Some(job_id);
-                self.report(final_state::TRANSCRIBING, None, None, true).await;
+                self.report(final_state::TRANSCRIBING, None, None, true)
+                    .await;
             }
             FinalProgress::Waiting { message, .. } => {
-                self.report(final_state::TRANSCRIBING, Some(message), None, false).await;
+                self.report(final_state::TRANSCRIBING, Some(message), None, false)
+                    .await;
             }
         }
     }
@@ -399,7 +506,11 @@ pub async fn start(app: &AppHandle, meeting_id: &str, model: Option<String>) -> 
         job_id: Mutex::new(None),
     };
     reporter.report(final_state::QUEUED, None, None, true).await;
-    log::info!("Final transcript of {} queued with {}", meeting_id, reporter.model);
+    log::info!(
+        "Final transcript of {} queued with {}",
+        meeting_id,
+        reporter.model
+    );
 
     tauri::async_runtime::spawn(async move {
         let _running = lock.lock().await;
@@ -416,8 +527,14 @@ async fn execute(reporter: &Reporter) {
     let voice = app.state::<VoiceService>();
     let settings = voice.settings();
     let fail = |message: String| async move {
-        log::error!("Final transcript of {} failed: {}", reporter.meeting_id, message);
-        reporter.report(final_state::FAILED, Some(message), None, true).await;
+        log::error!(
+            "Final transcript of {} failed: {}",
+            reporter.meeting_id,
+            message
+        );
+        reporter
+            .report(final_state::FAILED, Some(message), None, true)
+            .await;
     };
 
     let client = match voice.client() {
@@ -452,7 +569,8 @@ async fn execute(reporter: &Reporter) {
 
     match result {
         Ok(outcome) => {
-            *reporter.job_id.lock().unwrap_or_else(|p| p.into_inner()) = Some(outcome.job_id.clone());
+            *reporter.job_id.lock().unwrap_or_else(|p| p.into_inner()) =
+                Some(outcome.job_id.clone());
             log::info!(
                 "Final transcript of {} done: {} turns from {:?} (job {})",
                 reporter.meeting_id,
@@ -460,17 +578,33 @@ async fn execute(reporter: &Reporter) {
                 outcome.turn_source,
                 outcome.job_id
             );
-            reporter.report(final_state::DONE, None, Some(outcome.segments_count), true).await;
-            if settings.auto_summary && outcome.segments_count > 0 && !reporter.token.is_cancelled() {
-                if let Err(e) =
-                    crate::summary::commands::start_summary(app, &reporter.pool, &reporter.meeting_id, None, None, None)
-                        .await
+            reporter
+                .report(final_state::DONE, None, Some(outcome.segments_count), true)
+                .await;
+            if settings.auto_summary && outcome.segments_count > 0 && !reporter.token.is_cancelled()
+            {
+                if let Err(e) = crate::summary::commands::start_summary(
+                    app,
+                    &reporter.pool,
+                    &reporter.meeting_id,
+                    None,
+                    None,
+                    None,
+                )
+                .await
                 {
-                    log::error!("Automatic summary of {} did not start: {}", reporter.meeting_id, e);
+                    log::error!(
+                        "Automatic summary of {} did not start: {}",
+                        reporter.meeting_id,
+                        e
+                    );
                 }
             }
         }
-        Err(FinalError::Cancelled) => log::info!("Final transcript of {} replaced or cancelled", reporter.meeting_id),
+        Err(FinalError::Cancelled) => log::info!(
+            "Final transcript of {} replaced or cancelled",
+            reporter.meeting_id
+        ),
         Err(FinalError::Failed(message)) => fail(message).await,
     }
 }
@@ -494,12 +628,20 @@ async fn start_if_auto(app: &AppHandle, meeting_id: &str) {
         let pool = app.state::<AppState>().db_manager.pool().clone();
         match TranscriptsRepository::all(&pool, meeting_id, transcript_source::LIVE).await {
             Ok(rows) if !rows.is_empty() => {
-                if let Err(error) = crate::summary::commands::start_summary(app, &pool, meeting_id, None, None, None).await {
+                if let Err(error) = crate::summary::commands::start_summary(
+                    app, &pool, meeting_id, None, None, None,
+                )
+                .await
+                {
                     log::error!("Automatic summary of {} failed: {}", meeting_id, error);
                 }
             }
             Ok(_) => log::info!("Meeting {} has an empty live transcript", meeting_id),
-            Err(error) => log::error!("Failed to read live transcript of {}: {}", meeting_id, error),
+            Err(error) => log::error!(
+                "Failed to read live transcript of {}: {}",
+                meeting_id,
+                error
+            ),
         }
     }
 }
@@ -513,7 +655,9 @@ pub async fn on_recording_stopped(app: &AppHandle, meeting_id: &str) {
 pub fn on_meeting_recovered(app: &AppHandle, meeting_id: &str) {
     let app = app.clone();
     let meeting_id = meeting_id.to_string();
-    tauri::async_runtime::spawn(async move { start_if_auto(&app, &meeting_id).await; });
+    tauri::async_runtime::spawn(async move {
+        start_if_auto(&app, &meeting_id).await;
+    });
 }
 
 /// Startup: runs that were queued or running when the app exited start again with their model.
@@ -521,7 +665,10 @@ pub async fn resume_unfinished(app: &AppHandle, pool: &SqlitePool) {
     match MeetingsRepository::final_in_progress(pool).await {
         Ok(meetings) => {
             for meeting in meetings {
-                log::info!("Restarting the unfinished final transcript of {}", meeting.id);
+                log::info!(
+                    "Restarting the unfinished final transcript of {}",
+                    meeting.id
+                );
                 start_for_meeting(app, &meeting.id, meeting.final_model.clone());
             }
         }
@@ -535,7 +682,11 @@ pub async fn resume_unfinished(app: &AppHandle, pool: &SqlitePool) {
 
 /// (Re)run the final transcript; returns once it is queued.
 #[tauri::command]
-pub async fn start_final_transcript(app: AppHandle, meeting_id: String, model: Option<String>) -> Result<(), String> {
+pub async fn start_final_transcript(
+    app: AppHandle,
+    meeting_id: String,
+    model: Option<String>,
+) -> Result<(), String> {
     start(&app, &meeting_id, model).await
 }
 
@@ -548,7 +699,11 @@ pub async fn get_final_transcript_status(
         .await
         .map_err(|e| format!("Failed to load meeting: {}", e))?
         .ok_or_else(|| format!("Meeting not found: {}", meeting_id))?;
-    Ok(FinalStatus { state: meeting.final_status, model: meeting.final_model, error: meeting.final_error })
+    Ok(FinalStatus {
+        state: meeting.final_status,
+        model: meeting.final_model,
+        error: meeting.final_error,
+    })
 }
 
 #[cfg(test)]
@@ -568,7 +723,12 @@ mod tests {
     async fn meeting(pool: &SqlitePool, folder: &Path) -> Meeting {
         MeetingsRepository::create(
             pool,
-            &NewMeeting { id: "m1", title: "Call", folder_path: &folder.to_string_lossy(), status: meeting_status::STOPPED },
+            &NewMeeting {
+                id: "m1",
+                title: "Call",
+                folder_path: &folder.to_string_lossy(),
+                status: meeting_status::STOPPED,
+            },
         )
         .await
         .unwrap();
@@ -589,8 +749,12 @@ mod tests {
             duration: Some(1.0),
             sequence: Some(0),
         };
-        TranscriptsRepository::insert(&pool, "m1", "live", &live).await.unwrap();
-        TranscriptsRepository::insert(&pool, "m1", "final", &live).await.unwrap();
+        TranscriptsRepository::insert(&pool, "m1", "live", &live)
+            .await
+            .unwrap();
+        TranscriptsRepository::insert(&pool, "m1", "final", &live)
+            .await
+            .unwrap();
 
         let job = FinalJob::new(
             &meeting,
@@ -600,22 +764,37 @@ mod tests {
             &VoiceSettings::default(),
         );
         assert!(job.recorded_at.is_some());
-        let outcome = store_final(&pool, &job, "job_1", &scribe_artifact()).await.unwrap();
+        let outcome = store_final(&pool, &job, "job_1", &scribe_artifact())
+            .await
+            .unwrap();
         assert!(outcome.segments_count > 1);
         assert_eq!(outcome.turn_source, TurnSource::Words);
 
-        let (live_count, final_count) = TranscriptsRepository::source_counts(&pool, "m1").await.unwrap();
+        let (live_count, final_count) = TranscriptsRepository::source_counts(&pool, "m1")
+            .await
+            .unwrap();
         assert_eq!(live_count, 1);
         assert_eq!(final_count as usize, outcome.segments_count);
-        let rows = TranscriptsRepository::all(&pool, "m1", "final").await.unwrap();
-        assert!(rows.iter().all(|r| r.speaker.as_deref().is_some_and(|s| s.starts_with("Speaker "))));
-        assert!(rows.windows(2).all(|w| w[0].audio_start_time <= w[1].audio_start_time));
+        let rows = TranscriptsRepository::all(&pool, "m1", "final")
+            .await
+            .unwrap();
+        assert!(rows.iter().all(|r| r
+            .speaker
+            .as_deref()
+            .is_some_and(|s| s.starts_with("Speaker "))));
+        assert!(rows
+            .windows(2)
+            .all(|w| w[0].audio_start_time <= w[1].audio_start_time));
         assert!(rows[0].timestamp.as_deref().is_some_and(|t| t.len() == 8));
 
         let file: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(dir.path().join(TRANSCRIPT_FILE)).unwrap()).unwrap();
+            serde_json::from_slice(&std::fs::read(dir.path().join(TRANSCRIPT_FILE)).unwrap())
+                .unwrap();
         assert_eq!(file["job_id"], "job_1");
-        assert_eq!(file["turns"].as_array().unwrap().len(), outcome.segments_count);
+        assert_eq!(
+            file["turns"].as_array().unwrap().len(),
+            outcome.segments_count
+        );
         assert!(dir.path().join(ARTIFACT_FILE).is_file());
     }
 
@@ -625,9 +804,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let meeting = meeting(&pool, dir.path()).await;
         // speaker_0 talks 0-4 s on the mic, speaker_1 talks 6-10 s through the system channel.
-        let word = |start: f64, text: &str, speaker: &str| {
-            serde_json::json!({"start_seconds": start, "end_seconds": start + 0.8, "text": text, "speaker": speaker})
-        };
+        let word = |start: f64, text: &str, speaker: &str| serde_json::json!({"start_seconds": start, "end_seconds": start + 0.8, "text": text, "speaker": speaker});
         let artifact = Artifact::from_value(serde_json::json!({
             "text": "Hello there friend. Hi back to you.",
             "content": {"words": {"items": [
@@ -645,7 +822,11 @@ mod tests {
                 track.push_db(-20.0, -90.0);
             }
         }
-        std::fs::write(dir.path().join(ENERGY_FILE), serde_json::to_vec(&track).unwrap()).unwrap();
+        std::fs::write(
+            dir.path().join(ENERGY_FILE),
+            serde_json::to_vec(&track).unwrap(),
+        )
+        .unwrap();
         assert!(load_energy(dir.path()).is_some());
 
         let job = FinalJob::new(
@@ -656,17 +837,27 @@ mod tests {
             &VoiceSettings::default(),
         );
         store_final(&pool, &job, "job_1", &artifact).await.unwrap();
-        let rows = TranscriptsRepository::all(&pool, "m1", "final").await.unwrap();
-        let named: Vec<_> = rows.iter().map(|r| (r.speaker.clone().unwrap(), r.transcript.clone())).collect();
+        let rows = TranscriptsRepository::all(&pool, "m1", "final")
+            .await
+            .unwrap();
+        let named: Vec<_> = rows
+            .iter()
+            .map(|r| (r.speaker.clone().unwrap(), r.transcript.clone()))
+            .collect();
         assert_eq!(
             named,
-            vec![("Me".to_string(), "Hello there friend.".to_string()), ("Them".to_string(), "Hi back to you.".to_string())]
+            vec![
+                ("Me".to_string(), "Hello there friend.".to_string()),
+                ("Them".to_string(), "Hi back to you.".to_string())
+            ]
         );
 
         // An unreadable energy file falls back to Speaker N.
         std::fs::write(dir.path().join(ENERGY_FILE), b"{").unwrap();
         store_final(&pool, &job, "job_2", &artifact).await.unwrap();
-        let rows = TranscriptsRepository::all(&pool, "m1", "final").await.unwrap();
+        let rows = TranscriptsRepository::all(&pool, "m1", "final")
+            .await
+            .unwrap();
         assert_eq!(rows[0].speaker.as_deref(), Some("Speaker 1"));
     }
 
@@ -689,29 +880,61 @@ mod tests {
             final_error: None,
             final_updated_at: None,
         };
-        let settings = VoiceSettings { keyterms: vec!["Netask".into()], language: "auto".into(), ..VoiceSettings::default() };
-        let job = FinalJob::new(&meeting, PathBuf::from("/m"), PathBuf::from("/m/audio.m4a"), "cohere-transcribe", &settings);
+        let settings = VoiceSettings {
+            keyterms: vec!["Netask".into()],
+            language: "auto".into(),
+            ..VoiceSettings::default()
+        };
+        let job = FinalJob::new(
+            &meeting,
+            PathBuf::from("/m"),
+            PathBuf::from("/m/audio.m4a"),
+            "cohere-transcribe",
+            &settings,
+        );
         assert!(!job.options.diarize);
         assert!(job.recorded_at.is_none(), "imports have no wall clock");
         assert_eq!(job.options.keyterms, vec!["Netask"]);
         assert!(job.options.request_body("k").get("language").is_none());
-        let job = FinalJob::new(&meeting, PathBuf::from("/m"), PathBuf::from("/m/audio.m4a"), "elevenlabs-scribe_v2", &settings);
+        let job = FinalJob::new(
+            &meeting,
+            PathBuf::from("/m"),
+            PathBuf::from("/m/audio.m4a"),
+            "elevenlabs-scribe_v2",
+            &settings,
+        );
         assert!(job.options.diarize);
     }
 
     #[test]
     fn rows_carry_times_and_order() {
         let turns = vec![
-            Turn { speaker: Some("Me".into()), start: 0.5, end: 2.0, text: "Hi.".into() },
-            Turn { speaker: None, start: 61.0, end: 62.5, text: "Yes.".into() },
+            Turn {
+                speaker: Some("Me".into()),
+                start: 0.5,
+                end: 2.0,
+                text: "Hi.".into(),
+            },
+            Turn {
+                speaker: None,
+                start: 61.0,
+                end: 62.5,
+                text: "Yes.".into(),
+            },
         ];
-        let start = DateTime::parse_from_rfc3339("2026-11-10T09:00:00-07:00").unwrap().with_timezone(&Local);
+        let start = DateTime::parse_from_rfc3339("2026-11-10T09:00:00-07:00")
+            .unwrap()
+            .with_timezone(&Local);
         let rows = rows_from_turns(&turns, Some(start));
         assert_eq!(rows[1].sequence, Some(1));
         assert_eq!(rows[1].duration, Some(1.5));
-        let expected = (start + chrono::Duration::seconds(61)).format("%H:%M:%S").to_string();
+        let expected = (start + chrono::Duration::seconds(61))
+            .format("%H:%M:%S")
+            .to_string();
         assert_eq!(rows[1].timestamp.as_deref(), Some(expected.as_str()));
-        assert!(rows_from_turns(&turns, None).iter().all(|r| r.timestamp.is_none()));
+        assert!(rows_from_turns(&turns, None)
+            .iter()
+            .all(|r| r.timestamp.is_none()));
     }
 
     #[test]
@@ -721,7 +944,10 @@ mod tests {
         assert!(t1.is_cancelled() && !t2.is_cancelled());
         assert!(Arc::ptr_eq(&l1, &l2), "runs of one meeting share the lock");
         unregister("slot-test", g1);
-        assert!(SLOTS.lock().unwrap().contains_key("slot-test"), "a stale run does not remove its replacement");
+        assert!(
+            SLOTS.lock().unwrap().contains_key("slot-test"),
+            "a stale run does not remove its replacement"
+        );
         unregister("slot-test", g2);
         assert!(!SLOTS.lock().unwrap().contains_key("slot-test"));
     }
@@ -732,24 +958,57 @@ mod whole_audio_preparation_tests {
     use super::*;
     #[tokio::test]
     async fn complete_audio_duration_and_original_survive_preparation() {
-        if crate::audio::ffmpeg::find_ffmpeg_path().is_none() { return; }
+        if crate::audio::ffmpeg::find_ffmpeg_path().is_none() {
+            return;
+        }
         let folder = tempfile::tempdir().unwrap();
         let original = folder.path().join("original.wav");
-        let spec = hound::WavSpec { channels: 2, sample_rate: 48_000, bits_per_sample: 16, sample_format: hound::SampleFormat::Int };
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: 48_000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
         let mut writer = hound::WavWriter::create(&original, spec).unwrap();
-        for _ in 0..(120 * 48_000 * 2) { writer.write_sample(0i16).unwrap(); }
+        for _ in 0..(120 * 48_000 * 2) {
+            writer.write_sample(0i16).unwrap();
+        }
         writer.finalize().unwrap();
         let original_size = std::fs::metadata(&original).unwrap().len();
         assert!(original_size > MAX_DIRECT_INPUT_BYTES);
-        let prepared = prepare_audio(&original, &CancellationToken::new()).await.unwrap().unwrap();
+        let prepared = prepare_audio(&original, &CancellationToken::new())
+            .await
+            .unwrap()
+            .unwrap();
         assert!(std::fs::metadata(&prepared).unwrap().len() < MAX_DIRECT_INPUT_BYTES);
-        let output = std::process::Command::new("ffprobe").args(["-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1"]).arg(&prepared).output().unwrap();
+        let output = std::process::Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=nw=1:nk=1",
+            ])
+            .arg(&prepared)
+            .output()
+            .unwrap();
         assert!(output.status.success());
-        let duration: f64 = String::from_utf8(output.stdout).unwrap().trim().parse().unwrap();
-        assert!((duration - 120.0).abs() < 0.1, "full timeline retained: {duration}");
+        let duration: f64 = String::from_utf8(output.stdout)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        assert!(
+            (duration - 120.0).abs() < 0.1,
+            "full timeline retained: {duration}"
+        );
         assert_eq!(std::fs::metadata(&original).unwrap().len(), original_size);
         let temporary = prepared.to_path_buf();
         drop(prepared);
-        assert!(!temporary.exists(), "temporary input is cleaned automatically");
+        assert!(
+            !temporary.exists(),
+            "temporary input is cleaned automatically"
+        );
     }
 }

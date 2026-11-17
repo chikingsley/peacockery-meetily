@@ -35,12 +35,18 @@ static PROBLEMS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 fn elapsed() -> f64 {
     let mut started = STARTED.lock().unwrap();
-    started.get_or_insert_with(Instant::now).elapsed().as_secs_f64()
+    started
+        .get_or_insert_with(Instant::now)
+        .elapsed()
+        .as_secs_f64()
 }
 
 fn problem(message: String) {
     eprintln!("[{:7.2}] PROBLEM {}", elapsed(), message);
-    PROBLEMS.lock().unwrap().push(format!("{:.2}s {}", elapsed(), message));
+    PROBLEMS
+        .lock()
+        .unwrap()
+        .push(format!("{:.2}s {}", elapsed(), message));
 }
 
 /// stderr log; warnings and errors also go to the report.
@@ -55,7 +61,13 @@ impl log::Log for Logger {
         if !self.enabled(record.metadata()) {
             return;
         }
-        eprintln!("[{:7.2}] {:5} {} {}", elapsed(), record.level(), record.target(), record.args());
+        eprintln!(
+            "[{:7.2}] {:5} {} {}",
+            elapsed(),
+            record.level(),
+            record.target(),
+            record.args()
+        );
         if record.level() <= log::Level::Warn {
             PROBLEMS.lock().unwrap().push(format!(
                 "{:.2}s {} {}: {}",
@@ -81,7 +93,11 @@ struct Collector {
 
 impl Collector {
     fn stamp(&self, value: impl serde::Serialize) -> Value {
-        let at = self.recording_started.lock().unwrap().map(|t| t.elapsed().as_secs_f64());
+        let at = self
+            .recording_started
+            .lock()
+            .unwrap()
+            .map(|t| t.elapsed().as_secs_f64());
         json!({ "received_at_seconds": at, "payload": value })
     }
 }
@@ -108,7 +124,12 @@ struct LevelSummary {
     system_silent_seconds: f64,
 }
 
-async fn run(report: &mut Map<String, Value>, work: &Path, seconds: u64, system: &str) -> Result<(), String> {
+async fn run(
+    report: &mut Map<String, Value>,
+    work: &Path,
+    seconds: u64,
+    system: &str,
+) -> Result<(), String> {
     let key = credential::read_key()?;
     let status = KeyStatus::of(key.as_deref());
     report.insert(
@@ -144,7 +165,12 @@ async fn run(report: &mut Map<String, Value>, work: &Path, seconds: u64, system:
     let folder_path = folder.to_string_lossy().to_string();
     MeetingsRepository::create(
         &pool,
-        &NewMeeting { id: &meeting_id, title: &title, folder_path: &folder_path, status: meeting_status::RECORDING },
+        &NewMeeting {
+            id: &meeting_id,
+            title: &title,
+            folder_path: &folder_path,
+            status: meeting_status::RECORDING,
+        },
     )
     .await
     .map_err(|e| format!("Create meeting: {e}"))?;
@@ -158,7 +184,11 @@ async fn run(report: &mut Map<String, Value>, work: &Path, seconds: u64, system:
         sink: collector.clone(),
         pool: Some(pool.clone()),
     };
-    let target = MeetingTarget { meeting_id: meeting_id.clone(), meeting_name: title, folder: folder.clone() };
+    let target = MeetingTarget {
+        meeting_id: meeting_id.clone(),
+        meeting_name: title,
+        folder: folder.clone(),
+    };
     let mut manager = RecordingManager::start(
         target,
         Some(Arc::new(microphone)),
@@ -174,7 +204,8 @@ async fn run(report: &mut Map<String, Value>, work: &Path, seconds: u64, system:
     )
     .await
     .map_err(|e| format!("Failed to start recording: {e:#}"))?;
-    manager.set_error_callback(|error| problem(format!("recording-error: {}", error.user_message())));
+    manager
+        .set_error_callback(|error| problem(format!("recording-error: {}", error.user_message())));
     let recording_started = Instant::now();
     *collector.recording_started.lock().unwrap() = Some(recording_started);
 
@@ -199,12 +230,18 @@ async fn run(report: &mut Map<String, Value>, work: &Path, seconds: u64, system:
     });
     if let Some(live) = &stopped.live {
         let ids = serde_json::to_string(&live.session_ids).unwrap_or_else(|_| "[]".to_string());
-        if let Err(e) = MeetingsRepository::set_live_info(&pool, &meeting_id, &live.model, live.mode, &ids).await {
+        if let Err(e) =
+            MeetingsRepository::set_live_info(&pool, &meeting_id, &live.model, live.mode, &ids)
+                .await
+        {
             problem(format!("set_live_info: {e}"));
         }
-        recording["live_summary"] = json!({ "model": live.model, "mode": live.mode, "session_ids": live.session_ids });
+        recording["live_summary"] =
+            json!({ "model": live.model, "mode": live.mode, "session_ids": live.session_ids });
     }
-    if let Err(e) = MeetingsRepository::mark_stopped(&pool, &meeting_id, stopped.duration_seconds).await {
+    if let Err(e) =
+        MeetingsRepository::mark_stopped(&pool, &meeting_id, stopped.duration_seconds).await
+    {
         problem(format!("mark_stopped: {e}"));
     }
     let audio = match stopped.audio_path {
@@ -245,9 +282,19 @@ async fn run(report: &mut Map<String, Value>, work: &Path, seconds: u64, system:
     let final_started = Instant::now();
     let progress = Arc::new(Mutex::new(Vec::new()));
     let progress_in = progress.clone();
-    let outcome = run_final_transcript(&service.client()?, &pool, &job, &CancellationToken::new(), move |p| {
-        progress_in.lock().unwrap().push(format!("{:.1}s {:?}", final_started.elapsed().as_secs_f64(), p));
-    })
+    let outcome = run_final_transcript(
+        &service.client()?,
+        &pool,
+        &job,
+        &CancellationToken::new(),
+        move |p| {
+            progress_in.lock().unwrap().push(format!(
+                "{:.1}s {:?}",
+                final_started.elapsed().as_secs_f64(),
+                p
+            ));
+        },
+    )
     .await;
     let mut final_report = json!({
         "model": settings.final_model,
@@ -272,7 +319,11 @@ async fn run(report: &mut Map<String, Value>, work: &Path, seconds: u64, system:
                     "text": r.transcript,
                 }))
                 .collect::<Vec<_>>());
-            final_report["text"] = json!(rows.iter().map(|r| r.transcript.as_str()).collect::<Vec<_>>().join(" "));
+            final_report["text"] = json!(rows
+                .iter()
+                .map(|r| r.transcript.as_str())
+                .collect::<Vec<_>>()
+                .join(" "));
         }
         Err(FinalError::Cancelled) => problem("final transcript cancelled".to_string()),
         Err(FinalError::Failed(message)) => problem(format!("final transcript failed: {message}")),
@@ -296,7 +347,10 @@ async fn main() {
     log::set_max_level(log::LevelFilter::Info);
 
     let mut report = Map::new();
-    report.insert("args".into(), json!({ "seconds": seconds, "system": system }));
+    report.insert(
+        "args".into(),
+        json!({ "seconds": seconds, "system": system }),
+    );
     let work = report_path.with_extension("work");
     if let Err(message) = run(&mut report, &work, seconds, system).await {
         problem(format!("FATAL {message}"));

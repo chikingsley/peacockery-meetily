@@ -5,7 +5,9 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::database::models::{Meeting, TranscriptRow};
 use crate::database::repositories::meeting::MeetingsRepository;
-use crate::database::repositories::transcript::{SourceChoice, TranscriptSearchResult, TranscriptsRepository};
+use crate::database::repositories::transcript::{
+    SourceChoice, TranscriptSearchResult, TranscriptsRepository,
+};
 use crate::state::AppState;
 
 /// Sidebar row.
@@ -85,7 +87,12 @@ pub async fn api_get_meetings(state: State<'_, AppState>) -> Result<Vec<MeetingL
         .map_err(|e| db_error("Failed to list meetings", e))?;
     Ok(meetings
         .into_iter()
-        .map(|m| MeetingListItem { id: m.id, title: m.title, created_at: m.created_at, final_status: m.final_status })
+        .map(|m| MeetingListItem {
+            id: m.id,
+            title: m.title,
+            created_at: m.created_at,
+            final_status: m.final_status,
+        })
         .collect())
 }
 
@@ -110,17 +117,23 @@ pub async fn api_get_meeting_metadata(
     let (live, final_count) = TranscriptsRepository::source_counts(pool, &meeting_id)
         .await
         .map_err(|e| db_error("Failed to count transcripts", e))?;
-    let audio = meeting
-        .folder_path
-        .as_deref()
-        .and_then(|folder| crate::audio::constants::find_meeting_audio(std::path::Path::new(folder)));
+    let audio = meeting.folder_path.as_deref().and_then(|folder| {
+        crate::audio::constants::find_meeting_audio(std::path::Path::new(folder))
+    });
     if let Some(path) = &audio {
         // The meeting may live outside the current recordings folder (older save folder).
         if let Err(e) = app.asset_protocol_scope().allow_file(path) {
-            log::warn!("Failed to allow {} for audio playback: {}", path.display(), e);
+            log::warn!(
+                "Failed to allow {} for audio playback: {}",
+                path.display(),
+                e
+            );
         }
     }
-    let recording_context = meeting.folder_path.as_deref().and_then(|p| crate::recording_context::RecordingContext::load(std::path::Path::new(p)));
+    let recording_context = meeting
+        .folder_path
+        .as_deref()
+        .and_then(|p| crate::recording_context::RecordingContext::load(std::path::Path::new(p)));
     Ok(MeetingMetadata {
         recording_context,
         meeting,
@@ -180,7 +193,10 @@ pub async fn api_save_meeting_title(
 /// Delete the meeting row (with its transcripts and summary). The recording folder on
 /// disk is kept.
 #[tauri::command]
-pub async fn api_delete_meeting(state: State<'_, AppState>, meeting_id: String) -> Result<(), String> {
+pub async fn api_delete_meeting(
+    state: State<'_, AppState>,
+    meeting_id: String,
+) -> Result<(), String> {
     let deleted = MeetingsRepository::delete(state.db_manager.pool(), &meeting_id)
         .await
         .map_err(|e| db_error("Failed to delete meeting", e))?;
@@ -192,7 +208,10 @@ pub async fn api_delete_meeting(state: State<'_, AppState>, meeting_id: String) 
 }
 
 #[tauri::command]
-pub async fn open_meeting_folder(state: State<'_, AppState>, meeting_id: String) -> Result<(), String> {
+pub async fn open_meeting_folder(
+    state: State<'_, AppState>,
+    meeting_id: String,
+) -> Result<(), String> {
     let meeting = require_meeting(state.db_manager.pool(), &meeting_id).await?;
     let folder = meeting
         .folder_path

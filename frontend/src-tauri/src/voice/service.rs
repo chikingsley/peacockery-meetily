@@ -39,7 +39,10 @@ impl VoiceService {
     }
 
     pub fn settings(&self) -> VoiceSettings {
-        self.settings.read().unwrap_or_else(|p| p.into_inner()).clone()
+        self.settings
+            .read()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone()
     }
 
     /// Use new (already saved) settings; the client and catalog are rebuilt on next use.
@@ -71,14 +74,20 @@ impl VoiceService {
 
     /// `GET /v1/models`, cached for five minutes.
     pub async fn catalog(&self) -> Result<Catalog, String> {
-        if let Some((fetched, catalog)) = self.catalog.lock().unwrap_or_else(|p| p.into_inner()).as_ref() {
+        if let Some((fetched, catalog)) = self
+            .catalog
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .as_ref()
+        {
             if fetched.elapsed() < CATALOG_TTL {
                 return Ok(catalog.clone());
             }
         }
         let client = self.client()?;
         let catalog = client.models().await.map_err(|e| describe_error(&e))?;
-        *self.catalog.lock().unwrap_or_else(|p| p.into_inner()) = Some((Instant::now(), catalog.clone()));
+        *self.catalog.lock().unwrap_or_else(|p| p.into_inner()) =
+            Some((Instant::now(), catalog.clone()));
         Ok(catalog)
     }
 }
@@ -140,10 +149,22 @@ mod tests {
             message: "Rate limit exceeded".into(),
             details: None,
         };
-        assert_eq!(describe_error(&failed), "The transcription provider failed: Rate limit exceeded");
-        let bad = Error::BadRequest { status: 400, body: r#"{"error":{"message":"unknown model"}}"#.into() };
-        assert_eq!(describe_error(&bad), "Peacockery Voice rejected the request (400): unknown model");
-        let long = Error::Server { status: 502, body: "x".repeat(1000) };
+        assert_eq!(
+            describe_error(&failed),
+            "The transcription provider failed: Rate limit exceeded"
+        );
+        let bad = Error::BadRequest {
+            status: 400,
+            body: r#"{"error":{"message":"unknown model"}}"#.into(),
+        };
+        assert_eq!(
+            describe_error(&bad),
+            "Peacockery Voice rejected the request (400): unknown model"
+        );
+        let long = Error::Server {
+            status: 502,
+            body: "x".repeat(1000),
+        };
         assert!(describe_error(&long).chars().count() < 400);
     }
 
@@ -151,10 +172,17 @@ mod tests {
     fn client_is_built_lazily_and_dropped_on_change() {
         let service = VoiceService::new(VoiceSettings::default(), None);
         *service.client.lock().unwrap() = Some(
-            VoiceClient::new(ClientConfig::new("https://voice-lab.peacockery.studio", "pv_lab_testkey0123456789")).unwrap(),
+            VoiceClient::new(ClientConfig::new(
+                "https://voice-lab.peacockery.studio",
+                "pv_lab_testkey0123456789",
+            ))
+            .unwrap(),
         );
         assert!(service.client().is_ok());
-        service.set_settings(VoiceSettings { auto_summary: true, ..VoiceSettings::default() });
+        service.set_settings(VoiceSettings {
+            auto_summary: true,
+            ..VoiceSettings::default()
+        });
         assert!(service.client.lock().unwrap().is_none());
         assert!(service.settings().auto_summary);
     }

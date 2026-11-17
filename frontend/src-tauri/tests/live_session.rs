@@ -15,11 +15,16 @@ use app_lib::database::manager::DatabaseManager;
 use app_lib::database::models::meeting_status;
 use app_lib::database::repositories::meeting::{MeetingsRepository, NewMeeting};
 use app_lib::database::repositories::transcript::TranscriptsRepository;
-use app_lib::live::{channels_for, LiveConfig, LiveInterim, LiveLine, LiveManager, LiveSink, LiveState, LiveStatus};
+use app_lib::live::{
+    channels_for, LiveConfig, LiveInterim, LiveLine, LiveManager, LiveSink, LiveState, LiveStatus,
+};
 use app_lib::voice::VoiceSettings;
 use peacockery_voice::{Channel, ClientConfig, LiveMode, VoiceClient, DEFAULT_BASE_URL};
 
-const DIALOGUE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/peacockery-voice/tests/fixtures/dialogue.wav");
+const DIALOGUE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../crates/peacockery-voice/tests/fixtures/dialogue.wav"
+);
 const SECONDS: usize = 40;
 const SPEED: f64 = 2.0;
 
@@ -32,7 +37,10 @@ struct Collect {
 
 impl LiveSink for Collect {
     fn status(&self, status: &LiveStatus) {
-        println!("status {:?} {:?} {:?}", status.channel, status.state, status.message);
+        println!(
+            "status {:?} {:?} {:?}",
+            status.channel, status.state, status.message
+        );
         self.statuses.lock().unwrap().push(status.clone());
     }
     fn interim(&self, interim: &LiveInterim) {
@@ -55,8 +63,11 @@ impl LiveSink for Collect {
 /// 16 kHz s16 → 48 kHz f32 (linear interpolation; the taps resample back to 16 kHz).
 fn dialogue_48k() -> Vec<f32> {
     let mut reader = hound::WavReader::open(DIALOGUE).unwrap();
-    let samples: Vec<f32> =
-        reader.samples::<i16>().take(16_000 * SECONDS).map(|s| s.unwrap() as f32 / 32768.0).collect();
+    let samples: Vec<f32> = reader
+        .samples::<i16>()
+        .take(16_000 * SECONDS)
+        .map(|s| s.unwrap() as f32 / 32768.0)
+        .collect();
     let mut out = Vec::with_capacity(samples.len() * 3);
     for pair in samples.windows(2) {
         for k in 0..3 {
@@ -71,11 +82,18 @@ fn dialogue_48k() -> Vec<f32> {
 async fn split_session_on_dialogue_produces_lines() {
     let key = std::env::var("PEACOCKERY_VOICE_LAB_API_KEY").expect("PEACOCKERY_VOICE_LAB_API_KEY");
     let dir = tempfile::tempdir().unwrap();
-    let db = DatabaseManager::open(&dir.path().join("test.sqlite")).await.unwrap();
+    let db = DatabaseManager::open(&dir.path().join("test.sqlite"))
+        .await
+        .unwrap();
     let pool = db.pool().clone();
     MeetingsRepository::create(
         &pool,
-        &NewMeeting { id: "m-live", title: "Call", folder_path: &dir.path().to_string_lossy(), status: meeting_status::RECORDING },
+        &NewMeeting {
+            id: "m-live",
+            title: "Call",
+            folder_path: &dir.path().to_string_lossy(),
+            status: meeting_status::RECORDING,
+        },
     )
     .await
     .unwrap();
@@ -92,7 +110,14 @@ async fn split_session_on_dialogue_produces_lines() {
     let sink = Arc::new(Collect::default());
     let store = LiveLineStore::new(dir.path());
     let channels = channels_for(LiveMode::Split, true, true);
-    let (manager, mut taps) = LiveManager::start(config, client, sink.clone(), store.clone(), Some(pool.clone()), &channels);
+    let (manager, mut taps) = LiveManager::start(
+        config,
+        client,
+        sink.clone(),
+        store.clone(),
+        Some(pool.clone()),
+        &channels,
+    );
 
     let mic = dialogue_48k();
     let silence = vec![0.0f32; 4800];
@@ -111,35 +136,76 @@ async fn split_session_on_dialogue_produces_lines() {
     taps.close();
     let started = std::time::Instant::now();
     let summary = manager.finish().await;
-    println!("finished in {:.1} s: {:?}", started.elapsed().as_secs_f64(), summary);
+    println!(
+        "finished in {:.1} s: {:?}",
+        started.elapsed().as_secs_f64(),
+        summary
+    );
 
     let lines = sink.lines.lock().unwrap().clone();
     let mic_lines: Vec<_> = lines.iter().filter(|l| l.channel == Channel::Mic).collect();
     assert!(!mic_lines.is_empty(), "no mic lines");
     assert!(mic_lines.iter().all(|l| l.speaker.as_deref() == Some("Me")));
-    let words: usize = mic_lines.iter().map(|l| l.text.split_whitespace().count()).sum();
-    assert!(words > 40, "only {} words in {} s of dialogue", words, SECONDS);
+    let words: usize = mic_lines
+        .iter()
+        .map(|l| l.text.split_whitespace().count())
+        .sum();
+    assert!(
+        words > 40,
+        "only {} words in {} s of dialogue",
+        words,
+        SECONDS
+    );
     let mut ids: Vec<u64> = lines.iter().map(|l| l.sequence_id).collect();
     ids.sort_unstable();
-    assert_eq!(ids, (0..lines.len() as u64).collect::<Vec<_>>(), "sequence ids are 0..n");
-    assert!(mic_lines.windows(2).all(|w| w[0].audio_start_time <= w[1].audio_start_time));
-    assert!(mic_lines.iter().all(|l| l.audio_end_time <= SECONDS as f64 + 3.0));
+    assert_eq!(
+        ids,
+        (0..lines.len() as u64).collect::<Vec<_>>(),
+        "sequence ids are 0..n"
+    );
+    assert!(mic_lines
+        .windows(2)
+        .all(|w| w[0].audio_start_time <= w[1].audio_start_time));
+    assert!(mic_lines
+        .iter()
+        .all(|l| l.audio_end_time <= SECONDS as f64 + 3.0));
 
-    assert_eq!(summary.session_ids.len(), 2, "one realtime session per channel");
+    assert_eq!(
+        summary.session_ids.len(),
+        2,
+        "one realtime session per channel"
+    );
     assert_eq!(summary.mode, "split");
     let statuses = sink.statuses.lock().unwrap().clone();
     for channel in [Channel::Mic, Channel::System] {
-        let states: Vec<LiveState> = statuses.iter().filter(|s| s.channel == channel).map(|s| s.state).collect();
+        let states: Vec<LiveState> = statuses
+            .iter()
+            .filter(|s| s.channel == channel)
+            .map(|s| s.state)
+            .collect();
         assert_eq!(states.first(), Some(&LiveState::Connecting));
-        assert!(states.contains(&LiveState::Live), "{:?} never went live: {:?}", channel, states);
+        assert!(
+            states.contains(&LiveState::Live),
+            "{:?} never went live: {:?}",
+            channel,
+            states
+        );
         assert_eq!(states.last(), Some(&LiveState::Closed));
     }
 
-    let rows = TranscriptsRepository::all(&pool, "m-live", "live").await.unwrap();
+    let rows = TranscriptsRepository::all(&pool, "m-live", "live")
+        .await
+        .unwrap();
     assert_eq!(rows.len(), lines.len(), "every line is a live row");
     assert_eq!(store.lines().len(), lines.len());
     let file: serde_json::Value =
         serde_json::from_slice(&std::fs::read(dir.path().join(LIVE_LINES_FILE)).unwrap()).unwrap();
     assert_eq!(file.as_array().unwrap().len(), lines.len());
-    println!("{} lines ({} mic), {} words, {} previews", lines.len(), mic_lines.len(), words, sink.interims.lock().unwrap().len());
+    println!(
+        "{} lines ({} mic), {} words, {} previews",
+        lines.len(),
+        mic_lines.len(),
+        words,
+        sink.interims.lock().unwrap().len()
+    );
 }

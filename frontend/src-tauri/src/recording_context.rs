@@ -14,9 +14,15 @@ pub enum RecordingMode {
 }
 
 impl RecordingMode {
-    pub fn captures_system(self) -> bool { self != Self::InPerson }
+    pub fn captures_system(self) -> bool {
+        self != Self::InPerson
+    }
     pub fn live_mode(self) -> LiveMode {
-        if self == Self::InPerson { LiveMode::Mixed } else { LiveMode::Split }
+        if self == Self::InPerson {
+            LiveMode::Mixed
+        } else {
+            LiveMode::Split
+        }
     }
 }
 
@@ -62,12 +68,24 @@ impl RecordingContext {
 
 /// Private, read-only snapshot from the existing GMK Outlook calendar collector.
 #[tauri::command]
-pub async fn get_recording_calendar(app: tauri::AppHandle) -> Result<Option<CalendarSnapshot>, String> {
-    if let Some(snapshot) = crate::outlook_calendar::snapshot(&app).await? { return Ok(snapshot); }
-    let path = app.path().app_data_dir().map_err(|e| e.to_string())?.join("calendar-events.json");
-    if !path.exists() { return Ok(None); }
+pub async fn get_recording_calendar(
+    app: tauri::AppHandle,
+) -> Result<Option<CalendarSnapshot>, String> {
+    if let Some(snapshot) = crate::outlook_calendar::snapshot(&app).await? {
+        return Ok(snapshot);
+    }
+    let path = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("calendar-events.json");
+    if !path.exists() {
+        return Ok(None);
+    }
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
-    serde_json::from_slice(&bytes).map(Some).map_err(|e| format!("Could not read meeting calendar: {e}"))
+    serde_json::from_slice(&bytes)
+        .map(Some)
+        .map_err(|e| format!("Could not read meeting calendar: {e}"))
 }
 
 #[cfg(test)]
@@ -85,8 +103,14 @@ mod tests {
     #[test]
     fn context_survives_later_settings_changes() {
         let dir = tempfile::tempdir().unwrap();
-        let context = RecordingContext { mode: RecordingMode::InPerson, calendar_event: None };
+        let context = RecordingContext {
+            mode: RecordingMode::InPerson,
+            calendar_event: None,
+        };
         context.save(dir.path()).unwrap();
-        assert_eq!(RecordingContext::load(dir.path()).unwrap().mode, RecordingMode::InPerson);
+        assert_eq!(
+            RecordingContext::load(dir.path()).unwrap().mode,
+            RecordingMode::InPerson
+        );
     }
 }

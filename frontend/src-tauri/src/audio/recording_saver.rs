@@ -58,7 +58,10 @@ impl LiveLineStore {
 
     /// Add a line; `transcripts.json` follows in the background.
     pub fn push(&self, line: LiveLine) {
-        self.lines.lock().unwrap_or_else(|p| p.into_inner()).push(line);
+        self.lines
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .push(line);
         let _ = self.writer.send(WriteRequest::Changed);
     }
 
@@ -89,11 +92,13 @@ fn write_live_lines(
             })
             .collect();
         let snapshot = lines.lock().unwrap_or_else(|p| p.into_inner()).clone();
-        let result = serde_json::to_vec_pretty(&snapshot).map_err(std::io::Error::other).and_then(|bytes| {
-            let tmp = path.with_extension("json.tmp");
-            std::fs::write(&tmp, bytes)?;
-            std::fs::rename(&tmp, path)
-        });
+        let result = serde_json::to_vec_pretty(&snapshot)
+            .map_err(std::io::Error::other)
+            .and_then(|bytes| {
+                let tmp = path.with_extension("json.tmp");
+                std::fs::write(&tmp, bytes)?;
+                std::fs::rename(&tmp, path)
+            });
         if let Err(e) = result {
             warn!("Failed to write {}: {}", path.display(), e);
         }
@@ -112,7 +117,10 @@ pub struct RecordingSaver {
 impl RecordingSaver {
     /// Start consuming mixed audio for `target`. The checkpoint encoder runs on a
     /// blocking thread so ffmpeg never stalls the async runtime.
-    pub fn start(target: MeetingTarget, mut receiver: mpsc::UnboundedReceiver<AudioChunk>) -> Result<Self> {
+    pub fn start(
+        target: MeetingTarget,
+        mut receiver: mpsc::UnboundedReceiver<AudioChunk>,
+    ) -> Result<Self> {
         let mut saver = IncrementalAudioSaver::new(target.folder.clone(), PIPELINE_SAMPLE_RATE)?;
         let accumulation = tokio::task::spawn_blocking(move || {
             while let Some(chunk) = receiver.blocking_recv() {
@@ -124,7 +132,11 @@ impl RecordingSaver {
         });
         info!("Recording saver started for meeting {}", target.meeting_id);
         let live_lines = LiveLineStore::new(&target.folder);
-        Ok(Self { target, accumulation: Some(accumulation), live_lines })
+        Ok(Self {
+            target,
+            accumulation: Some(accumulation),
+            live_lines,
+        })
     }
 
     pub fn target(&self) -> &MeetingTarget {
@@ -142,7 +154,9 @@ impl RecordingSaver {
             .accumulation
             .take()
             .ok_or_else(|| anyhow!("Recording saver already finished"))?;
-        let mut saver = accumulation.await.map_err(|e| anyhow!("Accumulation task failed: {}", e))??;
+        let mut saver = accumulation
+            .await
+            .map_err(|e| anyhow!("Accumulation task failed: {}", e))??;
         let path = tokio::task::spawn_blocking(move || saver.finalize())
             .await
             .map_err(|e| anyhow!("Finalize task failed: {}", e))??;

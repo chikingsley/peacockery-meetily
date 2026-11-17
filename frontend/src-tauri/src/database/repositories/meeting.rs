@@ -91,18 +91,38 @@ impl MeetingsRepository {
     }
 
     /// Summaries may name timestamp placeholders; user titles stay authoritative.
-    pub async fn update_generated_title(pool: &SqlitePool, meeting_id: &str, title: &str) -> Result<bool, sqlx::Error> {
-        let Some(meeting) = Self::get(pool, meeting_id).await? else { return Ok(false) };
+    pub async fn update_generated_title(
+        pool: &SqlitePool,
+        meeting_id: &str,
+        title: &str,
+    ) -> Result<bool, sqlx::Error> {
+        let Some(meeting) = Self::get(pool, meeting_id).await? else {
+            return Ok(false);
+        };
         let placeholder = ["Call ", "Meeting "].iter().any(|prefix| {
-            meeting.title.strip_prefix(prefix).is_some_and(|date| chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%d %H:%M").is_ok())
+            meeting.title.strip_prefix(prefix).is_some_and(|date| {
+                chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%d %H:%M").is_ok()
+            })
         });
-        if !placeholder { return Ok(false); }
-        let result = sqlx::query("UPDATE meetings SET title = ?, updated_at = ? WHERE id = ? AND title = ?")
-            .bind(title).bind(now_rfc3339()).bind(meeting_id).bind(&meeting.title).execute(pool).await?;
+        if !placeholder {
+            return Ok(false);
+        }
+        let result =
+            sqlx::query("UPDATE meetings SET title = ?, updated_at = ? WHERE id = ? AND title = ?")
+                .bind(title)
+                .bind(now_rfc3339())
+                .bind(meeting_id)
+                .bind(&meeting.title)
+                .execute(pool)
+                .await?;
         Ok(result.rows_affected() == 1)
     }
 
-    pub async fn update_title(pool: &SqlitePool, meeting_id: &str, title: &str) -> Result<bool, sqlx::Error> {
+    pub async fn update_title(
+        pool: &SqlitePool,
+        meeting_id: &str,
+        title: &str,
+    ) -> Result<bool, sqlx::Error> {
         let result = sqlx::query("UPDATE meetings SET title = ?, updated_at = ? WHERE id = ?")
             .bind(title)
             .bind(now_rfc3339())
@@ -113,7 +133,11 @@ impl MeetingsRepository {
     }
 
     /// Record the final-transcript state of a meeting (every `final_*` column at once).
-    pub async fn set_final_state(pool: &SqlitePool, meeting_id: &str, state: &FinalState<'_>) -> Result<bool, sqlx::Error> {
+    pub async fn set_final_state(
+        pool: &SqlitePool,
+        meeting_id: &str,
+        state: &FinalState<'_>,
+    ) -> Result<bool, sqlx::Error> {
         let now = now_rfc3339();
         let result = sqlx::query(
             "UPDATE meetings SET final_status = ?, final_model = ?, final_job_id = ?, final_error = ?,
@@ -180,7 +204,12 @@ mod tests {
     async fn seed(pool: &SqlitePool, id: &str, status: &str) {
         MeetingsRepository::create(
             pool,
-            &NewMeeting { id, title: "Call", folder_path: "/tmp/call", status },
+            &NewMeeting {
+                id,
+                title: "Call",
+                folder_path: "/tmp/call",
+                status,
+            },
         )
         .await
         .unwrap();
@@ -190,11 +219,34 @@ mod tests {
     async fn summaries_name_placeholders_and_preserve_custom_titles() {
         let pool = test_pool().await;
         seed(&pool, "title-test", meeting_status::STOPPED).await;
-        assert!(!MeetingsRepository::update_generated_title(&pool, "title-test", "AI title").await.unwrap());
-        MeetingsRepository::update_title(&pool, "title-test", "Call 2026-11-13 10:00").await.unwrap();
-        assert!(MeetingsRepository::update_generated_title(&pool, "title-test", "AI title").await.unwrap());
-        assert!(!MeetingsRepository::update_generated_title(&pool, "title-test", "Another AI title").await.unwrap());
-        assert_eq!(MeetingsRepository::get(&pool, "title-test").await.unwrap().unwrap().title, "AI title");
+        assert!(
+            !MeetingsRepository::update_generated_title(&pool, "title-test", "AI title")
+                .await
+                .unwrap()
+        );
+        MeetingsRepository::update_title(&pool, "title-test", "Call 2026-11-13 10:00")
+            .await
+            .unwrap();
+        assert!(
+            MeetingsRepository::update_generated_title(&pool, "title-test", "AI title")
+                .await
+                .unwrap()
+        );
+        assert!(!MeetingsRepository::update_generated_title(
+            &pool,
+            "title-test",
+            "Another AI title"
+        )
+        .await
+        .unwrap());
+        assert_eq!(
+            MeetingsRepository::get(&pool, "title-test")
+                .await
+                .unwrap()
+                .unwrap()
+                .title,
+            "AI title"
+        );
     }
 
     #[tokio::test]
@@ -206,14 +258,20 @@ mod tests {
         assert_eq!(meeting.status, "recording");
         assert_eq!(meeting.folder_path.as_deref(), Some("/tmp/call"));
 
-        assert!(MeetingsRepository::update_title(&pool, "m1", "Renamed").await.unwrap());
-        assert!(MeetingsRepository::mark_stopped(&pool, "m1", Some(61.5)).await.unwrap());
+        assert!(MeetingsRepository::update_title(&pool, "m1", "Renamed")
+            .await
+            .unwrap());
+        assert!(MeetingsRepository::mark_stopped(&pool, "m1", Some(61.5))
+            .await
+            .unwrap());
         let meeting = MeetingsRepository::get(&pool, "m1").await.unwrap().unwrap();
         assert_eq!(meeting.title, "Renamed");
         assert_eq!(meeting.status, "stopped");
         assert_eq!(meeting.duration_seconds, Some(61.5));
 
-        assert!(!MeetingsRepository::update_title(&pool, "missing", "x").await.unwrap());
+        assert!(!MeetingsRepository::update_title(&pool, "missing", "x")
+            .await
+            .unwrap());
     }
 
     #[tokio::test]
@@ -222,13 +280,30 @@ mod tests {
         seed(&pool, "live", meeting_status::RECORDING).await;
         seed(&pool, "done", meeting_status::STOPPED).await;
 
-        let interrupted = MeetingsRepository::interrupt_unfinished(&pool).await.unwrap();
-        assert_eq!(interrupted.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), vec!["live"]);
-        let live = MeetingsRepository::get(&pool, "live").await.unwrap().unwrap();
-        let done = MeetingsRepository::get(&pool, "done").await.unwrap().unwrap();
+        let interrupted = MeetingsRepository::interrupt_unfinished(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            interrupted
+                .iter()
+                .map(|m| m.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["live"]
+        );
+        let live = MeetingsRepository::get(&pool, "live")
+            .await
+            .unwrap()
+            .unwrap();
+        let done = MeetingsRepository::get(&pool, "done")
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(live.status, "interrupted");
         assert_eq!(done.status, "stopped");
-        assert!(MeetingsRepository::interrupt_unfinished(&pool).await.unwrap().is_empty());
+        assert!(MeetingsRepository::interrupt_unfinished(&pool)
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[tokio::test]
@@ -239,10 +314,12 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        sqlx::query("INSERT INTO summary_processes (meeting_id, status) VALUES ('m1', 'completed')")
-            .execute(&pool)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO summary_processes (meeting_id, status) VALUES ('m1', 'completed')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
 
         assert!(MeetingsRepository::delete(&pool, "m1").await.unwrap());
         let remaining: i64 = sqlx::query_scalar(
@@ -260,19 +337,42 @@ mod tests {
         let pool = test_pool().await;
         seed(&pool, "m1", meeting_status::STOPPED).await;
         seed(&pool, "m2", meeting_status::STOPPED).await;
-        let state = FinalState { status: "transcribing", model: "elevenlabs-scribe_v2", job_id: Some("job_1"), error: None };
-        assert!(MeetingsRepository::set_final_state(&pool, "m1", &state).await.unwrap());
+        let state = FinalState {
+            status: "transcribing",
+            model: "elevenlabs-scribe_v2",
+            job_id: Some("job_1"),
+            error: None,
+        };
+        assert!(MeetingsRepository::set_final_state(&pool, "m1", &state)
+            .await
+            .unwrap());
         let meeting = MeetingsRepository::get(&pool, "m1").await.unwrap().unwrap();
         assert_eq!(meeting.final_status.as_deref(), Some("transcribing"));
         assert_eq!(meeting.final_job_id.as_deref(), Some("job_1"));
         assert!(meeting.final_updated_at.is_some());
         let running = MeetingsRepository::final_in_progress(&pool).await.unwrap();
-        assert_eq!(running.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), vec!["m1"]);
+        assert_eq!(
+            running.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(),
+            vec!["m1"]
+        );
 
-        let failed = FinalState { status: "failed", error: Some("boom"), ..state };
-        MeetingsRepository::set_final_state(&pool, "m1", &failed).await.unwrap();
-        assert!(MeetingsRepository::final_in_progress(&pool).await.unwrap().is_empty());
-        assert!(!MeetingsRepository::set_final_state(&pool, "missing", &failed).await.unwrap());
+        let failed = FinalState {
+            status: "failed",
+            error: Some("boom"),
+            ..state
+        };
+        MeetingsRepository::set_final_state(&pool, "m1", &failed)
+            .await
+            .unwrap();
+        assert!(MeetingsRepository::final_in_progress(&pool)
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(
+            !MeetingsRepository::set_final_state(&pool, "missing", &failed)
+                .await
+                .unwrap()
+        );
     }
 
     #[tokio::test]
@@ -280,7 +380,12 @@ mod tests {
         let pool = test_pool().await;
         let result = MeetingsRepository::create(
             &pool,
-            &NewMeeting { id: "bad", title: "x", folder_path: "/tmp", status: "finished" },
+            &NewMeeting {
+                id: "bad",
+                title: "x",
+                folder_path: "/tmp",
+                status: "finished",
+            },
         )
         .await;
         assert!(result.is_err());

@@ -1,6 +1,8 @@
 //! `VoiceSettings` (ARCHITECTURE.md §2), stored by Rust in `voice-settings.json`.
 
-use peacockery_voice::{curated_final, curated_live, curated_summary, Catalog, LiveMode, DEFAULT_BASE_URL};
+use peacockery_voice::{
+    curated_final, curated_live, curated_summary, Catalog, LiveMode, DEFAULT_BASE_URL,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tauri::{AppHandle, Runtime};
@@ -100,25 +102,43 @@ impl VoiceSettings {
 
         match url::Url::parse(&self.base_url) {
             Ok(url) if matches!(url.scheme(), "https" | "http") && url.host().is_some() => {}
-            _ => return Err(format!("base_url must be an http(s) URL, got {:?}", self.base_url)),
+            _ => {
+                return Err(format!(
+                    "base_url must be an http(s) URL, got {:?}",
+                    self.base_url
+                ))
+            }
         }
         if !is_live_model(&self.live_model) {
             return Err(format!("Unknown live model {:?}", self.live_model));
         }
         if !is_final_model(&self.final_model) {
-            return Err(format!("Unknown final transcript model {:?}", self.final_model));
+            return Err(format!(
+                "Unknown final transcript model {:?}",
+                self.final_model
+            ));
         }
         if !is_summary_model(&self.summary_model) {
             return Err(format!("Unknown summary model {:?}", self.summary_model));
         }
-        if let Some(bad) = self.summary_fallback_models.iter().find(|m| !is_summary_model(m)) {
+        if let Some(bad) = self
+            .summary_fallback_models
+            .iter()
+            .find(|m| !is_summary_model(m))
+        {
             return Err(format!("Unknown summary fallback model {:?}", bad));
         }
         if self.summary_fallback_models.len() > MAX_FALLBACK_MODELS {
-            return Err(format!("At most {} summary fallback models", MAX_FALLBACK_MODELS));
+            return Err(format!(
+                "At most {} summary fallback models",
+                MAX_FALLBACK_MODELS
+            ));
         }
         if !is_language(&self.language) {
-            return Err(format!("language must be a two-letter ISO-639-1 code or \"auto\", got {:?}", self.language));
+            return Err(format!(
+                "language must be a two-letter ISO-639-1 code or \"auto\", got {:?}",
+                self.language
+            ));
         }
         if self.me_label.is_empty() || self.them_label.is_empty() {
             return Err("Speaker labels cannot be empty".to_string());
@@ -186,12 +206,18 @@ pub fn load<R: Runtime>(app: &AppHandle<R>) -> VoiceSettings {
 }
 
 /// Validate and persist; returns the normalized settings.
-pub fn save<R: Runtime>(app: &AppHandle<R>, settings: VoiceSettings) -> Result<VoiceSettings, String> {
+pub fn save<R: Runtime>(
+    app: &AppHandle<R>,
+    settings: VoiceSettings,
+) -> Result<VoiceSettings, String> {
     let settings = settings.normalized()?;
     let store = app
         .store(STORE_FILE)
         .map_err(|e| format!("Failed to open {}: {}", STORE_FILE, e))?;
-    store.set(SETTINGS_KEY, serde_json::to_value(&settings).map_err(|e| e.to_string())?);
+    store.set(
+        SETTINGS_KEY,
+        serde_json::to_value(&settings).map_err(|e| e.to_string())?,
+    );
     store
         .save()
         .map_err(|e| format!("Failed to save voice settings: {}", e))?;
@@ -234,7 +260,10 @@ mod tests {
         let value = serde_json::to_value(&defaults).unwrap();
         assert_eq!(value["live_mode"], "split");
         assert_eq!(value["base_url"], "https://voice-lab.peacockery.studio");
-        assert_eq!(value["summary_fallback_models"], json!(["deepseek-deepseek-v4-flash", "google-gemini-3.1-flash-lite"]));
+        assert_eq!(
+            value["summary_fallback_models"],
+            json!(["deepseek-deepseek-v4-flash", "google-gemini-3.1-flash-lite"])
+        );
         assert_eq!(value.as_object().unwrap().len(), 16);
     }
 
@@ -255,7 +284,10 @@ mod tests {
         assert!(settings.auto_summary);
         assert_eq!(settings.me_label, "Simon");
         assert_eq!(VoiceSettings::from_stored(None), VoiceSettings::default());
-        assert_eq!(VoiceSettings::from_stored(Some(&json!("junk"))), VoiceSettings::default());
+        assert_eq!(
+            VoiceSettings::from_stored(Some(&json!("junk"))),
+            VoiceSettings::default()
+        );
     }
 
     #[test]
@@ -271,8 +303,16 @@ mod tests {
     fn normalization_cleans_and_validates() {
         let mut s = VoiceSettings {
             base_url: " https://voice-lab.peacockery.studio/ ".into(),
-            keyterms: vec![" Cica-Huntek ".into(), "".into(), "Cica-Huntek".into(), "Netask".into()],
-            summary_fallback_models: vec!["google-gemini-3.8-flash".into(), "openai-gpt-5.4-mini".into()],
+            keyterms: vec![
+                " Cica-Huntek ".into(),
+                "".into(),
+                "Cica-Huntek".into(),
+                "Netask".into(),
+            ],
+            summary_fallback_models: vec![
+                "google-gemini-3.8-flash".into(),
+                "openai-gpt-5.4-mini".into(),
+            ],
             language: "AUTO".into(),
             ..VoiceSettings::default()
         };
@@ -290,7 +330,9 @@ mod tests {
         assert!(reject(|s| s.base_url = "ftp://x".into()));
         assert!(reject(|s| s.base_url = "not a url".into()));
         assert!(reject(|s| s.live_model = "elevenlabs-scribe_v1".into()));
-        assert!(reject(|s| s.final_model = "mistral-voxtral-mini-transcribe-realtime-3".into()));
+        assert!(reject(
+            |s| s.final_model = "mistral-voxtral-mini-transcribe-realtime-3".into()
+        ));
         assert!(reject(|s| s.summary_model = "elevenlabs-scribe_v2".into()));
         assert!(reject(|s| s.summary_fallback_models = vec!["nope".into()]));
         assert!(reject(|s| {

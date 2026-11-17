@@ -102,7 +102,10 @@ pub fn build_user_prompt(transcript: &str, template: &Template, custom_prompt: &
         template.to_markdown_structure()
     );
     if !custom_prompt.trim().is_empty() {
-        prompt.push_str(&format!("\n\n<user_context>\n{}\n</user_context>", custom_prompt.trim()));
+        prompt.push_str(&format!(
+            "\n\n<user_context>\n{}\n</user_context>",
+            custom_prompt.trim()
+        ));
     }
     prompt
 }
@@ -161,14 +164,22 @@ mod tests {
         let template = crate::summary::templates::get_template("standard_meeting").unwrap();
         let prompt = build_user_prompt("[00:00:01] Me: hi", &template, "Customer is ACME");
         assert!(prompt.starts_with("<transcript>\n[00:00:01] Me: hi\n</transcript>"));
-        assert!(prompt.trim_end().ends_with("Customer is ACME\n</user_context>"));
+        assert!(prompt
+            .trim_end()
+            .ends_with("Customer is ACME\n</user_context>"));
         assert!(!build_user_prompt("x", &template, "  ").contains("user_context"));
     }
 
     #[test]
     fn title_helpers() {
-        assert_eq!(extract_meeting_name_from_markdown("intro\n# Weekly Sync\nbody").as_deref(), Some("Weekly Sync"));
-        assert_eq!(strip_title_if_present("# Title\n## Decisions\nDone"), "## Decisions\nDone");
+        assert_eq!(
+            extract_meeting_name_from_markdown("intro\n# Weekly Sync\nbody").as_deref(),
+            Some("Weekly Sync")
+        );
+        assert_eq!(
+            strip_title_if_present("# Title\n## Decisions\nDone"),
+            "## Decisions\nDone"
+        );
         assert_eq!(strip_title_if_present("## Decisions"), "## Decisions");
         assert_eq!(strip_title_if_present("# Title"), "");
     }
@@ -222,14 +233,25 @@ mod tests {
         let reasoning_only = clean_llm_markdown_detailed("<think>private</think>");
         assert_eq!(
             require_visible_markdown("Final summary", &reasoning_only),
-            Err("Final summary returned no visible summary content after reasoning removal".to_string())
+            Err(
+                "Final summary returned no visible summary content after reasoning removal"
+                    .to_string()
+            )
         );
-        for raw in ["```\n```", "```markdown\n```", "```\r\n```", "```markdown\r\n```"] {
+        for raw in [
+            "```\n```",
+            "```markdown\n```",
+            "```\r\n```",
+            "```markdown\r\n```",
+        ] {
             let empty_fence = clean_llm_markdown_detailed(raw);
             assert_eq!(empty_fence.markdown, "");
             assert_eq!(
                 require_visible_markdown("Translation", &empty_fence),
-                Err("Translation returned no visible summary content after reasoning removal".to_string())
+                Err(
+                    "Translation returned no visible summary content after reasoning removal"
+                        .to_string()
+                )
             );
         }
     }

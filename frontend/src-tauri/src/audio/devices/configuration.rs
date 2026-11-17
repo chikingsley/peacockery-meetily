@@ -19,11 +19,19 @@ pub struct AudioDevice {
 
 impl AudioDevice {
     pub fn new(name: String, device_type: DeviceType) -> Self {
-        AudioDevice { name, device_type, label: None }
+        AudioDevice {
+            name,
+            device_type,
+            label: None,
+        }
     }
 
     pub fn with_label(name: &str, device_type: DeviceType, label: &str) -> Self {
-        AudioDevice { name: name.to_string(), device_type, label: Some(label.to_string()) }
+        AudioDevice {
+            name: name.to_string(),
+            device_type,
+            label: Some(label.to_string()),
+        }
     }
 
     pub fn from_name(name: &str) -> Result<Self> {

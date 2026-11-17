@@ -6,8 +6,8 @@ use std::time::{Duration, Instant};
 
 use log::{info, warn};
 use peacockery_voice::{
-    Channel, Error, LineBuilder, LineBuilderConfig, RealtimeEvent, RealtimeOptions, RealtimeSender, RealtimeSession,
-    SpeakerLabels, FRAME_SAMPLES,
+    Channel, Error, LineBuilder, LineBuilderConfig, RealtimeEvent, RealtimeOptions, RealtimeSender,
+    RealtimeSession, SpeakerLabels, FRAME_SAMPLES,
 };
 use tokio::sync::mpsc;
 
@@ -92,11 +92,22 @@ enum Ended {
 fn retryable(error: &Error) -> bool {
     error.is_transient()
         || matches!(error, Error::RealtimeClosed(_) | Error::Decode(_))
-        || matches!(error, Error::BadRequest { status: 408 | 429, .. })
+        || matches!(
+            error,
+            Error::BadRequest {
+                status: 408 | 429,
+                ..
+            }
+        )
 }
 
 pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receiver<LiveFrame>) {
-    let mut input = Input { rx, open: true, backlog: Backlog::default(), last_end: 0.0 };
+    let mut input = Input {
+        rx,
+        open: true,
+        backlog: Backlog::default(),
+        last_end: 0.0,
+    };
     let mut model = shared.config.model.clone();
     let mut failures = 0usize;
     let mut state = LiveState::Connecting;
@@ -142,25 +153,43 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
             model = "deepgram-nova-3".into();
             failures = 0;
             state = LiveState::Reconnecting;
-            message = Some(format!("Scribe unavailable: {}. Switching to Nova; local audio recording continues.", reason));
+            message = Some(format!(
+                "Scribe unavailable: {}. Switching to Nova; local audio recording continues.",
+                reason
+            ));
             continue;
         }
         if !retryable(&error) || failures > BACKOFF_SECONDS.len() {
-            warn!("Live {:?} session gave up after {} failures: {}", channel, failures, reason);
+            warn!(
+                "Live {:?} session gave up after {} failures: {}",
+                channel, failures, reason
+            );
             shared.status_model(channel, LiveState::Failed, Some(reason), &model);
             // Keep draining so the pipeline never sees a full channel.
             while input.recv().await.is_some() {}
             return;
         }
         let delay = BACKOFF_SECONDS[failures - 1];
-        warn!("Live {:?} session failed ({}); retry {} in {} s", channel, reason, failures, delay);
-        shared.status_model(channel, LiveState::Reconnecting, Some(format!("{} — retrying in {} s", reason, delay)), &model);
+        warn!(
+            "Live {:?} session failed ({}); retry {} in {} s",
+            channel, reason, failures, delay
+        );
+        shared.status_model(
+            channel,
+            LiveState::Reconnecting,
+            Some(format!("{} — retrying in {} s", reason, delay)),
+            &model,
+        );
         if !input.wait(Duration::from_secs(delay)).await {
             shared.status_model(channel, LiveState::Closed, None, &model);
             return;
         }
         state = LiveState::Reconnecting;
-        message = Some(format!("Reconnecting (attempt {} of {})", failures + 1, BACKOFF_SECONDS.len() + 1));
+        message = Some(format!(
+            "Reconnecting (attempt {} of {})",
+            failures + 1,
+            BACKOFF_SECONDS.len() + 1
+        ));
     }
 }
 
@@ -173,7 +202,12 @@ async fn connect(
     let catalog = shared.client.models().await?;
     let route = catalog
         .realtime_model_id(model)
-        .ok_or_else(|| Error::Config(format!("{} has no realtime route on this server", config.model)))?
+        .ok_or_else(|| {
+            Error::Config(format!(
+                "{} has no realtime route on this server",
+                config.model
+            ))
+        })?
         .to_string();
     let mut options = RealtimeOptions::new(route);
     options.language = config.language.clone();
@@ -185,8 +219,13 @@ async fn connect(
 
 fn builder_for(shared: &Shared, channel: Channel, model: &str, offset: f64) -> LineBuilder {
     let config = &shared.config;
-    let speakers =
-        SpeakerLabels::for_session(config.mode, channel, config.diarize_for_model(channel, model), &config.me_label, &config.them_label);
+    let speakers = SpeakerLabels::for_session(
+        config.mode,
+        channel,
+        config.diarize_for_model(channel, model),
+        &config.me_label,
+        &config.them_label,
+    );
     let mut builder_config = LineBuilderConfig::new(channel, model, speakers);
     builder_config.session_offset = offset.max(0.0);
     LineBuilder::new(builder_config)
@@ -219,7 +258,10 @@ async fn stream(
     let mut builder = builder_for(shared, channel, model, offset);
     let mut sent = offset;
     if input.backlog.dropped > 0 {
-        warn!("Live {:?}: {} frames of audio were dropped while connecting", channel, input.backlog.dropped);
+        warn!(
+            "Live {:?}: {} frames of audio were dropped while connecting",
+            channel, input.backlog.dropped
+        );
         input.backlog.dropped = 0;
     }
     while let Some(frame) = input.backlog.frames.pop_front() {
@@ -348,7 +390,10 @@ async fn finish(
 
 fn should_fallback(model: &str, failures: usize, error: &Error) -> bool {
     model == "elevenlabs-scribe_v3"
-        && !matches!(error, Error::Unauthorized | Error::Forbidden(_) | Error::Cancelled)
+        && !matches!(
+            error,
+            Error::Unauthorized | Error::Forbidden(_) | Error::Cancelled
+        )
         && (failures >= 2 || !retryable(error))
 }
 
@@ -360,7 +405,10 @@ mod tests {
     fn backlog_keeps_the_newest_ten_seconds() {
         let mut backlog = Backlog::default();
         for i in 0..150 {
-            backlog.push(LiveFrame { samples: vec![0; FRAME_SAMPLES], end: i as f64 * 0.1 });
+            backlog.push(LiveFrame {
+                samples: vec![0; FRAME_SAMPLES],
+                end: i as f64 * 0.1,
+            });
         }
         assert_eq!(backlog.frames.len(), BACKLOG_FRAMES);
         assert_eq!(backlog.dropped, 50);
@@ -372,20 +420,46 @@ mod tests {
         let transient = Error::Network("unavailable".into());
         assert!(!should_fallback("elevenlabs-scribe_v3", 1, &transient));
         assert!(should_fallback("elevenlabs-scribe_v3", 2, &transient));
-        assert!(should_fallback("elevenlabs-scribe_v3", 1, &Error::SessionFailed { code: "provider_error".into(), message: "unsupported model".into(), retryable: false }));
+        assert!(should_fallback(
+            "elevenlabs-scribe_v3",
+            1,
+            &Error::SessionFailed {
+                code: "provider_error".into(),
+                message: "unsupported model".into(),
+                retryable: false
+            }
+        ));
         assert!(!should_fallback("deepgram-nova-3", 2, &transient));
-        assert!(!should_fallback("elevenlabs-scribe_v3", 2, &Error::Unauthorized));
-        assert!(!should_fallback("elevenlabs-scribe_v3", 2, &Error::Cancelled));
+        assert!(!should_fallback(
+            "elevenlabs-scribe_v3",
+            2,
+            &Error::Unauthorized
+        ));
+        assert!(!should_fallback(
+            "elevenlabs-scribe_v3",
+            2,
+            &Error::Cancelled
+        ));
     }
 
     #[test]
     fn retry_only_what_can_recover() {
         assert!(retryable(&Error::Network("x".into())));
         assert!(retryable(&Error::RealtimeClosed("x".into())));
-        assert!(retryable(&Error::BadRequest { status: 429, body: String::new() }));
-        assert!(retryable(&Error::SessionFailed { code: "x".into(), message: "429".into(), retryable: true }));
+        assert!(retryable(&Error::BadRequest {
+            status: 429,
+            body: String::new()
+        }));
+        assert!(retryable(&Error::SessionFailed {
+            code: "x".into(),
+            message: "429".into(),
+            retryable: true
+        }));
         assert!(!retryable(&Error::Unauthorized));
-        assert!(!retryable(&Error::BadRequest { status: 400, body: String::new() }));
+        assert!(!retryable(&Error::BadRequest {
+            status: 400,
+            body: String::new()
+        }));
         assert!(!retryable(&Error::Config("x".into())));
     }
 }

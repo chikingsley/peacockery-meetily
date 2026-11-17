@@ -17,7 +17,9 @@ use crate::database::models::meeting_status;
 use crate::database::repositories::meeting::{MeetingsRepository, NewMeeting};
 use crate::state::AppState;
 
-pub(crate) fn is_import_active() -> bool { IMPORT_IN_PROGRESS.load(Ordering::SeqCst) }
+pub(crate) fn is_import_active() -> bool {
+    IMPORT_IN_PROGRESS.load(Ordering::SeqCst)
+}
 
 static IMPORT_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 static IMPORT_CANCELLED: AtomicBool = AtomicBool::new(false);
@@ -116,14 +118,20 @@ fn probe_duration(path: &Path) -> Result<f64> {
     use symphonia::core::meta::MetadataOptions;
     use symphonia::core::probe::Hint;
 
-    let file = std::fs::File::open(path).map_err(|e| anyhow!("Failed to open audio file: {}", e))?;
+    let file =
+        std::fs::File::open(path).map_err(|e| anyhow!("Failed to open audio file: {}", e))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let mut hint = Hint::new();
     if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
         hint.with_extension(ext);
     }
     let probed = symphonia::default::get_probe()
-        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
         .map_err(|e| anyhow!("Not a readable audio file: {}", e))?;
     let mut format = probed.format;
     let track = format
@@ -144,7 +152,11 @@ fn probe_duration(path: &Path) -> Result<f64> {
 
     let time_base = params
         .time_base
-        .or_else(|| params.sample_rate.map(|rate| symphonia::core::units::TimeBase::new(1, rate)))
+        .or_else(|| {
+            params
+                .sample_rate
+                .map(|rate| symphonia::core::units::TimeBase::new(1, rate))
+        })
         .ok_or_else(|| anyhow!("Audio track has no time base"))?;
     let mut end_ts: u64 = 0;
     while let Ok(packet) = format.next_packet() {
@@ -172,7 +184,11 @@ fn emit_progress(app: &AppHandle, meeting_id: &str, stage: &str, progress: u32, 
 }
 
 /// Copy `source` to `destination` in chunks, honouring cancellation and reporting progress.
-fn copy_with_progress(source: &Path, destination: &Path, mut on_progress: impl FnMut(u32)) -> Result<()> {
+fn copy_with_progress(
+    source: &Path,
+    destination: &Path,
+    mut on_progress: impl FnMut(u32),
+) -> Result<()> {
     let total = std::fs::metadata(source)?.len().max(1);
     let mut reader = std::fs::File::open(source)?;
     let mut writer = std::fs::File::create(destination)?;
@@ -199,7 +215,13 @@ fn copy_with_progress(source: &Path, destination: &Path, mut on_progress: impl F
     Ok(())
 }
 
-async fn run_import(app: &AppHandle, meeting_id: &str, source: PathBuf, title: String, folder: PathBuf) -> Result<()> {
+async fn run_import(
+    app: &AppHandle,
+    meeting_id: &str,
+    source: PathBuf,
+    title: String,
+    folder: PathBuf,
+) -> Result<()> {
     let extension = source
         .extension()
         .and_then(|e| e.to_str())
@@ -212,7 +234,13 @@ async fn run_import(app: &AppHandle, meeting_id: &str, source: PathBuf, title: S
     let progress_id = meeting_id.to_string();
     tokio::task::spawn_blocking(move || {
         copy_with_progress(&source, &destination, |percent| {
-            emit_progress(&progress_app, &progress_id, "copying", percent, "Copying audio file...");
+            emit_progress(
+                &progress_app,
+                &progress_id,
+                "copying",
+                percent,
+                "Copying audio file...",
+            );
         })
     })
     .await
@@ -222,7 +250,12 @@ async fn run_import(app: &AppHandle, meeting_id: &str, source: PathBuf, title: S
     let folder_path = folder.to_string_lossy().to_string();
     MeetingsRepository::create(
         &pool,
-        &NewMeeting { id: meeting_id, title: &title, folder_path: &folder_path, status: meeting_status::IMPORTED },
+        &NewMeeting {
+            id: meeting_id,
+            title: &title,
+            folder_path: &folder_path,
+            status: meeting_status::IMPORTED,
+        },
     )
     .await
     .map_err(|e| anyhow!("Failed to create meeting: {}", e))?;
@@ -236,7 +269,9 @@ async fn run_import(app: &AppHandle, meeting_id: &str, source: PathBuf, title: S
 
 /// Pick an audio file and validate it.
 #[tauri::command]
-pub async fn select_and_validate_audio_command(app: AppHandle) -> Result<Option<AudioFileInfo>, String> {
+pub async fn select_and_validate_audio_command(
+    app: AppHandle,
+) -> Result<Option<AudioFileInfo>, String> {
     let dialog_app = app.clone();
     let file_path = tokio::task::spawn_blocking(move || {
         dialog_app
@@ -251,8 +286,12 @@ pub async fn select_and_validate_audio_command(app: AppHandle) -> Result<Option<
     let Some(path) = file_path else {
         return Ok(None);
     };
-    let path = path.into_path().map_err(|e| format!("Unsupported file path: {}", e))?;
-    validate_audio_file(&path).map(Some).map_err(|e| e.to_string())
+    let path = path
+        .into_path()
+        .map_err(|e| format!("Unsupported file path: {}", e))?;
+    validate_audio_file(&path)
+        .map(Some)
+        .map_err(|e| e.to_string())
 }
 
 /// Validate an audio file (drag and drop).
@@ -280,9 +319,15 @@ pub async fn start_import_audio_command(
         .filter(|t| !t.is_empty())
         .unwrap_or(info.filename);
     let base_folder = super::recording_preferences::recordings_folder(&app)?;
-    let folder = create_meeting_folder(&base_folder, &title).map_err(|e| format!("Failed to create meeting folder: {}", e))?;
+    let folder = create_meeting_folder(&base_folder, &title)
+        .map_err(|e| format!("Failed to create meeting folder: {}", e))?;
     let meeting_id = format!("meeting-{}", uuid::Uuid::new_v4());
-    info!("Importing {} as meeting {} ({})", source.display(), meeting_id, title);
+    info!(
+        "Importing {} as meeting {} ({})",
+        source.display(),
+        meeting_id,
+        title
+    );
 
     let task_app = app.clone();
     let task_meeting_id = meeting_id.clone();
@@ -290,7 +335,10 @@ pub async fn start_import_audio_command(
         let _guard = guard;
         match run_import(&task_app, &task_meeting_id, source, title, folder.clone()).await {
             Ok(()) => {
-                let _ = task_app.emit("import-complete", serde_json::json!({ "meeting_id": task_meeting_id }));
+                let _ = task_app.emit(
+                    "import-complete",
+                    serde_json::json!({ "meeting_id": task_meeting_id }),
+                );
                 crate::final_transcript::start_for_meeting(&task_app, &task_meeting_id, None);
             }
             Err(e) => {
@@ -322,14 +370,21 @@ pub async fn cancel_import_command() -> Result<(), String> {
 mod tests {
     use super::*;
 
-    const FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/he_aac_48k_5s.m4a");
+    const FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/he_aac_48k_5s.m4a"
+    );
 
     #[test]
     fn validates_an_aac_fixture() {
         let info = validate_audio_file(Path::new(FIXTURE)).unwrap();
         assert_eq!(info.format, "M4A");
         assert_eq!(info.filename, "he_aac_48k_5s");
-        assert!((info.duration_seconds - 5.0).abs() < 0.2, "duration {}", info.duration_seconds);
+        assert!(
+            (info.duration_seconds - 5.0).abs() < 0.2,
+            "duration {}",
+            info.duration_seconds
+        );
         assert!(info.size_bytes > 0);
     }
 
@@ -342,7 +397,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let text = dir.path().join("notes.txt");
         std::fs::write(&text, b"hello").unwrap();
-        assert!(validate_audio_file(&text).unwrap_err().to_string().contains("Unsupported format"));
+        assert!(validate_audio_file(&text)
+            .unwrap_err()
+            .to_string()
+            .contains("Unsupported format"));
         let fake = dir.path().join("fake.mp3");
         std::fs::write(&fake, b"not audio").unwrap();
         assert!(validate_audio_file(&fake).is_err());
@@ -358,7 +416,10 @@ mod tests {
         IMPORT_CANCELLED.store(false, Ordering::SeqCst);
         let mut reports = Vec::new();
         copy_with_progress(&source, &destination, |p| reports.push(p)).unwrap();
-        assert_eq!(std::fs::read(&destination).unwrap().len(), COPY_BUFFER_BYTES * 3);
+        assert_eq!(
+            std::fs::read(&destination).unwrap().len(),
+            COPY_BUFFER_BYTES * 3
+        );
         assert_eq!(reports.last(), Some(&100));
 
         IMPORT_CANCELLED.store(true, Ordering::SeqCst);

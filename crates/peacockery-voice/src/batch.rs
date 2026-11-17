@@ -109,8 +109,6 @@ pub enum JobStatus {
     Unknown,
 }
 
-
-
 /// `GET /v1/jobs/{id}`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JobView {

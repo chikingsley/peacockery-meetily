@@ -29,7 +29,10 @@ pub fn default_recordings_folder<R: Runtime>(app: &AppHandle<R>) -> PathBuf {
     match app.path().app_data_dir() {
         Ok(app_data) => app_data.join("recordings"),
         Err(e) => {
-            warn!("No Music folder and no app data dir ({}); using the working directory", e);
+            warn!(
+                "No Music folder and no app data dir ({}); using the working directory",
+                e
+            );
             PathBuf::from(RECORDINGS_FOLDER_NAME)
         }
     }
@@ -67,20 +70,31 @@ pub fn load_recording_preferences<R: Runtime>(app: &AppHandle<R>) -> RecordingPr
 pub fn allow_recordings_folder<R: Runtime>(app: &AppHandle<R>) {
     let folder = load_recording_preferences(app).save_folder;
     if let Err(e) = app.asset_protocol_scope().allow_directory(&folder, true) {
-        warn!("Failed to allow {} for audio playback: {}", folder.display(), e);
+        warn!(
+            "Failed to allow {} for audio playback: {}",
+            folder.display(),
+            e
+        );
     }
 }
 
 /// The folder new meetings are created in (created if missing).
 pub fn recordings_folder<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let folder = load_recording_preferences(app).save_folder;
-    std::fs::create_dir_all(&folder)
-        .map_err(|e| format!("Failed to create recordings folder {}: {}", folder.display(), e))?;
+    std::fs::create_dir_all(&folder).map_err(|e| {
+        format!(
+            "Failed to create recordings folder {}: {}",
+            folder.display(),
+            e
+        )
+    })?;
     Ok(folder)
 }
 
 #[tauri::command]
-pub async fn get_recording_preferences<R: Runtime>(app: AppHandle<R>) -> Result<RecordingPreferences, String> {
+pub async fn get_recording_preferences<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<RecordingPreferences, String> {
     Ok(load_recording_preferences(&app))
 }
 
@@ -90,7 +104,11 @@ pub async fn set_recording_preferences<R: Runtime>(
     preferences: RecordingPreferences,
 ) -> Result<(), String> {
     std::fs::create_dir_all(&preferences.save_folder).map_err(|e| {
-        format!("Failed to create recordings folder {}: {}", preferences.save_folder.display(), e)
+        format!(
+            "Failed to create recordings folder {}: {}",
+            preferences.save_folder.display(),
+            e
+        )
     })?;
     let store = app
         .store(STORE_FILE)
@@ -103,14 +121,20 @@ pub async fn set_recording_preferences<R: Runtime>(
     allow_recordings_folder(&app);
     info!(
         "Saved recording preferences: save_folder={:?}, mic={:?}, system={:?}",
-        preferences.save_folder, preferences.preferred_mic_device, preferences.preferred_system_device
+        preferences.save_folder,
+        preferences.preferred_mic_device,
+        preferences.preferred_system_device
     );
     Ok(())
 }
 
 #[tauri::command]
-pub async fn get_default_recordings_folder_path<R: Runtime>(app: AppHandle<R>) -> Result<String, String> {
-    Ok(default_recordings_folder(&app).to_string_lossy().to_string())
+pub async fn get_default_recordings_folder_path<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<String, String> {
+    Ok(default_recordings_folder(&app)
+        .to_string_lossy()
+        .to_string())
 }
 
 #[tauri::command]

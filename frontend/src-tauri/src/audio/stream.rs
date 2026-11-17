@@ -1,13 +1,13 @@
-use std::sync::Arc;
-use std::time::Duration;
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{Device, Stream, SupportedStreamConfig};
 use log::{error, info, warn};
+use std::sync::Arc;
+use std::time::Duration;
 
-use super::devices::{AudioDevice, get_device_and_config};
 use super::capture::AudioCapture;
-use super::recording_state::{RecordingState, DeviceType};
+use super::devices::{get_device_and_config, AudioDevice};
+use super::recording_state::{DeviceType, RecordingState};
 
 /// One cpal input stream (a capture device, or a render device opened as WASAPI loopback).
 pub struct AudioStream {
@@ -26,7 +26,10 @@ impl AudioStream {
         state: Arc<RecordingState>,
         device_type: DeviceType,
     ) -> Result<Self> {
-        info!("Creating {:?} stream for device: {}", device_type, device.name);
+        info!(
+            "Creating {:?} stream for device: {}",
+            device_type, device.name
+        );
         let (cpal_device, config) = get_device_and_config(&device).await?;
         info!(
             "Audio config - Sample rate: {}, Channels: {}, Format: {:?}",
@@ -75,7 +78,8 @@ impl AudioStream {
                 device.build_input_stream(
                     &config_copy.into(),
                     move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                        let f32_data: Vec<f32> = data.iter()
+                        let f32_data: Vec<f32> = data
+                            .iter()
                             .map(|&sample| sample as f32 / i16::MAX as f32)
                             .collect();
                         capture.process_audio_data(&f32_data);
@@ -91,7 +95,8 @@ impl AudioStream {
                 device.build_input_stream(
                     &config_copy.into(),
                     move |data: &[i32], _: &cpal::InputCallbackInfo| {
-                        let f32_data: Vec<f32> = data.iter()
+                        let f32_data: Vec<f32> = data
+                            .iter()
                             .map(|&sample| sample as f32 / i32::MAX as f32)
                             .collect();
                         capture.process_audio_data(&f32_data);
@@ -107,7 +112,8 @@ impl AudioStream {
                 device.build_input_stream(
                     &config_copy.into(),
                     move |data: &[i8], _: &cpal::InputCallbackInfo| {
-                        let f32_data: Vec<f32> = data.iter()
+                        let f32_data: Vec<f32> = data
+                            .iter()
                             .map(|&sample| sample as f32 / i8::MAX as f32)
                             .collect();
                         capture.process_audio_data(&f32_data);
@@ -119,7 +125,10 @@ impl AudioStream {
                 )?
             }
             _ => {
-                return Err(anyhow::anyhow!("Unsupported sample format: {:?}", config.sample_format()));
+                return Err(anyhow::anyhow!(
+                    "Unsupported sample format: {:?}",
+                    config.sample_format()
+                ));
             }
         };
 
@@ -193,7 +202,8 @@ fn chrome_root_pid() -> Result<u32> {
     if !app_loopback::is_supported() {
         return Err(anyhow::anyhow!(CHROME_UNSUPPORTED));
     }
-    app_loopback::find_process_tree_root(CHROME_EXE).ok_or_else(|| anyhow::anyhow!(CHROME_NOT_RUNNING))
+    app_loopback::find_process_tree_root(CHROME_EXE)
+        .ok_or_else(|| anyhow::anyhow!(CHROME_NOT_RUNNING))
 }
 
 /// A running system-audio capture.
@@ -206,13 +216,24 @@ impl SystemStream {
     pub async fn open(source: &SystemSource, state: Arc<RecordingState>) -> Result<Self> {
         match source {
             SystemSource::Endpoint(device) => {
-                AudioStream::create(device.clone(), state, DeviceType::System).await.map(SystemStream::Endpoint)
+                AudioStream::create(device.clone(), state, DeviceType::System)
+                    .await
+                    .map(SystemStream::Endpoint)
             }
             SystemSource::ChromeApp => {
                 let pid = chrome_root_pid()?;
                 info!("Capturing Google Chrome process tree (root pid {})", pid);
-                let device = Arc::new(AudioDevice::new(CHROME_APP_DEVICE.to_string(), super::devices::DeviceType::Output));
-                let capture = AudioCapture::new(device, state, app_loopback::SAMPLE_RATE, 1, DeviceType::System);
+                let device = Arc::new(AudioDevice::new(
+                    CHROME_APP_DEVICE.to_string(),
+                    super::devices::DeviceType::Output,
+                ));
+                let capture = AudioCapture::new(
+                    device,
+                    state,
+                    app_loopback::SAMPLE_RATE,
+                    1,
+                    DeviceType::System,
+                );
                 let on_error = capture.clone();
                 // Activation blocks up to 10 s: keep it off the async runtime.
                 let started = tokio::task::spawn_blocking(move || {
@@ -226,9 +247,16 @@ impl SystemStream {
                 .map_err(|e| anyhow::anyhow!("Chrome capture task failed: {}", e))?;
                 match started {
                     Ok(capture) => Ok(SystemStream::ChromeApp(capture)),
-                    Err(app_loopback::AppLoopbackError::Unsupported) => Err(anyhow::anyhow!(CHROME_UNSUPPORTED)),
-                    Err(app_loopback::AppLoopbackError::ProcessNotFound(_)) => Err(anyhow::anyhow!(CHROME_NOT_RUNNING)),
-                    Err(e) => Err(anyhow::anyhow!("Could not capture Google Chrome audio: {}", e)),
+                    Err(app_loopback::AppLoopbackError::Unsupported) => {
+                        Err(anyhow::anyhow!(CHROME_UNSUPPORTED))
+                    }
+                    Err(app_loopback::AppLoopbackError::ProcessNotFound(_)) => {
+                        Err(anyhow::anyhow!(CHROME_NOT_RUNNING))
+                    }
+                    Err(e) => Err(anyhow::anyhow!(
+                        "Could not capture Google Chrome audio: {}",
+                        e
+                    )),
                 }
             }
         }
@@ -258,7 +286,11 @@ unsafe impl Send for AudioStreamManager {}
 
 impl AudioStreamManager {
     pub fn new(state: Arc<RecordingState>) -> Self {
-        Self { microphone_stream: None, system_stream: None, state }
+        Self {
+            microphone_stream: None,
+            system_stream: None,
+            state,
+        }
     }
 
     /// Start the mic and the system source. A failing mic fails the start; a failing
@@ -271,16 +303,24 @@ impl AudioStreamManager {
     ) -> Result<()> {
         if let Some(mic_device) = microphone_device {
             info!("Creating microphone stream: {}", mic_device.name);
-            let stream = AudioStream::create(mic_device, self.state.clone(), DeviceType::Microphone).await?;
+            let stream =
+                AudioStream::create(mic_device, self.state.clone(), DeviceType::Microphone).await?;
             self.microphone_stream = Some(stream);
         }
         if let Some(source) = system_source {
-            match tokio::time::timeout(Duration::from_secs(15), SystemStream::open(&source, self.state.clone())).await {
+            match tokio::time::timeout(
+                Duration::from_secs(15),
+                SystemStream::open(&source, self.state.clone()),
+            )
+            .await
+            {
                 Ok(Ok(stream)) => self.system_stream = Some(stream),
                 Ok(Err(e)) if matches!(source, SystemSource::ChromeApp) => return Err(e),
                 Ok(Err(e)) => warn!("Failed to create system audio stream: {}", e),
                 Err(_) if matches!(source, SystemSource::ChromeApp) => {
-                    return Err(anyhow::anyhow!("Google Chrome audio capture did not start within 15 s"))
+                    return Err(anyhow::anyhow!(
+                        "Google Chrome audio capture did not start within 15 s"
+                    ))
                 }
                 Err(_) => warn!("System audio stream did not start within 15 s"),
             }

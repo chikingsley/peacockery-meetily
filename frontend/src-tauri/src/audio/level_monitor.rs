@@ -31,7 +31,10 @@ static MONITOR: Mutex<Option<Monitor>> = Mutex::new(None);
 
 /// Open `device_names` ("<name> (input)" / "<name> (output)", `app:chrome (output)`) and
 /// start emitting their levels. Replaces a running monitor.
-pub async fn start_monitoring<R: Runtime>(app: AppHandle<R>, device_names: Vec<String>) -> Result<()> {
+pub async fn start_monitoring<R: Runtime>(
+    app: AppHandle<R>,
+    device_names: Vec<String>,
+) -> Result<()> {
     stop_monitoring();
     let mut mic_device = None;
     let mut system_source = None;
@@ -39,7 +42,9 @@ pub async fn start_monitoring<R: Runtime>(app: AppHandle<R>, device_names: Vec<S
         let device = Arc::new(parse_audio_device(name)?);
         match device.device_type {
             Direction::Input if mic_device.is_none() => mic_device = Some(device),
-            Direction::Output if system_source.is_none() => system_source = Some(SystemSource::for_device(device)),
+            Direction::Output if system_source.is_none() => {
+                system_source = Some(SystemSource::for_device(device))
+            }
             _ => warn!("Level test: ignoring extra device '{}'", name),
         }
     }
@@ -50,7 +55,9 @@ pub async fn start_monitoring<R: Runtime>(app: AppHandle<R>, device_names: Vec<S
     state.start_recording()?;
 
     let mic = match mic_device {
-        Some(device) => Some(AudioStream::create(device, state.clone(), DeviceType::Microphone).await?),
+        Some(device) => {
+            Some(AudioStream::create(device, state.clone(), DeviceType::Microphone).await?)
+        }
         None => None,
     };
     let system = match &system_source {
@@ -72,11 +79,19 @@ pub async fn start_monitoring<R: Runtime>(app: AppHandle<R>, device_names: Vec<S
     info!("Level test started for {:?}", device_names);
 
     let task = tokio::spawn(emit_levels(app, receiver));
-    *MONITOR.lock().unwrap_or_else(|p| p.into_inner()) = Some(Monitor { state, mic, system, task });
+    *MONITOR.lock().unwrap_or_else(|p| p.into_inner()) = Some(Monitor {
+        state,
+        mic,
+        system,
+        task,
+    });
     Ok(())
 }
 
-async fn emit_levels<R: Runtime>(app: AppHandle<R>, mut receiver: mpsc::UnboundedReceiver<AudioChunk>) {
+async fn emit_levels<R: Runtime>(
+    app: AppHandle<R>,
+    mut receiver: mpsc::UnboundedReceiver<AudioChunk>,
+) {
     let mut meter = LevelMeter::default();
     let mut mic = Vec::new();
     let mut sys = Vec::new();

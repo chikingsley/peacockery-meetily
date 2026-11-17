@@ -29,8 +29,6 @@ pub const DEFAULT_FINISH_TIMEOUT: Duration = Duration::from_secs(20);
 /// Buffered events between the socket reader and the consumer.
 const EVENT_BUFFER: usize = 4096;
 
-
-
 /// Options for one realtime session.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RealtimeOptions {
@@ -90,7 +88,9 @@ impl RealtimeOptions {
             pairs.push(("language", lang.to_string()));
         }
         if self.diarize {
-            if family == ModelFamily::Cohere || (family == ModelFamily::Scribe && !self.model.ends_with("scribe_v3")) {
+            if family == ModelFamily::Cohere
+                || (family == ModelFamily::Scribe && !self.model.ends_with("scribe_v3"))
+            {
                 return Err(Error::Config(format!(
                     "{} does not support live speaker labels",
                     self.model
@@ -120,7 +120,6 @@ impl RealtimeOptions {
                 for term in terms(&[self.context_bias.clone(), self.keyterms.clone()].concat()) {
                     pairs.push(("context_bias", term));
                 }
-
             }
             ModelFamily::Deepgram | ModelFamily::Scribe => {
                 for term in terms(&self.keyterms) {
@@ -316,8 +315,6 @@ impl RealtimeEvent {
             _ => RealtimeEvent::Other { kind, raw },
         })
     }
-
-
 }
 
 /// How a session ended.
@@ -552,8 +549,6 @@ impl RealtimeSender {
         self.bytes_sent as f64 / 2.0 / f64::from(sample_rate.max(1))
     }
 
-
-
     /// Send `{"type":"close"}` and wait for `session.completed` / `session.failed`.
     /// The server closes the socket afterwards; the event stream ends.
     /// A session that already ended returns its terminal outcome without sending anything.
@@ -731,7 +726,8 @@ mod tests {
                     .iter()
                     .filter(|e| matches!(
                         e,
-                        RealtimeEvent::SessionCompleted { .. } | RealtimeEvent::SessionFailed { .. }
+                        RealtimeEvent::SessionCompleted { .. }
+                            | RealtimeEvent::SessionFailed { .. }
                     ))
                     .count(),
                 1

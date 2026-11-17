@@ -1,4 +1,6 @@
-use crate::database::repositories::{meeting::MeetingsRepository, summary::SummaryProcessesRepository};
+use crate::database::repositories::{
+    meeting::MeetingsRepository, summary::SummaryProcessesRepository,
+};
 use crate::state::AppState;
 use crate::summary::processor::{clean_llm_markdown_detailed, contains_reasoning_marker};
 use crate::summary::service::{SummaryJob, SummaryService};
@@ -55,7 +57,10 @@ pub async fn api_save_meeting_summary(
         meeting_id
     );
     if !summary_is_renderable(&summary) {
-        return Err("Summary contains no visible content or model reasoning markers and was not saved.".into());
+        return Err(
+            "Summary contains no visible content or model reasoning markers and was not saved."
+                .into(),
+        );
     }
     let pool = state.db_manager.pool();
 
@@ -99,16 +104,14 @@ fn blocknote_has_visible_text(value: &serde_json::Value) -> bool {
     }
 }
 
-
-
 fn summary_contains_reasoning_marker(value: &serde_json::Value) -> bool {
     match value {
         serde_json::Value::Array(items) => items.iter().any(summary_contains_reasoning_marker),
         serde_json::Value::Object(object) => object.iter().any(|(key, value)| match key.as_str() {
-            "markdown" | "text" | "content" => value
-                .as_str()
-                .is_some_and(contains_reasoning_marker)
-                || value.is_array() && summary_contains_reasoning_marker(value),
+            "markdown" | "text" | "content" => {
+                value.as_str().is_some_and(contains_reasoning_marker)
+                    || value.is_array() && summary_contains_reasoning_marker(value)
+            }
             "summary_json" | "children" => summary_contains_reasoning_marker(value),
             _ => false,
         }),
@@ -128,7 +131,9 @@ fn summary_is_renderable(value: &serde_json::Value) -> bool {
             .as_str()
             .is_some_and(|markdown| !clean_llm_markdown_detailed(markdown).markdown.is_empty());
     }
-    object.get("summary_json").is_some_and(blocknote_has_visible_text)
+    object
+        .get("summary_json")
+        .is_some_and(blocknote_has_visible_text)
 }
 
 fn sanitize_markdown_value(value: Option<&mut serde_json::Value>) -> bool {
@@ -147,7 +152,10 @@ fn sanitize_summary(mut result: serde_json::Value) -> serde_json::Value {
         return result;
     };
     if sanitize_markdown_value(object.get_mut("markdown")) {
-        object.insert("reasoning_stripped".to_string(), serde_json::Value::Bool(true));
+        object.insert(
+            "reasoning_stripped".to_string(),
+            serde_json::Value::Bool(true),
+        );
     }
     result
 }
@@ -160,10 +168,7 @@ pub async fn api_get_summary(
     state: tauri::State<'_, AppState>,
     meeting_id: String,
 ) -> Result<SummaryResponse, String> {
-    log_info!(
-        "api_get_summary called for meeting_id: {}",
-        meeting_id
-    );
+    log_info!("api_get_summary called for meeting_id: {}", meeting_id);
     let pool = state.db_manager.pool();
 
     match SummaryProcessesRepository::get_summary_data(pool, &meeting_id).await {
@@ -312,7 +317,8 @@ pub async fn api_process_transcript(
     model: Option<String>,
 ) -> Result<ProcessTranscriptResponse, String> {
     let pool = state.db_manager.pool().clone();
-    let process_id = start_summary(&app, &pool, &meeting_id, template_id, custom_prompt, model).await?;
+    let process_id =
+        start_summary(&app, &pool, &meeting_id, template_id, custom_prompt, model).await?;
     Ok(ProcessTranscriptResponse { process_id })
 }
 
@@ -338,15 +344,25 @@ pub async fn api_cancel_summary(
             .await
         {
             Ok(true) => {
-                log_info!("Successfully cancelled summary generation for meeting_id: {}", meeting_id);
+                log_info!(
+                    "Successfully cancelled summary generation for meeting_id: {}",
+                    meeting_id
+                );
                 true
             }
             Ok(false) => {
-                log_info!("Summary generation was already terminal for meeting_id: {}", meeting_id);
+                log_info!(
+                    "Summary generation was already terminal for meeting_id: {}",
+                    meeting_id
+                );
                 false
             }
             Err(error) => {
-                log_error!("Failed to update cancellation status for {}: {}", meeting_id, error);
+                log_error!(
+                    "Failed to update cancellation status for {}: {}",
+                    meeting_id,
+                    error
+                );
                 return Err(format!("Failed to update cancellation status: {}", error));
             }
         }
@@ -372,15 +388,10 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-
-
     #[test]
     fn summary_start_tokens_are_monotonic_with_identical_clock_inputs() {
         let first = next_summary_start(Utc::now());
-        assert_eq!(
-            next_summary_start(first),
-            first + Duration::nanoseconds(1)
-        );
+        assert_eq!(next_summary_start(first), first + Duration::nanoseconds(1));
     }
 
     #[test]

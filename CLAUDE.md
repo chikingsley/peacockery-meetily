@@ -21,6 +21,7 @@ command and event. Change it in the same edit when the contract changes.
 
 ```bash
 cargo test --workspace
+cargo fmt --all --check                         # rustfmt defaults, enforced at release
 cargo clippy --workspace --all-targets          # must stay at 0 warnings
 cargo xwin check --workspace --target x86_64-pc-windows-msvc   # cargo-xwin is in ~/.cargo/bin
 cd frontend && pnpm typecheck && pnpm lint && bun test && pnpm build

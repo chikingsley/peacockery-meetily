@@ -80,8 +80,6 @@ impl Catalog {
             .as_ref()
             .map(|r| r.model.as_str())
     }
-
-
 }
 
 impl VoiceClient {
@@ -111,7 +109,12 @@ struct Curated {
 }
 
 const LIVE: &[Curated] = &[
-    Curated { id: "elevenlabs-scribe_v3", label: "Scribe v3 Live (via Superwhisper)", note: "default; live speaker labels, Nova fallback", recommended: true },
+    Curated {
+        id: "elevenlabs-scribe_v3",
+        label: "Scribe v3 Live (via Superwhisper)",
+        note: "default; live speaker labels, Nova fallback",
+        recommended: true,
+    },
     Curated {
         id: "deepgram-nova-3",
         label: "Deepgram Nova (via Superwhisper)",
@@ -139,7 +142,12 @@ const LIVE: &[Curated] = &[
 ];
 
 const FINAL: &[Curated] = &[
-    Curated { id: "elevenlabs-scribe_v3", label: "Scribe v3", note: "optional final transcript", recommended: true },
+    Curated {
+        id: "elevenlabs-scribe_v3",
+        label: "Scribe v3",
+        note: "optional final transcript",
+        recommended: true,
+    },
     Curated {
         id: "elevenlabs-scribe_v2",
         label: "Scribe v2",
@@ -302,10 +310,18 @@ mod tests {
     use super::*;
 
     fn fixture() -> Catalog {
-        let mut catalog: Catalog = serde_json::from_str(include_str!("../tests/fixtures/models.json")).unwrap();
-        let mut v3 = catalog.models.iter().find(|m| m.id == "elevenlabs-scribe_v2").unwrap().clone();
+        let mut catalog: Catalog =
+            serde_json::from_str(include_str!("../tests/fixtures/models.json")).unwrap();
+        let mut v3 = catalog
+            .models
+            .iter()
+            .find(|m| m.id == "elevenlabs-scribe_v2")
+            .unwrap()
+            .clone();
         v3.id = "elevenlabs-scribe_v3".into();
-        if let Some(route) = &mut v3.routes.realtime { route.supports_diarization = true; }
+        if let Some(route) = &mut v3.routes.realtime {
+            route.supports_diarization = true;
+        }
         catalog.models.push(v3);
         catalog
     }

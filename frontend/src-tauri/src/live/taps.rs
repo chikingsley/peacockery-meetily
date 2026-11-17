@@ -44,7 +44,8 @@ impl Tap {
         match self.resampler.as_mut() {
             Some(resampler) => {
                 while self.input.len() >= resampler.input_frames_next() {
-                    let block: Vec<f32> = self.input.drain(..resampler.input_frames_next()).collect();
+                    let block: Vec<f32> =
+                        self.input.drain(..resampler.input_frames_next()).collect();
                     match resampler.process(&[block], None) {
                         Ok(mut out) => self.output.append(&mut out[0]),
                         Err(e) => {
@@ -57,12 +58,21 @@ impl Tap {
             None => {
                 // Decimate by 3 with a 3-tap average when rubato could not be built.
                 let usable = self.input.len() / 3 * 3;
-                self.output.extend(self.input.drain(..usable).collect::<Vec<_>>().chunks(3).map(|c| c.iter().sum::<f32>() / 3.0));
+                self.output.extend(
+                    self.input
+                        .drain(..usable)
+                        .collect::<Vec<_>>()
+                        .chunks(3)
+                        .map(|c| c.iter().sum::<f32>() / 3.0),
+                );
             }
         }
         while self.output.len() >= FRAME_SAMPLES {
             let frame: Vec<i16> = self.output.drain(..FRAME_SAMPLES).map(to_i16).collect();
-            self.send(LiveFrame { samples: frame, end });
+            self.send(LiveFrame {
+                samples: frame,
+                end,
+            });
         }
     }
 
@@ -72,7 +82,10 @@ impl Tap {
             Err(mpsc::error::TrySendError::Full(_)) => {
                 self.dropped += 1;
                 if self.dropped == 1 || self.dropped % 50 == 0 {
-                    warn!("Live {:?} session is behind: {} frames dropped so far", self.channel, self.dropped);
+                    warn!(
+                        "Live {:?} session is behind: {} frames dropped so far",
+                        self.channel, self.dropped
+                    );
                 }
             }
             Err(mpsc::error::TrySendError::Closed(_)) => {}
@@ -94,10 +107,23 @@ impl LiveTaps {
         let taps = senders
             .into_iter()
             .map(|(channel, sender)| {
-                let resampler = FftFixedInOut::<f32>::new(PIPELINE_SAMPLE_RATE as usize, peacockery_voice::SAMPLE_RATE as usize, RESAMPLER_INPUT, 1)
-                    .map_err(|e| warn!("Live resampler unavailable, using plain decimation: {}", e))
-                    .ok();
-                Tap { channel, resampler, input: Vec::with_capacity(RESAMPLER_INPUT * 2), output: Vec::with_capacity(FRAME_SAMPLES * 2), sender, dropped: 0, last_end: 0.0 }
+                let resampler = FftFixedInOut::<f32>::new(
+                    PIPELINE_SAMPLE_RATE as usize,
+                    peacockery_voice::SAMPLE_RATE as usize,
+                    RESAMPLER_INPUT,
+                    1,
+                )
+                .map_err(|e| warn!("Live resampler unavailable, using plain decimation: {}", e))
+                .ok();
+                Tap {
+                    channel,
+                    resampler,
+                    input: Vec::with_capacity(RESAMPLER_INPUT * 2),
+                    output: Vec::with_capacity(FRAME_SAMPLES * 2),
+                    sender,
+                    dropped: 0,
+                    last_end: 0.0,
+                }
             })
             .collect();
         Self { taps }
@@ -119,14 +145,19 @@ impl LiveTaps {
     pub fn close(mut self) {
         for tap in &mut self.taps {
             if let Some(resampler) = tap.resampler.as_ref() {
-                let pad = resampler.input_frames_next().saturating_sub(tap.input.len() % resampler.input_frames_next());
+                let pad = resampler
+                    .input_frames_next()
+                    .saturating_sub(tap.input.len() % resampler.input_frames_next());
                 if !tap.input.is_empty() {
                     let end = tap.last_end;
                     tap.push(&vec![0.0; pad], end);
                 }
             }
             if tap.dropped > 0 {
-                info!("Live {:?} tap closed; {} frames dropped in total", tap.channel, tap.dropped);
+                info!(
+                    "Live {:?} tap closed; {} frames dropped in total",
+                    tap.channel, tap.dropped
+                );
             }
         }
     }
@@ -140,7 +171,9 @@ mod tests {
     fn windows_become_100_ms_16k_frames() {
         let (tx, mut rx) = mpsc::channel(TAP_CHANNEL_FRAMES);
         let mut taps = LiveTaps::new(vec![(Channel::Mic, tx)]);
-        let tone: Vec<f32> = (0..4800).map(|i| (i as f32 * 440.0 * std::f32::consts::TAU / 48000.0).sin() * 0.5).collect();
+        let tone: Vec<f32> = (0..4800)
+            .map(|i| (i as f32 * 440.0 * std::f32::consts::TAU / 48000.0).sin() * 0.5)
+            .collect();
         for i in 0..10 {
             taps.push(&tone, &[0.0; 4800], &tone, (i + 1) as f64 * 0.1);
         }
@@ -150,8 +183,19 @@ mod tests {
         }
         assert!(frames.len() >= 9, "got {} frames", frames.len());
         assert!(frames.iter().all(|f| f.samples.len() == FRAME_SAMPLES));
-        let peak = frames.last().unwrap().samples.iter().map(|s| s.unsigned_abs()).max().unwrap();
-        assert!(peak > 12000 && peak < 20000, "a 0.5 tone keeps its level, peak {}", peak);
+        let peak = frames
+            .last()
+            .unwrap()
+            .samples
+            .iter()
+            .map(|s| s.unsigned_abs())
+            .max()
+            .unwrap();
+        assert!(
+            peak > 12000 && peak < 20000,
+            "a 0.5 tone keeps its level, peak {}",
+            peak
+        );
         assert!(frames.windows(2).all(|w| w[0].end <= w[1].end));
     }
 

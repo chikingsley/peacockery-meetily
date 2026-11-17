@@ -3,7 +3,9 @@
 //! the pipeline channel.
 
 use log::{debug, error, info, warn};
-use rubato::{Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction};
+use rubato::{
+    Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction,
+};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -36,7 +38,10 @@ fn build_resampler(from_rate: u32) -> Option<SincFixedIn<f32>> {
     match SincFixedIn::<f32>::new(ratio, 2.0, params, RESAMPLER_CHUNK_SIZE, 1) {
         Ok(resampler) => Some(resampler),
         Err(e) => {
-            warn!("Failed to create persistent resampler ({} Hz): {}", from_rate, e);
+            warn!(
+                "Failed to create persistent resampler ({} Hz): {}",
+                from_rate, e
+            );
             None
         }
     }
@@ -76,19 +81,30 @@ impl AudioCapture {
             device.name,
             sample_rate,
             channels,
-            if needs_resampling { " (resampling to 48 kHz)" } else { "" }
+            if needs_resampling {
+                " (resampling to 48 kHz)"
+            } else {
+                ""
+            }
         );
 
         let (high_pass_filter, normalizer) = if device_type == DeviceType::Microphone {
             let normalizer = LoudnessNormalizer::new(1, PIPELINE_SAMPLE_RATE)
                 .map_err(|e| warn!("Mic loudness normalizer disabled: {}", e))
                 .ok();
-            (Some(HighPassFilter::new(PIPELINE_SAMPLE_RATE, 80.0)), normalizer)
+            (
+                Some(HighPassFilter::new(PIPELINE_SAMPLE_RATE, 80.0)),
+                normalizer,
+            )
         } else {
             (None, None)
         };
 
-        let resampler = if needs_resampling { build_resampler(sample_rate) } else { None };
+        let resampler = if needs_resampling {
+            build_resampler(sample_rate)
+        } else {
+            None
+        };
 
         Self {
             device,
@@ -99,7 +115,9 @@ impl AudioCapture {
             device_type,
             needs_resampling,
             resampler: Arc::new(Mutex::new(resampler)),
-            resampler_input_buffer: Arc::new(Mutex::new(Vec::with_capacity(RESAMPLER_CHUNK_SIZE * 2))),
+            resampler_input_buffer: Arc::new(Mutex::new(Vec::with_capacity(
+                RESAMPLER_CHUNK_SIZE * 2,
+            ))),
             high_pass_filter: Arc::new(Mutex::new(high_pass_filter)),
             normalizer: Arc::new(Mutex::new(normalizer)),
         }
@@ -111,10 +129,18 @@ impl AudioCapture {
         let (Ok(mut buffer), Ok(mut resampler_lock)) =
             (self.resampler_input_buffer.lock(), self.resampler.lock())
         else {
-            return Some(super::audio_processing::resample_audio(&mono, self.sample_rate, PIPELINE_SAMPLE_RATE));
+            return Some(super::audio_processing::resample_audio(
+                &mono,
+                self.sample_rate,
+                PIPELINE_SAMPLE_RATE,
+            ));
         };
         let Some(resampler) = resampler_lock.as_mut() else {
-            return Some(super::audio_processing::resample_audio(&mono, self.sample_rate, PIPELINE_SAMPLE_RATE));
+            return Some(super::audio_processing::resample_audio(
+                &mono,
+                self.sample_rate,
+                PIPELINE_SAMPLE_RATE,
+            ));
         };
 
         buffer.extend_from_slice(&mono);

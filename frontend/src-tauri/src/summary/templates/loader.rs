@@ -23,7 +23,10 @@ pub fn validate_and_parse_template(json_content: &str) -> Result<Template, Strin
 
 /// Ids of every built-in template, sorted.
 pub fn list_template_ids() -> Vec<String> {
-    let mut ids: Vec<String> = BUILTIN_TEMPLATES.iter().map(|(id, _)| id.to_string()).collect();
+    let mut ids: Vec<String> = BUILTIN_TEMPLATES
+        .iter()
+        .map(|(id, _)| id.to_string())
+        .collect();
     ids.sort();
     ids
 }

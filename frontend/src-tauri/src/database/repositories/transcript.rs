@@ -18,7 +18,10 @@ impl SourceChoice {
             "best" => Ok(Self::Best),
             "live" => Ok(Self::Live),
             "final" => Ok(Self::Final),
-            other => Err(format!("Unknown transcript source '{}' (best|live|final)", other)),
+            other => Err(format!(
+                "Unknown transcript source '{}' (best|live|final)",
+                other
+            )),
         }
     }
 }
@@ -37,7 +40,10 @@ pub struct TranscriptsRepository;
 
 impl TranscriptsRepository {
     /// Number of rows per source for one meeting: `(live, final)`.
-    pub async fn source_counts(pool: &SqlitePool, meeting_id: &str) -> Result<(i64, i64), sqlx::Error> {
+    pub async fn source_counts(
+        pool: &SqlitePool,
+        meeting_id: &str,
+    ) -> Result<(i64, i64), sqlx::Error> {
         sqlx::query_as::<_, (i64, i64)>(
             "SELECT
                 COALESCE(SUM(source = 'live'), 0),
@@ -77,12 +83,13 @@ impl TranscriptsRepository {
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<TranscriptRow>, i64), sqlx::Error> {
-        let total: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM transcripts WHERE meeting_id = ? AND source = ?")
-                .bind(meeting_id)
-                .bind(source)
-                .fetch_one(pool)
-                .await?;
+        let total: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM transcripts WHERE meeting_id = ? AND source = ?",
+        )
+        .bind(meeting_id)
+        .bind(source)
+        .fetch_one(pool)
+        .await?;
         let rows = sqlx::query_as::<_, TranscriptRow>(
             "SELECT * FROM transcripts WHERE meeting_id = ? AND source = ?
              ORDER BY audio_start_time ASC, sequence ASC LIMIT ? OFFSET ?",
@@ -97,7 +104,11 @@ impl TranscriptsRepository {
     }
 
     /// Every row of `source`, in audio order.
-    pub async fn all(pool: &SqlitePool, meeting_id: &str, source: &str) -> Result<Vec<TranscriptRow>, sqlx::Error> {
+    pub async fn all(
+        pool: &SqlitePool,
+        meeting_id: &str,
+        source: &str,
+    ) -> Result<Vec<TranscriptRow>, sqlx::Error> {
         sqlx::query_as::<_, TranscriptRow>(
             "SELECT * FROM transcripts WHERE meeting_id = ? AND source = ?
              ORDER BY audio_start_time ASC, sequence ASC",
@@ -172,22 +183,36 @@ impl TranscriptsRepository {
     }
 
     /// Rename a speaker on every row (live and final) of a meeting. Returns rows changed.
-    pub async fn rename_speaker(pool: &SqlitePool, meeting_id: &str, from: &str, to: &str) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("UPDATE transcripts SET speaker = ? WHERE meeting_id = ? AND speaker = ?")
-            .bind(to)
-            .bind(meeting_id)
-            .bind(from)
-            .execute(pool)
-            .await?;
+    pub async fn rename_speaker(
+        pool: &SqlitePool,
+        meeting_id: &str,
+        from: &str,
+        to: &str,
+    ) -> Result<u64, sqlx::Error> {
+        let result =
+            sqlx::query("UPDATE transcripts SET speaker = ? WHERE meeting_id = ? AND speaker = ?")
+                .bind(to)
+                .bind(meeting_id)
+                .bind(from)
+                .execute(pool)
+                .await?;
         Ok(result.rows_affected())
     }
 
     /// Literal substring search over the best transcript, one hit per meeting, newest first.
-    pub async fn search(pool: &SqlitePool, query: &str) -> Result<Vec<TranscriptSearchResult>, sqlx::Error> {
+    pub async fn search(
+        pool: &SqlitePool,
+        query: &str,
+    ) -> Result<Vec<TranscriptSearchResult>, sqlx::Error> {
         if query.trim().is_empty() {
             return Ok(Vec::new());
         }
-        let escaped = query.trim().to_lowercase().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+        let escaped = query
+            .trim()
+            .to_lowercase()
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
         let pattern = format!("%{}%", escaped);
         let rows = sqlx::query_as::<_, (String, String, String, Option<String>)>(
             "WITH matches AS (
@@ -207,12 +232,14 @@ impl TranscriptsRepository {
         .await?;
         Ok(rows
             .into_iter()
-            .map(|(id, title, transcript, timestamp)| TranscriptSearchResult {
-                id,
-                title,
-                match_context: match_context(&transcript, query.trim()),
-                timestamp,
-            })
+            .map(
+                |(id, title, transcript, timestamp)| TranscriptSearchResult {
+                    id,
+                    title,
+                    match_context: match_context(&transcript, query.trim()),
+                    timestamp,
+                },
+            )
             .collect())
     }
 }
@@ -223,7 +250,11 @@ fn match_context(transcript: &str, query: &str) -> String {
     let lower: Vec<char> = transcript.to_lowercase().chars().collect();
     let needle: Vec<char> = query.to_lowercase().chars().collect();
     let found = (lower.len() == chars.len())
-        .then(|| lower.windows(needle.len().max(1)).position(|w| w == needle.as_slice()))
+        .then(|| {
+            lower
+                .windows(needle.len().max(1))
+                .position(|w| w == needle.as_slice())
+        })
         .flatten();
     match found {
         Some(index) => {
@@ -266,7 +297,12 @@ mod tests {
         let pool = test_pool().await;
         MeetingsRepository::create(
             &pool,
-            &NewMeeting { id: "m1", title: "Call", folder_path: "/tmp", status: meeting_status::STOPPED },
+            &NewMeeting {
+                id: "m1",
+                title: "Call",
+                folder_path: "/tmp",
+                status: meeting_status::STOPPED,
+            },
         )
         .await
         .unwrap();
@@ -276,65 +312,160 @@ mod tests {
     #[tokio::test]
     async fn best_source_prefers_final_rows() {
         let pool = pool_with_meeting().await;
-        TranscriptsRepository::insert(&pool, "m1", "live", &line("Me", "hello", 0.0)).await.unwrap();
-        assert_eq!(TranscriptsRepository::resolve_source(&pool, "m1", SourceChoice::Best).await.unwrap(), "live");
-
-        TranscriptsRepository::replace_source(&pool, "m1", "final", &[line("Them", "hi", 0.5), line("Me", "hello", 0.0)])
+        TranscriptsRepository::insert(&pool, "m1", "live", &line("Me", "hello", 0.0))
             .await
             .unwrap();
-        assert_eq!(TranscriptsRepository::source_counts(&pool, "m1").await.unwrap(), (1, 2));
-        assert_eq!(TranscriptsRepository::resolve_source(&pool, "m1", SourceChoice::Best).await.unwrap(), "final");
+        assert_eq!(
+            TranscriptsRepository::resolve_source(&pool, "m1", SourceChoice::Best)
+                .await
+                .unwrap(),
+            "live"
+        );
 
-        let (rows, total) = TranscriptsRepository::page(&pool, "m1", "final", 10, 0).await.unwrap();
+        TranscriptsRepository::replace_source(
+            &pool,
+            "m1",
+            "final",
+            &[line("Them", "hi", 0.5), line("Me", "hello", 0.0)],
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            TranscriptsRepository::source_counts(&pool, "m1")
+                .await
+                .unwrap(),
+            (1, 2)
+        );
+        assert_eq!(
+            TranscriptsRepository::resolve_source(&pool, "m1", SourceChoice::Best)
+                .await
+                .unwrap(),
+            "final"
+        );
+
+        let (rows, total) = TranscriptsRepository::page(&pool, "m1", "final", 10, 0)
+            .await
+            .unwrap();
         assert_eq!(total, 2);
-        assert_eq!(rows.iter().map(|r| r.transcript.as_str()).collect::<Vec<_>>(), vec!["hello", "hi"]);
+        assert_eq!(
+            rows.iter()
+                .map(|r| r.transcript.as_str())
+                .collect::<Vec<_>>(),
+            vec!["hello", "hi"]
+        );
 
         // Replacing final rows keeps live rows.
-        TranscriptsRepository::replace_source(&pool, "m1", "final", &[line("Me", "only", 0.0)]).await.unwrap();
-        assert_eq!(TranscriptsRepository::source_counts(&pool, "m1").await.unwrap(), (1, 1));
+        TranscriptsRepository::replace_source(&pool, "m1", "final", &[line("Me", "only", 0.0)])
+            .await
+            .unwrap();
+        assert_eq!(
+            TranscriptsRepository::source_counts(&pool, "m1")
+                .await
+                .unwrap(),
+            (1, 1)
+        );
     }
 
     #[tokio::test]
     async fn rename_speaker_touches_both_sources() {
         let pool = pool_with_meeting().await;
-        TranscriptsRepository::insert(&pool, "m1", "live", &line("Them", "a", 0.0)).await.unwrap();
-        TranscriptsRepository::insert(&pool, "m1", "final", &line("Them", "b", 0.0)).await.unwrap();
-        TranscriptsRepository::insert(&pool, "m1", "final", &line("Me", "c", 1.0)).await.unwrap();
-        assert_eq!(TranscriptsRepository::rename_speaker(&pool, "m1", "Them", "Dana").await.unwrap(), 2);
+        TranscriptsRepository::insert(&pool, "m1", "live", &line("Them", "a", 0.0))
+            .await
+            .unwrap();
+        TranscriptsRepository::insert(&pool, "m1", "final", &line("Them", "b", 0.0))
+            .await
+            .unwrap();
+        TranscriptsRepository::insert(&pool, "m1", "final", &line("Me", "c", 1.0))
+            .await
+            .unwrap();
+        assert_eq!(
+            TranscriptsRepository::rename_speaker(&pool, "m1", "Them", "Dana")
+                .await
+                .unwrap(),
+            2
+        );
         let speakers: Vec<Option<String>> =
-            sqlx::query_scalar("SELECT speaker FROM transcripts ORDER BY transcript").fetch_all(&pool).await.unwrap();
-        assert_eq!(speakers, vec![Some("Dana".into()), Some("Dana".into()), Some("Me".into())]);
+            sqlx::query_scalar("SELECT speaker FROM transcripts ORDER BY transcript")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            speakers,
+            vec![Some("Dana".into()), Some("Dana".into()), Some("Me".into())]
+        );
     }
 
     #[tokio::test]
     async fn search_returns_context() {
         let pool = pool_with_meeting().await;
-        TranscriptsRepository::insert(&pool, "m1", "live", &line("Me", "We ship the Peacock build Friday", 0.0))
+        TranscriptsRepository::insert(
+            &pool,
+            "m1",
+            "live",
+            &line("Me", "We ship the Peacock build Friday", 0.0),
+        )
+        .await
+        .unwrap();
+        let hits = TranscriptsRepository::search(&pool, "peacock")
             .await
             .unwrap();
-        let hits = TranscriptsRepository::search(&pool, "peacock").await.unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].title, "Call");
         assert!(hits[0].match_context.contains("Peacock build"));
-        assert!(TranscriptsRepository::search(&pool, "  ").await.unwrap().is_empty());
+        assert!(TranscriptsRepository::search(&pool, "  ")
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[tokio::test]
     async fn search_is_literal_deduplicated_and_prefers_final() {
         let pool = pool_with_meeting().await;
-        TranscriptsRepository::insert(&pool, "m1", "live", &line("Me", "old draft", 0.0)).await.unwrap();
-        TranscriptsRepository::insert(&pool, "m1", "final", &line("Me", "100% ready_for review", 0.0)).await.unwrap();
-        TranscriptsRepository::insert(&pool, "m1", "final", &line("Me", "100% complete", 2.0)).await.unwrap();
-        assert_eq!(TranscriptsRepository::search(&pool, "  100%  ").await.unwrap().len(), 1);
-        assert_eq!(TranscriptsRepository::search(&pool, "_").await.unwrap().len(), 1);
-        assert!(TranscriptsRepository::search(&pool, "old draft").await.unwrap().is_empty());
-        assert!(TranscriptsRepository::search(&pool, "ready%for").await.unwrap().is_empty());
+        TranscriptsRepository::insert(&pool, "m1", "live", &line("Me", "old draft", 0.0))
+            .await
+            .unwrap();
+        TranscriptsRepository::insert(
+            &pool,
+            "m1",
+            "final",
+            &line("Me", "100% ready_for review", 0.0),
+        )
+        .await
+        .unwrap();
+        TranscriptsRepository::insert(&pool, "m1", "final", &line("Me", "100% complete", 2.0))
+            .await
+            .unwrap();
+        assert_eq!(
+            TranscriptsRepository::search(&pool, "  100%  ")
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            TranscriptsRepository::search(&pool, "_")
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(TranscriptsRepository::search(&pool, "old draft")
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(TranscriptsRepository::search(&pool, "ready%for")
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
     fn source_choice_parses() {
         assert_eq!(SourceChoice::parse(None).unwrap(), SourceChoice::Best);
-        assert_eq!(SourceChoice::parse(Some("final")).unwrap(), SourceChoice::Final);
+        assert_eq!(
+            SourceChoice::parse(Some("final")).unwrap(),
+            SourceChoice::Final
+        );
         assert!(SourceChoice::parse(Some("both")).is_err());
     }
 

@@ -22,8 +22,14 @@ pub struct KeyStatus {
 impl KeyStatus {
     pub fn of(key: Option<&str>) -> Self {
         match key {
-            Some(key) => Self { configured: true, masked: Some(peacockery_voice::mask_key(key)) },
-            None => Self { configured: false, masked: None },
+            Some(key) => Self {
+                configured: true,
+                masked: Some(peacockery_voice::mask_key(key)),
+            },
+            None => Self {
+                configured: false,
+                masked: None,
+            },
         }
     }
 }
@@ -56,7 +62,10 @@ pub fn read_key() -> Result<Option<String>, String> {
             Ok((!key.is_empty()).then_some(key))
         }
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(format!("Cannot read the API key from the credential store: {}", e)),
+        Err(e) => Err(format!(
+            "Cannot read the API key from the credential store: {}",
+            e
+        )),
     }
 }
 
@@ -66,7 +75,10 @@ pub fn store_key(raw: &str) -> Result<KeyStatus, String> {
     entry()?
         .set_password(&key)
         .map_err(|e| format!("Cannot save the API key to the credential store: {}", e))?;
-    log::info!("Peacockery Voice API key saved ({})", peacockery_voice::mask_key(&key));
+    log::info!(
+        "Peacockery Voice API key saved ({})",
+        peacockery_voice::mask_key(&key)
+    );
     Ok(KeyStatus::of(Some(&key)))
 }
 
@@ -77,7 +89,10 @@ pub fn clear_key() -> Result<(), String> {
             log::info!("Peacockery Voice API key removed");
             Ok(())
         }
-        Err(e) => Err(format!("Cannot remove the API key from the credential store: {}", e)),
+        Err(e) => Err(format!(
+            "Cannot remove the API key from the credential store: {}",
+            e
+        )),
     }
 }
 
@@ -87,7 +102,10 @@ mod tests {
 
     #[test]
     fn keys_are_trimmed_and_checked() {
-        assert_eq!(normalize_key("  pv_lab_0123456789abcdef\n").unwrap(), "pv_lab_0123456789abcdef");
+        assert_eq!(
+            normalize_key("  pv_lab_0123456789abcdef\n").unwrap(),
+            "pv_lab_0123456789abcdef"
+        );
         assert!(normalize_key("   ").is_err());
         assert!(normalize_key("sk-0123456789abcdef").is_err());
         assert!(normalize_key("pv_lab_").is_err());
@@ -97,9 +115,21 @@ mod tests {
     #[test]
     fn status_masks_the_key() {
         let status = KeyStatus::of(Some("pv_lab_0123456789abcdef1a2b"));
-        assert_eq!(status, KeyStatus { configured: true, masked: Some("pv_lab_…1a2b".into()) });
+        assert_eq!(
+            status,
+            KeyStatus {
+                configured: true,
+                masked: Some("pv_lab_…1a2b".into())
+            }
+        );
         let json = serde_json::to_string(&status).unwrap();
         assert!(!json.contains("0123456789"));
-        assert_eq!(KeyStatus::of(None), KeyStatus { configured: false, masked: None });
+        assert_eq!(
+            KeyStatus::of(None),
+            KeyStatus {
+                configured: false,
+                masked: None
+            }
+        );
     }
 }

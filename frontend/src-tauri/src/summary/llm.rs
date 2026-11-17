@@ -44,21 +44,32 @@ pub fn text_request(settings: &VoiceSettings, req: &SummaryLlmRequest) -> TextRe
         .unwrap_or(&settings.summary_model)
         .to_string();
     let mut fallbacks: Vec<String> = Vec::new();
-    for candidate in req.fallback_models.as_ref().unwrap_or(&settings.summary_fallback_models) {
+    for candidate in req
+        .fallback_models
+        .as_ref()
+        .unwrap_or(&settings.summary_fallback_models)
+    {
         let candidate = candidate.trim();
-        if !candidate.is_empty() && candidate != model && !fallbacks.iter().any(|f| f == candidate) {
+        if !candidate.is_empty() && candidate != model && !fallbacks.iter().any(|f| f == candidate)
+        {
             fallbacks.push(candidate.to_string());
         }
     }
     fallbacks.truncate(MAX_FALLBACK_MODELS);
 
-    let mut request = TextRequest::new(model, vec![Message::system(&req.system), Message::user(&req.user)]);
+    let mut request = TextRequest::new(
+        model,
+        vec![Message::system(&req.system), Message::user(&req.user)],
+    );
     request.max_output_tokens = Some(req.max_output_tokens);
     request.context = Some(TextContext {
         conversation_id: Some(req.conversation_id.clone()),
         turn_id: Some(req.turn_id.clone()),
     });
-    request.routing = (!fallbacks.is_empty()).then_some(Routing { fallback_models: fallbacks, attempt_timeout_ms: None });
+    request.routing = (!fallbacks.is_empty()).then_some(Routing {
+        fallback_models: fallbacks,
+        attempt_timeout_ms: None,
+    });
     request
 }
 
@@ -75,7 +86,10 @@ pub async fn generate_with(
         request.model,
         request.routing.as_ref().map(|r| &r.fallback_models)
     );
-    let response = client.generate(&request).await.map_err(|e| describe_error(&e))?;
+    let response = client
+        .generate(&request)
+        .await
+        .map_err(|e| describe_error(&e))?;
     Ok(SummaryLlmResponse {
         text: response.text,
         model: response.model,
@@ -85,7 +99,10 @@ pub async fn generate_with(
 }
 
 /// Generate one completion for a summary.
-pub async fn generate(app: &tauri::AppHandle, req: SummaryLlmRequest) -> Result<SummaryLlmResponse, String> {
+pub async fn generate(
+    app: &tauri::AppHandle,
+    req: SummaryLlmRequest,
+) -> Result<SummaryLlmResponse, String> {
     let voice = app.state::<VoiceService>();
     let client = voice.client()?;
     generate_with(&client, &voice.settings(), &req).await
@@ -128,7 +145,10 @@ mod tests {
         let settings = VoiceSettings::default();
         let r = text_request(
             &settings,
-            &request(Some("anthropic-claude-sonnet-5-5"), Some(vec!["anthropic-claude-sonnet-5-5", "a", "a", "b", "c", "d"])),
+            &request(
+                Some("anthropic-claude-sonnet-5-5"),
+                Some(vec!["anthropic-claude-sonnet-5-5", "a", "a", "b", "c", "d"]),
+            ),
         );
         assert_eq!(r.model, "anthropic-claude-sonnet-5-5");
         assert_eq!(r.routing.unwrap().fallback_models, vec!["a", "b", "c"]);

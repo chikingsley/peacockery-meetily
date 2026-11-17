@@ -1,13 +1,12 @@
 // Audio device monitoring for disconnect/reconnect detection
+use anyhow::Result;
+use log::{debug, error, info, warn};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
-use anyhow::Result;
-use log::{debug, info, warn, error};
 
-
-use super::devices::{AudioDevice, list_audio_devices};
+use super::devices::{list_audio_devices, AudioDevice};
 
 /// Device monitoring events
 #[derive(Debug, Clone)]
@@ -66,8 +65,6 @@ impl MonitoredDevice {
             2 // 2 polling cycles (4-10 seconds)
         }
     }
-
-
 }
 
 /// Hot-swap mailbox: `(new_mic_name, optional_new_system_name)`.
@@ -131,8 +128,11 @@ impl AudioDeviceMonitor {
                 mic.name.clone(),
                 DeviceMonitorType::Microphone,
             ));
-            info!("🔍 Monitoring microphone: '{}' (Bluetooth: {})",
-                  mic.name, monitored_devices.last().unwrap().is_bluetooth);
+            info!(
+                "🔍 Monitoring microphone: '{}' (Bluetooth: {})",
+                mic.name,
+                monitored_devices.last().unwrap().is_bluetooth
+            );
         }
 
         if let Some(sys) = system_audio {
@@ -140,8 +140,11 @@ impl AudioDeviceMonitor {
                 sys.name.clone(),
                 DeviceMonitorType::SystemAudio,
             ));
-            info!("🔍 Monitoring system audio: '{}' (Bluetooth: {})",
-                  sys.name, monitored_devices.last().unwrap().is_bluetooth);
+            info!(
+                "🔍 Monitoring system audio: '{}' (Bluetooth: {})",
+                sys.name,
+                monitored_devices.last().unwrap().is_bluetooth
+            );
         }
 
         if monitored_devices.is_empty() {
@@ -153,7 +156,13 @@ impl AudioDeviceMonitor {
         let device_update_mailbox = self.device_update_mailbox.clone();
 
         let handle = tokio::spawn(async move {
-            Self::monitor_loop(monitored_devices, event_sender, stop_signal, device_update_mailbox).await;
+            Self::monitor_loop(
+                monitored_devices,
+                event_sender,
+                stop_signal,
+                device_update_mailbox,
+            )
+            .await;
         });
 
         self.monitor_handle = Some(handle);
@@ -215,13 +224,22 @@ impl AudioDeviceMonitor {
                     for dev in &mut monitored_devices {
                         match dev.device_type {
                             DeviceMonitorType::Microphone => {
-                                info!("[DEVICE_MONITOR] Updated tracked mic: '{}' → '{}' (hot-swap)", dev.name, new_mic_name);
-                                *dev = MonitoredDevice::new(new_mic_name.clone(), dev.device_type.clone());
+                                info!(
+                                    "[DEVICE_MONITOR] Updated tracked mic: '{}' → '{}' (hot-swap)",
+                                    dev.name, new_mic_name
+                                );
+                                *dev = MonitoredDevice::new(
+                                    new_mic_name.clone(),
+                                    dev.device_type.clone(),
+                                );
                             }
                             DeviceMonitorType::SystemAudio => {
                                 if let Some(ref sys_name) = new_system_name {
                                     info!("[DEVICE_MONITOR] Updated tracked system audio: '{}' → '{}' (hot-swap)", dev.name, sys_name);
-                                    *dev = MonitoredDevice::new(sys_name.clone(), dev.device_type.clone());
+                                    *dev = MonitoredDevice::new(
+                                        sys_name.clone(),
+                                        dev.device_type.clone(),
+                                    );
                                 }
                             }
                         }
@@ -231,8 +249,11 @@ impl AudioDeviceMonitor {
 
             // Check if device list changed
             if current_devices.len() != last_device_list.len() {
-                debug!("Device list changed: {} -> {} devices",
-                       last_device_list.len(), current_devices.len());
+                debug!(
+                    "Device list changed: {} -> {} devices",
+                    last_device_list.len(),
+                    current_devices.len()
+                );
                 let _ = event_sender.send(DeviceEvent::DeviceListChanged);
             }
             last_device_list = current_devices.clone();
@@ -245,8 +266,10 @@ impl AudioDeviceMonitor {
                     // Device is present
                     if monitored.consecutive_missing > 0 {
                         // Device has reconnected!
-                        info!("✅ Device '{}' reconnected after {} missing checks",
-                              monitored.name, monitored.consecutive_missing);
+                        info!(
+                            "✅ Device '{}' reconnected after {} missing checks",
+                            monitored.name, monitored.consecutive_missing
+                        );
 
                         let _ = event_sender.send(DeviceEvent::DeviceReconnected {
                             device_name: monitored.name.clone(),
@@ -259,17 +282,22 @@ impl AudioDeviceMonitor {
                     // Device is missing
                     monitored.consecutive_missing += 1;
 
-                    debug!("⚠️ Device '{}' missing for {} checks (threshold: {})",
-                          monitored.name, monitored.consecutive_missing,
-                          monitored.disconnect_threshold());
+                    debug!(
+                        "⚠️ Device '{}' missing for {} checks (threshold: {})",
+                        monitored.name,
+                        monitored.consecutive_missing,
+                        monitored.disconnect_threshold()
+                    );
 
                     // Re-fire every `threshold` cycles while the device is still missing. A
                     // successful hot-swap retargets us via the mailbox (resets the counter); a
                     // FAILED swap leaves the dead device tracked, so this re-fire is what retries
                     // it. Total attempts are bounded in trigger_mic_fallback_to_default. (P1 #2)
                     if monitored.consecutive_missing % monitored.disconnect_threshold() == 0 {
-                        warn!("❌ Device '{}' ({:?}) disconnected!",
-                              monitored.name, monitored.device_type);
+                        warn!(
+                            "❌ Device '{}' ({:?}) disconnected!",
+                            monitored.name, monitored.device_type
+                        );
 
                         let _ = event_sender.send(DeviceEvent::DeviceDisconnected {
                             device_name: monitored.name.clone(),

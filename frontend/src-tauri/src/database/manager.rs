@@ -49,7 +49,10 @@ impl DatabaseManager {
 
     /// Checkpoint the WAL into the main file and close the pool (app exit).
     pub async fn cleanup(&self) {
-        if let Err(e) = sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)").execute(&self.pool).await {
+        if let Err(e) = sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
+            .execute(&self.pool)
+            .await
+        {
             log::warn!("WAL checkpoint failed: {}", e);
         }
         self.pool.close().await;

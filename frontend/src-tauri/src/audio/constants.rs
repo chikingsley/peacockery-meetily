@@ -32,7 +32,10 @@ mod tests {
         assert_eq!(AUDIO_EXTENSIONS.len(), expected.len());
         for (ext, content_type) in expected {
             assert!(AUDIO_EXTENSIONS.contains(&ext));
-            assert_eq!(content_type_for(Path::new(&format!("audio.{}", ext))).unwrap(), content_type);
+            assert_eq!(
+                content_type_for(Path::new(&format!("audio.{}", ext))).unwrap(),
+                content_type
+            );
         }
         assert_eq!(content_type_for(Path::new("A.M4A")).unwrap(), "audio/mp4");
     }
@@ -42,6 +45,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(find_meeting_audio(dir.path()), None);
         std::fs::write(dir.path().join("audio.mov"), b"x").unwrap();
-        assert_eq!(find_meeting_audio(dir.path()), Some(dir.path().join("audio.mov")));
+        assert_eq!(
+            find_meeting_audio(dir.path()),
+            Some(dir.path().join("audio.mov"))
+        );
     }
 }

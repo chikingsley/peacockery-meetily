@@ -74,7 +74,9 @@ impl LiveConfig {
     }
 
     pub fn diarize_for_model(&self, _channel: Channel, model: &str) -> bool {
-        self.diarize && (ModelFamily::of(model) == ModelFamily::VoxtralRealtime3 || matches!(model, "elevenlabs-scribe_v3" | "deepgram-nova-3"))
+        self.diarize
+            && (ModelFamily::of(model) == ModelFamily::VoxtralRealtime3
+                || matches!(model, "elevenlabs-scribe_v3" | "deepgram-nova-3"))
     }
 
     pub fn mode_name(&self) -> &'static str {
@@ -194,7 +196,13 @@ pub(crate) struct Shared {
 }
 
 impl Shared {
-    fn status_model(&self, channel: Channel, state: LiveState, message: Option<String>, model: &str) {
+    fn status_model(
+        &self,
+        channel: Channel,
+        state: LiveState,
+        message: Option<String>,
+        model: &str,
+    ) {
         match &message {
             Some(message) => info!("Live {:?} session: {:?} ({})", channel, state, message),
             None => info!("Live {:?} session: {:?}", channel, state),
@@ -218,27 +226,51 @@ impl Shared {
     fn apply(&self, updates: Vec<LineUpdate>) {
         for update in updates {
             match update {
-                LineUpdate::Preview { channel, speaker, text } => self.sink.interim(&LiveInterim {
+                LineUpdate::Preview {
+                    channel,
+                    speaker,
+                    text,
+                } => self.sink.interim(&LiveInterim {
                     meeting_id: self.config.meeting_id.clone(),
                     channel,
                     speaker,
-                    text: crate::voice::corrections::correct_text(&text, &self.config.transcript_corrections),
+                    text: crate::voice::corrections::correct_text(
+                        &text,
+                        &self.config.transcript_corrections,
+                    ),
                 }),
-                LineUpdate::Final { channel, speaker, text, start, end } => self.final_line(channel, speaker, text, start, end),
+                LineUpdate::Final {
+                    channel,
+                    speaker,
+                    text,
+                    start,
+                    end,
+                } => self.final_line(channel, speaker, text, start, end),
             }
         }
     }
 
-    fn final_line(&self, channel: Channel, speaker: Option<String>, text: String, start: f64, end: f64) {
-        let text = crate::voice::corrections::correct_text(text.trim(), &self.config.transcript_corrections);
+    fn final_line(
+        &self,
+        channel: Channel,
+        speaker: Option<String>,
+        text: String,
+        start: f64,
+        end: f64,
+    ) {
+        let text = crate::voice::corrections::correct_text(
+            text.trim(),
+            &self.config.transcript_corrections,
+        );
         if text.is_empty() {
             return;
         }
         let end = end.max(start);
         let sequence_id = self.sequence.fetch_add(1, Ordering::SeqCst);
-        let timestamp = (self.config.started_at + chrono::Duration::milliseconds((start * 1000.0) as i64))
-            .format("%H:%M:%S")
-            .to_string();
+        let timestamp = (self.config.started_at
+            + chrono::Duration::milliseconds((start * 1000.0) as i64))
+        .format("%H:%M:%S")
+        .to_string();
         let line = LiveLine {
             meeting_id: self.config.meeting_id.clone(),
             sequence_id,
@@ -293,7 +325,14 @@ impl LiveManager {
                 let meeting_id = config.meeting_id.clone();
                 let writer = tokio::spawn(async move {
                     while let Some(row) = rx.recv().await {
-                        if let Err(e) = TranscriptsRepository::insert(&pool, &meeting_id, transcript_source::LIVE, &row).await {
+                        if let Err(e) = TranscriptsRepository::insert(
+                            &pool,
+                            &meeting_id,
+                            transcript_source::LIVE,
+                            &row,
+                        )
+                        .await
+                        {
                             warn!("Failed to store live line {:?}: {}", row.sequence, e);
                         }
                     }
@@ -302,7 +341,12 @@ impl LiveManager {
             }
             None => (None, None),
         };
-        info!("Live transcription: model {}, mode {}, sessions {:?}", config.model, config.mode_name(), channels);
+        info!(
+            "Live transcription: model {}, mode {}, sessions {:?}",
+            config.model,
+            config.mode_name(),
+            channels
+        );
         let shared = Arc::new(Shared {
             config,
             client,
@@ -319,7 +363,14 @@ impl LiveManager {
             senders.push((channel, tx));
             tasks.spawn(session::run(shared.clone(), channel, rx));
         }
-        (Self { shared, tasks, writer }, LiveTaps::new(senders))
+        (
+            Self {
+                shared,
+                tasks,
+                writer,
+            },
+            LiveTaps::new(senders),
+        )
     }
 
     /// Wait for every session to finish (the taps must be closed first), at most
@@ -333,24 +384,48 @@ impl LiveManager {
             }
         };
         if tokio::time::timeout(STOP_TIMEOUT, all).await.is_err() {
-            warn!("Live sessions did not finish within {} s; abandoning them", STOP_TIMEOUT.as_secs());
+            warn!(
+                "Live sessions did not finish within {} s; abandoning them",
+                STOP_TIMEOUT.as_secs()
+            );
             self.tasks.abort_all();
             while self.tasks.join_next().await.is_some() {}
         }
-        self.shared.db.lock().unwrap_or_else(|p| p.into_inner()).take();
+        self.shared
+            .db
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .take();
         if let Some(writer) = self.writer.take() {
-            if tokio::time::timeout(Duration::from_secs(10), writer).await.is_err() {
+            if tokio::time::timeout(Duration::from_secs(10), writer)
+                .await
+                .is_err()
+            {
                 warn!("Live transcript rows were still being written after 10 s");
             }
         }
         self.shared.store.flush().await;
-        let session_ids = self.shared.session_ids.lock().unwrap_or_else(|p| p.into_inner()).clone();
-        LiveSummary { model: self.shared.config.model.clone(), mode: self.shared.config.mode_name(), session_ids }
+        let session_ids = self
+            .shared
+            .session_ids
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone();
+        LiveSummary {
+            model: self.shared.config.model.clone(),
+            mode: self.shared.config.mode_name(),
+            session_ids,
+        }
     }
 }
 
 /// Live transcription cannot start (no key, …): say so on every channel.
-pub fn report_unavailable(sink: &dyn LiveSink, config: &LiveConfig, channels: &[Channel], message: &str) {
+pub fn report_unavailable(
+    sink: &dyn LiveSink,
+    config: &LiveConfig,
+    channels: &[Channel],
+    message: &str,
+) {
     for &channel in channels {
         sink.status(&LiveStatus {
             meeting_id: config.meeting_id.clone(),
@@ -368,9 +443,18 @@ mod tests {
 
     #[test]
     fn channels_follow_mode_and_sources() {
-        assert_eq!(channels_for(LiveMode::Split, true, true), vec![Channel::Mic, Channel::System]);
-        assert_eq!(channels_for(LiveMode::Split, false, true), vec![Channel::System]);
-        assert_eq!(channels_for(LiveMode::Mixed, true, false), vec![Channel::Mixed]);
+        assert_eq!(
+            channels_for(LiveMode::Split, true, true),
+            vec![Channel::Mic, Channel::System]
+        );
+        assert_eq!(
+            channels_for(LiveMode::Split, false, true),
+            vec![Channel::System]
+        );
+        assert_eq!(
+            channels_for(LiveMode::Mixed, true, false),
+            vec![Channel::Mixed]
+        );
     }
 
     #[test]
@@ -385,8 +469,14 @@ mod tests {
         assert_eq!(config.language, None);
         assert!(config.diarize_for(Channel::Mic));
         assert!(config.diarize_for(Channel::System));
-        let nova = LiveConfig { model: "deepgram-nova-3".into(), ..config };
-        assert!(nova.diarize_for(Channel::Mixed), "Nova fallback keeps speaker separation");
+        let nova = LiveConfig {
+            model: "deepgram-nova-3".into(),
+            ..config
+        };
+        assert!(
+            nova.diarize_for(Channel::Mixed),
+            "Nova fallback keeps speaker separation"
+        );
     }
 
     #[test]
@@ -414,7 +504,16 @@ mod tests {
                 "is_partial": false, "source": "live", "confidence": null
             })
         );
-        let status = LiveStatus { meeting_id: "m".into(), channel: Channel::System, model: "x".into(), state: LiveState::Reconnecting, message: None };
-        assert_eq!(serde_json::to_value(&status).unwrap()["state"], "reconnecting");
+        let status = LiveStatus {
+            meeting_id: "m".into(),
+            channel: Channel::System,
+            model: "x".into(),
+            state: LiveState::Reconnecting,
+            message: None,
+        };
+        assert_eq!(
+            serde_json::to_value(&status).unwrap()["state"],
+            "reconnecting"
+        );
     }
 }

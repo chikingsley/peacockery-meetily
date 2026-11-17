@@ -19,7 +19,10 @@ pub async fn recover_interrupted_meetings(app: &tauri::AppHandle, pool: &sqlx::S
         }
     };
     for meeting in interrupted {
-        info!("Recovering interrupted meeting {} ({})", meeting.id, meeting.title);
+        info!(
+            "Recovering interrupted meeting {} ({})",
+            meeting.id, meeting.title
+        );
         let Some(folder) = meeting.folder_path.as_deref().map(PathBuf::from) else {
             warn!("Interrupted meeting {} has no folder", meeting.id);
             continue;
@@ -27,7 +30,11 @@ pub async fn recover_interrupted_meetings(app: &tauri::AppHandle, pool: &sqlx::S
         if checkpoint_files(&folder).is_empty() {
             match find_meeting_audio(&folder) {
                 Some(path) => {
-                    info!("Interrupted meeting {} already has {}", meeting.id, path.display());
+                    info!(
+                        "Interrupted meeting {} already has {}",
+                        meeting.id,
+                        path.display()
+                    );
                     crate::final_transcript::on_meeting_recovered(app, &meeting.id);
                 }
                 None => warn!("Interrupted meeting {} has no audio", meeting.id),

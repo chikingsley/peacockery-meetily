@@ -81,8 +81,6 @@ impl AudioAligner {
         }
     }
 
-
-
     pub fn add(&mut self, device_type: &DeviceType, samples: &[f32], now: f64) {
         match device_type {
             DeviceType::Microphone => {
@@ -90,7 +88,10 @@ impl AudioAligner {
                 self.mic_last = Some(now);
                 if self.mic.len() > self.max_mic {
                     let excess = self.mic.len() - self.max_mic;
-                    warn!("Mic buffer overflow, dropping the oldest {} samples", excess);
+                    warn!(
+                        "Mic buffer overflow, dropping the oldest {} samples",
+                        excess
+                    );
                     self.mic.drain(..excess);
                 }
             }
@@ -128,7 +129,8 @@ impl AudioAligner {
         let size = self.window;
         if self.mic.len() >= size {
             let sys_ready = self.sys.len() >= size;
-            let stop_waiting = self.idle(self.sys_last, now) || self.mic.len() >= size + self.max_wait;
+            let stop_waiting =
+                self.idle(self.sys_last, now) || self.mic.len() >= size + self.max_wait;
             if !sys_ready && !stop_waiting {
                 return None;
             }
@@ -151,7 +153,10 @@ impl AudioAligner {
         if len == 0 {
             return None;
         }
-        Some((Self::take(&mut self.mic, len).0, Self::take(&mut self.sys, len).0))
+        Some((
+            Self::take(&mut self.mic, len).0,
+            Self::take(&mut self.sys, len).0,
+        ))
     }
 
     /// (system samples dropped to resync, system samples zero-filled)
@@ -165,7 +170,8 @@ fn mix_window(mic_window: &[f32], sys_window: &[f32]) -> Vec<f32> {
     let len = mic_window.len().max(sys_window.len());
     (0..len)
         .map(|i| {
-            let sum = mic_window.get(i).copied().unwrap_or(0.0) + sys_window.get(i).copied().unwrap_or(0.0);
+            let sum = mic_window.get(i).copied().unwrap_or(0.0)
+                + sys_window.get(i).copied().unwrap_or(0.0);
             if sum.abs() > 1.0 {
                 sum / sum.abs()
             } else {
@@ -184,7 +190,11 @@ pub struct EnergyRecorder {
 
 impl EnergyRecorder {
     pub fn new(folder: PathBuf) -> Self {
-        Self { path: folder.join(ENERGY_FILE), track: EnergyTrack::new(WINDOW_MS), since_flush: 0 }
+        Self {
+            path: folder.join(ENERGY_FILE),
+            track: EnergyTrack::new(WINDOW_MS),
+            since_flush: 0,
+        }
     }
 
     fn push(&mut self, mic_db: f32, sys_db: f32) {
@@ -279,7 +289,11 @@ pub struct AudioPipeline {
 }
 
 impl AudioPipeline {
-    pub fn new(receiver: mpsc::UnboundedReceiver<AudioChunk>, sample_rate: u32, outputs: PipelineOutputs) -> Self {
+    pub fn new(
+        receiver: mpsc::UnboundedReceiver<AudioChunk>,
+        sample_rate: u32,
+        outputs: PipelineOutputs,
+    ) -> Self {
         Self {
             receiver,
             sample_rate,
@@ -346,7 +360,12 @@ impl AudioPipeline {
             stats.system_dropped,
             stats.system_zero_filled
         );
-        let PipelineOutputs { recording, live, energy, .. } = self.outputs;
+        let PipelineOutputs {
+            recording,
+            live,
+            energy,
+            ..
+        } = self.outputs;
         drop(recording);
         if let Some(live) = live {
             live.close();
@@ -376,7 +395,10 @@ impl AudioPipeline {
             levels(self.meter.frame(mic_db, sys_db, end - start));
         }
         if let Some(sender) = &self.outputs.recording {
-            let recording_chunk = AudioChunk { data: mixed, device_type: DeviceType::Microphone };
+            let recording_chunk = AudioChunk {
+                data: mixed,
+                device_type: DeviceType::Microphone,
+            };
             if sender.send(recording_chunk).is_err() {
                 warn!("Recording saver channel closed; mixed audio dropped");
             }
@@ -468,7 +490,10 @@ mod tests {
     fn idle_system_stream_is_zero_filled_after_250_ms() {
         let mut a = AudioAligner::new(RATE, 0.0);
         mic(&mut a, 100, 0.1);
-        assert!(a.next_window(0.1).is_none(), "waits for the system stream at first");
+        assert!(
+            a.next_window(0.1).is_none(),
+            "waits for the system stream at first"
+        );
         let (m, s) = a.next_window(0.3).expect("system idle > 250 ms");
         assert_eq!(m, vec![0.5; 100]);
         assert_eq!(s, vec![0.0; 100]);
@@ -495,7 +520,10 @@ mod tests {
         // System keeps arriving (never idle) but too little; mic piles up.
         mic(&mut a, 300, 0.1);
         sys(&mut a, 1, 0.1);
-        assert!(a.next_window(0.1).is_none(), "300 mic samples are within the wait bound");
+        assert!(
+            a.next_window(0.1).is_none(),
+            "300 mic samples are within the wait bound"
+        );
         mic(&mut a, 200, 0.2);
         sys(&mut a, 1, 0.2);
         let (_, s) = a.next_window(0.2).expect("wait bound exceeded");

@@ -15,7 +15,9 @@ use super::pipeline::{AudioPipelineManager, EnergyRecorder, PipelineOutputs, Pip
 use super::recording_saver::{MeetingTarget, RecordingSaver};
 use super::recording_state::{AudioChunk, RecordingState};
 use super::stream::{AudioStream, AudioStreamManager, SystemSource};
-use crate::live::{channels_for, report_unavailable, LiveConfig, LiveManager, LiveSink, LiveSummary};
+use crate::live::{
+    channels_for, report_unavailable, LiveConfig, LiveManager, LiveSink, LiveSummary,
+};
 
 /// Live transcription for a recording; `client` is `Err(message)` when it cannot run
 /// (no API key …), which is reported on every session's status.
@@ -70,7 +72,10 @@ impl RecordingManager {
         // sessions know which sources exist.
         let mut stream_manager = AudioStreamManager::new(state.clone());
         let monitored_system = system_source.as_ref().and_then(SystemSource::endpoint);
-        if let Err(e) = stream_manager.start_streams(microphone_device.clone(), system_source).await {
+        if let Err(e) = stream_manager
+            .start_streams(microphone_device.clone(), system_source)
+            .await
+        {
             state.stop_recording();
             if let Err(stop_error) = stream_manager.stop_streams() {
                 warn!("Failed to stop streams after start error: {}", stop_error);
@@ -82,7 +87,11 @@ impl RecordingManager {
             Some(mut setup) => {
                 // The pipeline starts right below: this is recording time 0.
                 setup.config.started_at = chrono::Local::now();
-                let channels = channels_for(setup.config.mode, stream_manager.has_microphone(), stream_manager.has_system());
+                let channels = channels_for(
+                    setup.config.mode,
+                    stream_manager.has_microphone(),
+                    stream_manager.has_system(),
+                );
                 match setup.client {
                     Ok(client) => {
                         let (manager, taps) = LiveManager::start(
@@ -153,7 +162,12 @@ impl RecordingManager {
             }
         });
         self.state.cleanup();
-        StoppedRecording { audio_path, duration_seconds, live, stats }
+        StoppedRecording {
+            audio_path,
+            duration_seconds,
+            live,
+            stats,
+        }
     }
     pub fn target(&self) -> &MeetingTarget {
         self.recording_saver.target()
@@ -226,7 +240,8 @@ impl RecordingManager {
         system_name: Option<String>,
     ) {
         self.stream_manager.set_mic_stream(stream);
-        self.device_monitor.notify_mic_swapped(device.name.clone(), system_name);
+        self.device_monitor
+            .notify_mic_swapped(device.name.clone(), system_name);
     }
 
     pub fn get_state(&self) -> &Arc<RecordingState> {

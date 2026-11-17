@@ -428,7 +428,7 @@ async fn capture(app: &tauri::AppHandle, interactive: bool) -> Result<Connection
                             .ok_or("Choose an Outlook account with a calendar.")?
                             .to_string();
                         std::fs::write(
-                            selection_path(&app)?,
+                            selection_path(app)?,
                             serde_json::to_vec(&Selection {
                                 calendar: chosen.clone(),
                                 disabled: false,
@@ -503,7 +503,7 @@ pub async fn snapshot(app: &tauri::AppHandle) -> Result<Option<Option<CalendarSn
     if s.disabled {
         return Ok(Some(None));
     }
-    let Some(auth) = current_auth(&app).await? else {
+    let Some(auth) = current_auth(app).await? else {
         return Ok(None);
     };
     if s.calendar.is_empty() {

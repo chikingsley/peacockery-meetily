@@ -5,8 +5,8 @@ use crate::database::repositories::summary::SummaryProcessesRepository;
 use crate::database::repositories::transcript::{SourceChoice, TranscriptsRepository};
 use crate::summary::llm::{self, SummaryLlmRequest};
 use crate::summary::processor::{
-    build_user_prompt, clean_llm_markdown_detailed, extract_meeting_name_from_markdown, format_transcript,
-    require_visible_markdown, strip_title_if_present, SUMMARY_SYSTEM_PROMPT,
+    build_user_prompt, clean_llm_markdown_detailed, extract_meeting_name_from_markdown,
+    format_transcript, require_visible_markdown, strip_title_if_present, SUMMARY_SYSTEM_PROMPT,
 };
 use crate::summary::templates;
 use chrono::{DateTime, SecondsFormat, Utc};
@@ -42,12 +42,20 @@ pub struct SummaryService;
 
 impl SummaryService {
     /// Register the token of a new generation; cancels the previous one of that meeting.
-    pub(crate) fn register_cancellation_token(meeting_id: &str, started_at: DateTime<Utc>) -> CancellationToken {
+    pub(crate) fn register_cancellation_token(
+        meeting_id: &str,
+        started_at: DateTime<Utc>,
+    ) -> CancellationToken {
         let token = CancellationToken::new();
-        let mut registry = CANCELLATION_REGISTRY.lock().unwrap_or_else(|p| p.into_inner());
+        let mut registry = CANCELLATION_REGISTRY
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
         if let Some(previous) = registry.insert(
             meeting_id.to_string(),
-            RegisteredCancellation { started_at, token: token.clone() },
+            RegisteredCancellation {
+                started_at,
+                token: token.clone(),
+            },
         ) {
             previous.token.cancel();
         }
@@ -56,8 +64,13 @@ impl SummaryService {
 
     /// Cancel only the generation identified by `started_at`.
     pub fn cancel_summary(meeting_id: &str, started_at: DateTime<Utc>) -> bool {
-        let registry = CANCELLATION_REGISTRY.lock().unwrap_or_else(|p| p.into_inner());
-        match registry.get(meeting_id).filter(|entry| entry.started_at == started_at) {
+        let registry = CANCELLATION_REGISTRY
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        match registry
+            .get(meeting_id)
+            .filter(|entry| entry.started_at == started_at)
+        {
             Some(entry) => {
                 entry.token.cancel();
                 true
@@ -67,7 +80,9 @@ impl SummaryService {
     }
 
     fn cleanup_cancellation_token(meeting_id: &str, started_at: DateTime<Utc>) {
-        let mut registry = CANCELLATION_REGISTRY.lock().unwrap_or_else(|p| p.into_inner());
+        let mut registry = CANCELLATION_REGISTRY
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
         if registry
             .get(meeting_id)
             .is_some_and(|entry| entry.started_at == started_at)
@@ -105,28 +120,55 @@ impl SummaryService {
                 {
                     Ok(true) => {
                         if let Some(title) = title {
-                            if let Err(e) = MeetingsRepository::update_generated_title(&pool, &job.meeting_id, &title).await {
+                            if let Err(e) = MeetingsRepository::update_generated_title(
+                                &pool,
+                                &job.meeting_id,
+                                &title,
+                            )
+                            .await
+                            {
                                 log::error!("Failed to rename meeting {}: {}", job.meeting_id, e);
                             }
                         }
                         log::info!("Summary saved for {} in {:.1}s", job.meeting_id, duration);
                     }
-                    Ok(false) => log::warn!("Skipped stale summary completion for {}", job.meeting_id),
+                    Ok(false) => {
+                        log::warn!("Skipped stale summary completion for {}", job.meeting_id)
+                    }
                     Err(e) => log::error!("Failed to save summary for {}: {}", job.meeting_id, e),
                 }
             }
             Err(_) if cancellation_token.is_cancelled() => {
-                match SummaryProcessesRepository::update_process_cancelled(&pool, &job.meeting_id, job.started_at).await {
+                match SummaryProcessesRepository::update_process_cancelled(
+                    &pool,
+                    &job.meeting_id,
+                    job.started_at,
+                )
+                .await
+                {
                     Ok(_) => log::info!("Summary cancelled for {}", job.meeting_id),
-                    Err(e) => log::error!("Failed to mark summary cancelled for {}: {}", job.meeting_id, e),
+                    Err(e) => log::error!(
+                        "Failed to mark summary cancelled for {}: {}",
+                        job.meeting_id,
+                        e
+                    ),
                 }
             }
             Err(error) => {
                 log::error!("Summary failed for {}: {}", job.meeting_id, error);
-                if let Err(e) =
-                    SummaryProcessesRepository::update_process_failed(&pool, &job.meeting_id, job.started_at, &error).await
+                if let Err(e) = SummaryProcessesRepository::update_process_failed(
+                    &pool,
+                    &job.meeting_id,
+                    job.started_at,
+                    &error,
+                )
+                .await
                 {
-                    log::error!("Failed to mark summary failed for {}: {}", job.meeting_id, e);
+                    log::error!(
+                        "Failed to mark summary failed for {}: {}",
+                        job.meeting_id,
+                        e
+                    );
                 }
             }
         }
@@ -140,9 +182,10 @@ impl SummaryService {
         job: &SummaryJob,
     ) -> Result<(serde_json::Value, serde_json::Value, Option<String>), String> {
         let template = templates::get_template(&job.template_id)?;
-        let source = TranscriptsRepository::resolve_source(pool, &job.meeting_id, SourceChoice::Best)
-            .await
-            .map_err(|e| format!("Failed to read transcript: {}", e))?;
+        let source =
+            TranscriptsRepository::resolve_source(pool, &job.meeting_id, SourceChoice::Best)
+                .await
+                .map_err(|e| format!("Failed to read transcript: {}", e))?;
         let rows = TranscriptsRepository::all(pool, &job.meeting_id, source)
             .await
             .map_err(|e| format!("Failed to read transcript: {}", e))?;
@@ -200,11 +243,20 @@ mod tests {
         let second_started_at = first_started_at + chrono::Duration::nanoseconds(1);
         let first = SummaryService::register_cancellation_token(&meeting_id, first_started_at);
         let second = SummaryService::register_cancellation_token(&meeting_id, second_started_at);
-        assert!(first.is_cancelled(), "registering a new generation cancels the old one");
+        assert!(
+            first.is_cancelled(),
+            "registering a new generation cancels the old one"
+        );
 
         SummaryService::cleanup_cancellation_token(&meeting_id, first_started_at);
-        assert!(!SummaryService::cancel_summary(&meeting_id, first_started_at));
-        assert!(SummaryService::cancel_summary(&meeting_id, second_started_at));
+        assert!(!SummaryService::cancel_summary(
+            &meeting_id,
+            first_started_at
+        ));
+        assert!(SummaryService::cancel_summary(
+            &meeting_id,
+            second_started_at
+        ));
         assert!(second.is_cancelled());
         SummaryService::cleanup_cancellation_token(&meeting_id, second_started_at);
     }

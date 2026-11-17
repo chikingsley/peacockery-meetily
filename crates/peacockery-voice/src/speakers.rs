@@ -38,8 +38,6 @@ impl EnergyTrack {
         }
     }
 
-
-
     /// Append one frame of already computed levels.
     pub fn push_db(&mut self, mic_db: f32, sys_db: f32) {
         self.mic_db.push(clamp_db(mic_db));

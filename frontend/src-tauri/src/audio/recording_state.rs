@@ -73,7 +73,9 @@ type ErrorCallback = Box<dyn Fn(&AudioError) + Send + Sync>;
 
 /// Lock a mutex, recovering the data if a panicking thread poisoned it.
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// Shared state of one recording session (capture callbacks, pipeline, commands).
@@ -135,7 +137,10 @@ impl RecordingState {
         if let Some(pause_start) = lock(&self.pause_start).take() {
             let paused_for = pause_start.elapsed();
             *lock(&self.total_pause_duration) += paused_for;
-            log::info!("Recording resumed after a {:.2}s pause", paused_for.as_secs_f64());
+            log::info!(
+                "Recording resumed after a {:.2}s pause",
+                paused_for.as_secs_f64()
+            );
         }
         self.is_paused.store(false, Ordering::SeqCst);
         Ok(())
@@ -169,7 +174,9 @@ impl RecordingState {
             Some(sender) => sender
                 .send(chunk)
                 .map_err(|_| anyhow::anyhow!("Failed to send audio chunk: channel closed")),
-            None => Err(anyhow::anyhow!("Audio pipeline not ready - no sender available")),
+            None => Err(anyhow::anyhow!(
+                "Audio pipeline not ready - no sender available"
+            )),
         }
     }
 
@@ -187,7 +194,10 @@ impl RecordingState {
             let recoverable = self.recoverable_error_count.fetch_add(1, Ordering::SeqCst) + 1;
             log::warn!("Recoverable audio error ({}): {:?}", recoverable, error);
             if recoverable >= 10 {
-                log::error!("Too many recoverable errors ({}), stopping capture", recoverable);
+                log::error!(
+                    "Too many recoverable errors ({}), stopping capture",
+                    recoverable
+                );
                 self.stop_recording();
             }
         } else {
@@ -243,7 +253,10 @@ mod tests {
     use super::*;
 
     fn chunk() -> AudioChunk {
-        AudioChunk { data: vec![0.0; 4], device_type: DeviceType::Microphone }
+        AudioChunk {
+            data: vec![0.0; 4],
+            device_type: DeviceType::Microphone,
+        }
     }
 
     #[test]

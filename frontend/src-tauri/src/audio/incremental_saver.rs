@@ -71,7 +71,9 @@ impl IncrementalAudioSaver {
     pub fn finalize(&mut self) -> Result<PathBuf> {
         self.save_checkpoint()?;
         if self.checkpoint_count == 0 {
-            return Err(anyhow!("No audio checkpoints to merge - recording may have failed"));
+            return Err(anyhow!(
+                "No audio checkpoints to merge - recording may have failed"
+            ));
         }
         merge_checkpoints(&self.meeting_folder)
     }
@@ -99,7 +101,10 @@ pub fn checkpoint_files(meeting_folder: &Path) -> Vec<PathBuf> {
 pub fn merge_checkpoints(meeting_folder: &Path) -> Result<PathBuf> {
     let files = checkpoint_files(meeting_folder);
     if files.is_empty() {
-        return Err(anyhow!("No audio checkpoints in {}", meeting_folder.display()));
+        return Err(anyhow!(
+            "No audio checkpoints in {}",
+            meeting_folder.display()
+        ));
     }
     let checkpoints_dir = meeting_folder.join(CHECKPOINTS_DIR);
     let list_file = checkpoints_dir.join("concat_list.txt");
@@ -123,10 +128,17 @@ pub fn merge_checkpoints(meeting_folder: &Path) -> Result<PathBuf> {
         return Err(anyhow!("ffmpeg concat failed: {}", stderr));
     }
     if !output.is_file() {
-        return Err(anyhow!("Merged audio file was not created: {}", output.display()));
+        return Err(anyhow!(
+            "Merged audio file was not created: {}",
+            output.display()
+        ));
     }
 
-    info!("Merged {} checkpoints into {}", files.len(), output.display());
+    info!(
+        "Merged {} checkpoints into {}",
+        files.len(),
+        output.display()
+    );
     if let Err(e) = std::fs::remove_dir_all(&checkpoints_dir) {
         warn!("Failed to remove {}: {}", checkpoints_dir.display(), e);
     }
@@ -140,7 +152,10 @@ mod tests {
     use tempfile::tempdir;
 
     fn chunk(samples: usize) -> AudioChunk {
-        AudioChunk { data: vec![0.1f32; samples], device_type: DeviceType::Microphone }
+        AudioChunk {
+            data: vec![0.1f32; samples],
+            device_type: DeviceType::Microphone,
+        }
     }
 
     #[test]
@@ -177,11 +192,18 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let dir = temp_dir.path().join(CHECKPOINTS_DIR);
         std::fs::create_dir_all(&dir).unwrap();
-        for name in ["audio_chunk_0001.mp4", "audio_chunk_0000.mp4", "concat_list.txt"] {
+        for name in [
+            "audio_chunk_0001.mp4",
+            "audio_chunk_0000.mp4",
+            "concat_list.txt",
+        ] {
             std::fs::write(dir.join(name), b"x").unwrap();
         }
         let files = checkpoint_files(temp_dir.path());
-        let names: Vec<_> = files.iter().map(|p| p.file_name().unwrap().to_string_lossy().to_string()).collect();
+        let names: Vec<_> = files
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
+            .collect();
         assert_eq!(names, vec!["audio_chunk_0000.mp4", "audio_chunk_0001.mp4"]);
     }
 }

@@ -22,7 +22,9 @@ const FFMPEG_EXE_SHA256: &str = "3256173f3f8bffd7df12227c68adf68025edb1832273a95
 
 pub fn ensure_ffmpeg_sidecar() {
     let target = std::env::var("TARGET").expect("TARGET is set by cargo");
-    let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"));
+    let manifest_dir = PathBuf::from(
+        std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
+    );
     let binaries_dir = manifest_dir.join("binaries");
     std::fs::create_dir_all(&binaries_dir).expect("create binaries/");
 
@@ -45,7 +47,9 @@ fn sha256_file(path: &Path) -> Result<String, String> {
     let mut hasher = Sha256::new();
     let mut buffer = vec![0u8; 1 << 20];
     loop {
-        let read = file.read(&mut buffer).map_err(|e| format!("read {}: {}", path.display(), e))?;
+        let read = file
+            .read(&mut buffer)
+            .map_err(|e| format!("read {}: {}", path.display(), e))?;
         if read == 0 {
             break;
         }
@@ -59,11 +63,16 @@ fn ensure_windows_ffmpeg(destination: &Path) -> Result<(), String> {
         return Ok(());
     }
 
-    println!("cargo:warning=Downloading ffmpeg {} (GyanD essentials build)", FFMPEG_VERSION);
+    println!(
+        "cargo:warning=Downloading ffmpeg {} (GyanD essentials build)",
+        FFMPEG_VERSION
+    );
     let zip_path = destination.with_extension("zip.part");
     download(FFMPEG_ZIP_URL, &zip_path)?;
 
-    let size = std::fs::metadata(&zip_path).map_err(|e| e.to_string())?.len();
+    let size = std::fs::metadata(&zip_path)
+        .map_err(|e| e.to_string())?
+        .len();
     let digest = sha256_file(&zip_path)?;
     if size != FFMPEG_ZIP_SIZE || digest != FFMPEG_ZIP_SHA256 {
         let _ = std::fs::remove_file(&zip_path);
@@ -89,7 +98,10 @@ fn ensure_windows_ffmpeg(destination: &Path) -> Result<(), String> {
     let exe_digest = sha256_file(&extracted)?;
     if exe_digest != FFMPEG_EXE_SHA256 {
         let _ = std::fs::remove_file(&extracted);
-        return Err(format!("extracted ffmpeg.exe sha256 {} != {}", exe_digest, FFMPEG_EXE_SHA256));
+        return Err(format!(
+            "extracted ffmpeg.exe sha256 {} != {}",
+            exe_digest, FFMPEG_EXE_SHA256
+        ));
     }
     std::fs::rename(&extracted, destination).map_err(|e| e.to_string())?;
     Ok(())
@@ -123,8 +135,14 @@ fn copy_system_ffmpeg(destination: &Path) -> Result<(), String> {
     let source_len = std::fs::metadata(&source).map_err(|e| e.to_string())?.len();
     let up_to_date = std::fs::metadata(destination).is_ok_and(|m| m.len() == source_len);
     if !up_to_date {
-        std::fs::copy(&source, destination)
-            .map_err(|e| format!("copy {} -> {}: {}", source.display(), destination.display(), e))?;
+        std::fs::copy(&source, destination).map_err(|e| {
+            format!(
+                "copy {} -> {}: {}",
+                source.display(),
+                destination.display(),
+                e
+            )
+        })?;
     }
     Ok(())
 }

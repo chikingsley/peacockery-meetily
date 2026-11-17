@@ -5,14 +5,14 @@ pub mod audio;
 pub mod database;
 pub mod final_transcript;
 pub mod live;
-pub mod state;
-mod recording_context;
 mod outlook_calendar;
 mod outlook_secret;
+mod recording_context;
+pub mod state;
 pub mod summary;
 pub mod tray;
-pub mod utils;
 mod updates;
+pub mod utils;
 pub mod voice;
 
 use log::LevelFilter;
@@ -34,7 +34,9 @@ fn log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
     tauri_plugin_log::Builder::new()
         .clear_targets()
-        .target(Target::new(TargetKind::LogDir { file_name: Some("peacockery-meetily".into()) }))
+        .target(Target::new(TargetKind::LogDir {
+            file_name: Some("peacockery-meetily".into()),
+        }))
         .target(Target::new(TargetKind::Stdout))
         .level(log_level())
         .level_for("sqlx", LevelFilter::Warn)
@@ -151,7 +153,9 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| match event {
             // Never exit over a running recording: stop and save it, then exit.
-            tauri::RunEvent::ExitRequested { api, .. } if audio::recording_commands::is_recording_active() => {
+            tauri::RunEvent::ExitRequested { api, .. }
+                if audio::recording_commands::is_recording_active() =>
+            {
                 api.prevent_exit();
                 tray::quit(app_handle);
             }

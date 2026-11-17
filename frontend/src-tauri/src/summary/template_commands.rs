@@ -13,6 +13,10 @@ pub struct TemplateInfo {
 pub async fn api_list_templates() -> Result<Vec<TemplateInfo>, String> {
     Ok(templates::list_templates()
         .into_iter()
-        .map(|(id, name, description)| TemplateInfo { id, name, description })
+        .map(|(id, name, description)| TemplateInfo {
+            id,
+            name,
+            description,
+        })
         .collect())
 }

@@ -22,8 +22,24 @@ pub fn encode_single_audio(
 
     let mut command = ffmpeg_command()?;
     command
-        .args(["-f", "f32le", "-ar", &sample_rate.to_string(), "-ac", &channels.to_string()])
-        .args(["-i", "pipe:0", "-c:a", "aac", "-b:a", AAC_BITRATE, "-profile:a", "aac_low"])
+        .args([
+            "-f",
+            "f32le",
+            "-ar",
+            &sample_rate.to_string(),
+            "-ac",
+            &channels.to_string(),
+        ])
+        .args([
+            "-i",
+            "pipe:0",
+            "-c:a",
+            "aac",
+            "-b:a",
+            AAC_BITRATE,
+            "-profile:a",
+            "aac_low",
+        ])
         .args(["-movflags", "+faststart", "-f", "mp4", "-y"])
         .arg(output_path)
         .stdin(Stdio::piped())
@@ -35,13 +51,18 @@ pub fn encode_single_audio(
         Some(mut stdin) => stdin.write_all(bytemuck::cast_slice(samples)),
         None => Err(std::io::Error::other("ffmpeg stdin unavailable")),
     };
-    let output = ffmpeg.wait_with_output().context("Failed to wait for ffmpeg")?;
+    let output = ffmpeg
+        .wait_with_output()
+        .context("Failed to wait for ffmpeg")?;
     write_result.context("Failed to write PCM to ffmpeg")?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         log::error!("ffmpeg encode failed ({}): {}", output.status, stderr);
-        return Err(anyhow!("ffmpeg encode failed with status {}", output.status));
+        return Err(anyhow!(
+            "ffmpeg encode failed with status {}",
+            output.status
+        ));
     }
     Ok(())
 }

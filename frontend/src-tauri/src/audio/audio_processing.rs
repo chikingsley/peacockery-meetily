@@ -102,8 +102,12 @@ impl LoudnessNormalizer {
         const TRUE_PEAK_LIMIT: f64 = -1.0;
         const ANALYZE_CHUNK_SIZE: usize = 512;
 
-        let ebur128 = ebur128::EbuR128::new(channels, sample_rate, ebur128::Mode::I | ebur128::Mode::TRUE_PEAK)
-            .map_err(|e| anyhow::anyhow!("Failed to create EBU R128 normalizer: {}", e))?;
+        let ebur128 = ebur128::EbuR128::new(
+            channels,
+            sample_rate,
+            ebur128::Mode::I | ebur128::Mode::TRUE_PEAK,
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to create EBU R128 normalizer: {}", e))?;
 
         let true_peak_limit = 10_f32.powf(TRUE_PEAK_LIMIT as f32 / 20.0);
 
@@ -185,7 +189,11 @@ impl HighPassFilter {
         let dt = 1.0 / sample_rate_f;
         let alpha = rc / (rc + dt);
 
-        log::info!("Initializing high-pass filter: cutoff={}Hz @ {}Hz", cutoff_hz, sample_rate);
+        log::info!(
+            "Initializing high-pass filter: cutoff={}Hz @ {}Hz",
+            cutoff_hz,
+            sample_rate
+        );
 
         Self {
             alpha,
@@ -212,7 +220,6 @@ impl HighPassFilter {
 
         output
     }
-
 }
 
 pub fn audio_to_mono(audio: &[f32], channels: u16) -> Vec<f32> {
@@ -263,73 +270,74 @@ pub fn resample(input: &[f32], from_sample_rate: u32, to_sample_rate: u32) -> Re
     let (sinc_len, interpolation_type, oversampling) = if ratio >= 2.0 {
         // Large upsampling (e.g., 8kHz → 16kHz, 16kHz → 48kHz, 24kHz → 48kHz)
         // Needs high quality to avoid artifacts
-        debug!("High-quality upsampling: {}Hz → {}Hz (ratio: {:.2}x)",
-               from_sample_rate, to_sample_rate, ratio);
+        debug!(
+            "High-quality upsampling: {}Hz → {}Hz (ratio: {:.2}x)",
+            from_sample_rate, to_sample_rate, ratio
+        );
         (
-            512,                              // Longer sinc for smoother interpolation
-            SincInterpolationType::Cubic,     // Cubic for best quality
-            512,                              // Higher oversampling
+            512,                          // Longer sinc for smoother interpolation
+            SincInterpolationType::Cubic, // Cubic for best quality
+            512,                          // Higher oversampling
         )
     } else if ratio >= 1.5 {
         // Moderate upsampling (e.g., 32kHz → 48kHz)
-        debug!("Moderate upsampling: {}Hz → {}Hz (ratio: {:.2}x)",
-               from_sample_rate, to_sample_rate, ratio);
-        (
-            384,
-            SincInterpolationType::Cubic,
-            384,
-        )
+        debug!(
+            "Moderate upsampling: {}Hz → {}Hz (ratio: {:.2}x)",
+            from_sample_rate, to_sample_rate, ratio
+        );
+        (384, SincInterpolationType::Cubic, 384)
     } else if ratio > 1.0 {
         // Small upsampling (e.g., 44.1kHz → 48kHz)
-        debug!("Small upsampling: {}Hz → {}Hz (ratio: {:.2}x)",
-               from_sample_rate, to_sample_rate, ratio);
-        (
-            256,
-            SincInterpolationType::Linear,
-            256,
-        )
+        debug!(
+            "Small upsampling: {}Hz → {}Hz (ratio: {:.2}x)",
+            from_sample_rate, to_sample_rate, ratio
+        );
+        (256, SincInterpolationType::Linear, 256)
     } else if ratio <= 0.5 {
         // Large downsampling (e.g., 48kHz → 16kHz, 48kHz → 8kHz)
         // Needs strong anti-aliasing
-        debug!("Anti-aliased downsampling: {}Hz → {}Hz (ratio: {:.2}x)",
-               from_sample_rate, to_sample_rate, ratio);
+        debug!(
+            "Anti-aliased downsampling: {}Hz → {}Hz (ratio: {:.2}x)",
+            from_sample_rate, to_sample_rate, ratio
+        );
         (
-            512,                              // Longer sinc for anti-aliasing
-            SincInterpolationType::Cubic,     // Cubic for quality
+            512,                          // Longer sinc for anti-aliasing
+            SincInterpolationType::Cubic, // Cubic for quality
             512,
         )
     } else {
         // Moderate downsampling (e.g., 48kHz → 24kHz, 48kHz → 32kHz)
-        debug!("Moderate downsampling: {}Hz → {}Hz (ratio: {:.2}x)",
-               from_sample_rate, to_sample_rate, ratio);
-        (
-            384,
-            SincInterpolationType::Linear,
-            384,
-        )
+        debug!(
+            "Moderate downsampling: {}Hz → {}Hz (ratio: {:.2}x)",
+            from_sample_rate, to_sample_rate, ratio
+        );
+        (384, SincInterpolationType::Linear, 384)
     };
 
     let params = SincInterpolationParameters {
         sinc_len,
-        f_cutoff: 0.95,                      // Preserve most of the frequency content
+        f_cutoff: 0.95, // Preserve most of the frequency content
         interpolation: interpolation_type,
         oversampling_factor: oversampling,
-        window: WindowFunction::BlackmanHarris2,  // Best window for audio
+        window: WindowFunction::BlackmanHarris2, // Best window for audio
     };
 
     let mut resampler = SincFixedIn::<f32>::new(
         ratio,
-        2.0,  // Maximum relative deviation
+        2.0, // Maximum relative deviation
         params,
         input.len(),
-        1,    // Mono
+        1, // Mono
     )?;
 
     let waves_in = vec![input.to_vec()];
     let waves_out = resampler.process(&waves_in, None)?;
 
-    debug!("Resampling complete: {} samples → {} samples",
-           input.len(), waves_out[0].len());
+    debug!(
+        "Resampling complete: {} samples → {} samples",
+        input.len(),
+        waves_out[0].len()
+    );
 
     waves_out
         .into_iter()
