@@ -47,11 +47,11 @@ fn read_auth(app: &tauri::AppHandle) -> Result<Option<Auth>, String> {
     let bytes = match std::fs::read(path) {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(_) => return Err("Windows session storage needs attention. Reconnect Outlook.".into()),
+        Err(_) => return Err("Windows session storage needs attention. Connect Outlook.".into()),
     };
     serde_json::from_slice(&crate::outlook_secret::protect(&bytes, false)?)
         .map(Some)
-        .map_err(|_| "Reconnect Outlook to renew calendar access.".into())
+        .map_err(|_| "Connect Outlook to renew calendar access.".into())
 }
 #[cfg(windows)]
 fn save_auth(app: &tauri::AppHandle, auth: &Auth) -> Result<(), String> {
@@ -66,7 +66,7 @@ fn save_auth(app: &tauri::AppHandle, auth: &Auth) -> Result<(), String> {
     temp.write_all(&sealed).map_err(|e| e.to_string())?;
     temp.as_file().sync_all().map_err(|e| e.to_string())?;
     temp.persist(path)
-        .map_err(|_| "Could not save the Outlook session. Reconnect Outlook.".to_string())?;
+        .map_err(|_| "Could not save the Outlook session. Connect Outlook.".to_string())?;
     Ok(())
 }
 async fn current_auth(app: &tauri::AppHandle) -> Result<Option<Auth>, String> {
@@ -79,7 +79,7 @@ async fn current_auth(app: &tauri::AppHandle) -> Result<Option<Auth>, String> {
     // A saved browser session renews expiring access automatically. A provider
     // challenge returns an explicit reconnect prompt instead of another account.
     if chrono::Utc::now().timestamp() < RENEW_AFTER.load(std::sync::atomic::Ordering::SeqCst) {
-        return Err("Outlook needs a fresh sign-in. Choose Reconnect Outlook in Settings.".into());
+        return Err("Meetily could not renew calendar access automatically.".into());
     }
     if let Err(error) = capture(app, false).await {
         RENEW_AFTER.store(
@@ -124,7 +124,7 @@ async fn get(auth: &Auth, path: &str) -> Result<Value, String> {
         .map_err(|_| "Calendar connection failed. Try again.".to_string())?;
     if !response.status().is_success() {
         return Err(format!(
-            "Outlook returned {}. Choose Connect Outlook to renew your session.",
+            "Outlook returned HTTP {} when reading the calendar.",
             response.status().as_u16()
         ));
     }
@@ -480,9 +480,7 @@ async fn capture(app: &tauri::AppHandle, interactive: bool) -> Result<Connection
             task,
         )
         .await
-        .unwrap_or_else(|_| {
-            Err("Outlook needs a fresh sign-in. Choose Reconnect Outlook in Settings.".into())
-        });
+        .unwrap_or_else(|_| Err("Meetily could not renew calendar access automatically.".into()));
         // Always close only Meetily's dedicated browser, including errors and timeouts.
         if let Some(endpoint) = browser_endpoint {
             if let Ok(Ok((mut socket, _))) = tokio::time::timeout(

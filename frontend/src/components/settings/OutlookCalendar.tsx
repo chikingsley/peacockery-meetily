@@ -24,14 +24,34 @@ interface Connection {
 
 export function OutlookCalendar() {
   const [connection, setConnection] = useState<Connection | null>(null);
+  const [checking, setChecking] = useState(isTauri);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   useEffect(() => {
+    let current = true;
+
     if (isTauri()) {
       void invoke<Connection>("outlook_status")
-        .then(setConnection)
-        .catch((error) => setMessage(errorMessage(error)));
+        .then((result) => {
+          if (current) {
+            setConnection(result);
+          }
+        })
+        .catch((error) => {
+          if (current) {
+            setMessage(errorMessage(error));
+          }
+        })
+        .finally(() => {
+          if (current) {
+            setChecking(false);
+          }
+        });
     }
+
+    return () => {
+      current = false;
+    };
   }, []);
 
   const connect = async () => {
@@ -43,7 +63,7 @@ export function OutlookCalendar() {
     try {
       const next = await invoke<Connection>("outlook_connect");
       setConnection(next);
-      setMessage(`Connected to ${next.account}.`);
+      setMessage("");
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -57,7 +77,7 @@ export function OutlookCalendar() {
     try {
       await invoke("outlook_disconnect");
       setConnection(null);
-      setMessage("Calendar disconnected. Your meetings stay saved.");
+      setMessage("");
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -81,14 +101,18 @@ export function OutlookCalendar() {
     }
   };
 
+  const connected = Boolean(connection?.account && !connection.error);
+
   return (
     <SettingsSection
       title="Outlook calendar"
       description="Sign in to your own Outlook Web account. Meetily reads your calendar to help start meetings; calendar changes stay in Outlook."
     >
-      {connection?.account && (
-        <p className="text-sm">Connected account: {connection.account}</p>
-      )}
+      <p role="status" className="text-sm">
+        {checking && "Checking Outlook…"}
+        {!checking && (connected ? "Connected" : "Disconnected")}
+        {!checking && connection?.account && ` · ${connection.account}`}
+      </p>
       {connection?.calendars.length ? (
         <Select
           value={connection.selected}
@@ -113,11 +137,8 @@ export function OutlookCalendar() {
           {message || connection?.error}
         </p>
       )}
-      <div className="flex gap-2">
-        <Button disabled={busy} onClick={() => void connect()}>
-          {connection?.account ? "Reconnect Outlook" : "Connect Outlook"}
-        </Button>
-        {connection?.account && (
+      {!checking &&
+        (connected ? (
           <Button
             variant="outline"
             disabled={busy}
@@ -125,12 +146,11 @@ export function OutlookCalendar() {
           >
             Disconnect
           </Button>
-        )}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        A separate Edge profile keeps this connection on this PC. Reconnect when
-        Outlook requests a fresh sign-in.
-      </p>
+        ) : (
+          <Button disabled={busy} onClick={() => void connect()}>
+            Connect Outlook
+          </Button>
+        ))}
     </SettingsSection>
   );
 }

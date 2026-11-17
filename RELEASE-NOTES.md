@@ -1,1 +1,1 @@
-While recording, Meetily shows local audio progress and the duration written to disk in completed checkpoints. It flags capture delays and checkpoint write errors separately from live transcription. Scribe retries shared connection failures. Provider-specific failures can still switch live transcription to Nova.
+Outlook Settings checks calendar access before showing Connected. A connected calendar has one Disconnect action. A disconnected calendar has one Connect Outlook action. Connection errors appear alongside the status.
