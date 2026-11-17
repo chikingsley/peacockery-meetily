@@ -1,1 +1,1 @@
-Outlook Settings checks calendar access before showing Connected. A connected calendar has one Disconnect action. A disconnected calendar has one Connect Outlook action. Connection errors appear alongside the status.
+Calendar Settings waits for an active Outlook check before offering Connect. An overlapping request reports a calendar check in progress.

@@ -12,6 +12,7 @@ const ROOT: &str = "https://outlook.office.com/api/v2.0";
 
 static RENEW_AFTER: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
 static CONNECTING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+const OUTLOOK_BUSY: &str = "Meetily is checking Outlook. Try again when the check finishes.";
 struct Guard;
 impl Drop for Guard {
     fn drop(&mut self) {
@@ -169,8 +170,14 @@ async fn calendars(auth: &Auth) -> Result<Vec<Value>, String> {
     }
     Err("Calendar list exceeded its page limit.".into())
 }
+async fn wait_for_calendar_check(busy: &std::sync::atomic::AtomicBool) {
+    while busy.load(std::sync::atomic::Ordering::SeqCst) {
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+}
 #[tauri::command]
 pub async fn outlook_status(app: tauri::AppHandle) -> Result<Connection, String> {
+    wait_for_calendar_check(&CONNECTING).await;
     let s = selection(&app);
     let previous = read_auth(&app).ok().flatten();
     let auth = match current_auth(&app).await {
@@ -262,7 +269,7 @@ async fn capture(app: &tauri::AppHandle, interactive: bool) -> Result<Connection
     use std::sync::atomic::Ordering;
     CONNECTING
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .map_err(|_| "Outlook sign-in is already open.".to_string())?;
+        .map_err(|_| OUTLOOK_BUSY.to_string())?;
     let _guard = Guard;
     #[cfg(not(windows))]
     {
@@ -607,6 +614,23 @@ pub async fn snapshot(app: &tauri::AppHandle) -> Result<Option<Option<CalendarSn
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn settings_waits_for_an_invisible_background_check() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let busy = AtomicBool::new(true);
+        let waiting = wait_for_calendar_check(&busy);
+        tokio::pin!(waiting);
+        assert!(
+            tokio::time::timeout(Duration::from_millis(10), &mut waiting)
+                .await
+                .is_err()
+        );
+        busy.store(false, Ordering::SeqCst);
+        tokio::time::timeout(Duration::from_secs(2), waiting)
+            .await
+            .unwrap();
+    }
+
     fn token(audience: &str, expires: i64) -> String {
         format!(
             "header.{}.signature",
