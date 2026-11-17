@@ -34,14 +34,22 @@ export function RecordingSetup({
   const [snapshot, setSnapshot] = useState<CalendarSnapshot | null>(null);
   const [checkedAt, setCheckedAt] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     if (!desktop) {
       return;
     }
 
     let active = true;
+    let reading = false;
 
     const read = async () => {
+      if (reading) {
+        return;
+      }
+
+      reading = true;
+
       try {
         const next = await voiceService.getRecordingCalendar();
 
@@ -53,6 +61,12 @@ export function RecordingSetup({
       } catch (error_) {
         if (active) {
           setError(errorMessage(error_));
+        }
+      } finally {
+        reading = false;
+
+        if (active) {
+          setLoading(false);
         }
       }
     };
@@ -123,13 +137,15 @@ export function RecordingSetup({
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          {error
-            ? `Calendar could not refresh: ${error}`
-            : snapshot
-              ? stale
-                ? "Calendar copy is over 15 minutes old. Recording remains available."
-                : "Calendar times are Arizona time. The invitation is saved with the recording."
-              : "Calendar has not synced yet. You can record an unscheduled meeting."}
+          {loading && desktop
+            ? "Loading calendar… Recording is available."
+            : error
+              ? `Calendar refresh needs attention: ${error}`
+              : snapshot
+                ? stale
+                  ? "Calendar copy is over 15 minutes old. Recording remains available."
+                  : "Calendar times are Arizona time. The invitation is saved with the recording."
+                : "Connect Outlook in Settings to choose calendar meetings. You can record an unscheduled meeting."}
         </p>
         {event && (
           <p className="text-xs text-muted-foreground">

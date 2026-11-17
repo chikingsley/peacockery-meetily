@@ -7,6 +7,8 @@ pub mod final_transcript;
 pub mod live;
 pub mod state;
 mod recording_context;
+mod outlook_calendar;
+mod outlook_secret;
 pub mod summary;
 pub mod tray;
 pub mod utils;
@@ -44,6 +46,7 @@ fn log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
 }
 
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = rustls::crypto::ring::default_provider().install_default();
     log::info!("Peacockery Meetily {} starting", app.package_info().version);
 
     let db_manager = tauri::async_runtime::block_on(DatabaseManager::open_for_app(app.handle()))?;
@@ -117,6 +120,10 @@ pub fn run() {
             api::open_meeting_folder,
             api::rename_speaker,
             recording_context::get_recording_calendar,
+            outlook_calendar::outlook_status,
+            outlook_calendar::outlook_connect,
+            outlook_calendar::outlook_select,
+            outlook_calendar::outlook_disconnect,
             final_transcript::start_final_transcript,
             final_transcript::get_final_transcript_status,
             // Voice settings

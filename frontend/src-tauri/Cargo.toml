@@ -1,6 +1,6 @@
 [package]
 name = "peacockery-meetily"
-version = "0.6.7"
+version = "0.6.9"
 description = "Peacockery Meetily: internal Windows call and meeting recorder on the Peacockery Voice API"
 authors = ["Peacockery Studio"]
 edition.workspace = true
@@ -52,10 +52,16 @@ tauri-plugin-store = "2.4.0"
 peacockery-voice = { path = "../../crates/peacockery-voice" }
 app-loopback = { path = "../../crates/app-loopback" }
 tauri-plugin-updater = "2"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
+tokio-tungstenite = "0.30"
+futures-util = "0.3"
+base64 = "0.22"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 [target.'cfg(windows)'.dependencies]
 # API key in Windows Credential Manager (ARCHITECTURE.md §2)
 keyring = { version = "3.6.3", features = ["windows-native"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }
 
 [target.'cfg(not(windows))'.dependencies]
 # Linux is dev-only: kernel keyutils (no Secret Service daemon needed)

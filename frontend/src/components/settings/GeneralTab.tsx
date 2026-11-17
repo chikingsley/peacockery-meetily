@@ -17,6 +17,7 @@ import {
 import { voiceService, errorMessage } from "@/services/voiceService";
 
 import { AppUpdates } from "./AppUpdates";
+import { OutlookCalendar } from "./OutlookCalendar";
 import { useRecordingPreferences } from "./RecordingTab";
 import { SettingsSection } from "./SettingsParts";
 
@@ -66,6 +67,7 @@ export function GeneralTab() {
           Open folder
         </Button>
       </SettingsSection>
+      <OutlookCalendar />
       <AppUpdates />
       <About />
     </div>

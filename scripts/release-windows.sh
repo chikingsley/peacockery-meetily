@@ -7,6 +7,7 @@ cd "$repo"
 version="$(node -p 'require("./frontend/src-tauri/tauri.conf.json").version')"
 export TAURI_SIGNING_PRIVATE_KEY="${TAURI_SIGNING_PRIVATE_KEY:-$HOME/.local/share/peacockery-meetily/updater.key}"
 [ -f "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo 'Provide the established update signing key.'; exit 1; }
+node --test services/activation/worker.test.mjs
 cargo test --workspace
 (cd frontend && pnpm check)
 ./scripts/build-windows.sh

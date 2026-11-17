@@ -3325,15 +3325,17 @@ dependencies = [
 
 [[package]]
 name = "peacockery-meetily"
-version = "0.6.7"
+version = "0.6.9"
 dependencies = [
  "anyhow",
  "app-loopback",
+ "base64 0.22.1",
  "bytemuck",
  "chrono",
  "cpal",
  "dirs 5.0.1",
  "ebur128",
+ "futures-util",
  "hound",
  "keyring",
  "log",
@@ -3356,9 +3358,11 @@ dependencies = [
  "tauri-plugin-updater",
  "tempfile",
  "tokio",
+ "tokio-tungstenite",
  "tokio-util",
  "url",
  "uuid",
+ "windows-sys 0.61.2",
  "zip 2.6.1",
 ]
 

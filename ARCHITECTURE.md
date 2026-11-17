@@ -16,13 +16,15 @@ scripts/build-windows.sh        cross-compile the NSIS installer on GMK (cargo-x
 scripts/install-cica.sh         copy + silent install on CICA over ssh
 ```
 
-Removed for good: local Whisper/Parakeet/llama engines, Silero VAD + ONNX Runtime, Ollama and the other LLM providers, PostHog analytics, the updater, onboarding, legacy Python backend, legacy DB import, macOS capture, GPU feature flags, signing, release workflows.
+The fork removed local Whisper/Parakeet/llama engines, Silero VAD + ONNX Runtime, Ollama and the other LLM providers, PostHog analytics, legacy Python backend, legacy DB import, macOS capture and GPU feature flags. Distribution now uses signed Tauri updates, per-installation activation codes and the release workflow documented in `DISTRIBUTION.md`.
 
 Windows is the only shipped target. The crate also compiles on Linux so `cargo test` runs on GMK; the only Linux-specific code is cpal device enumeration and lookup in `audio/devices/` (no process loopback).
 
-Identity: productName `Peacockery Meetily`, identifier `studio.peacockery.meetily`, Cargo package `peacockery-meetily`, version `0.6.5`. App data: `%APPDATA%\studio.peacockery.meetily\`. Recordings: `%USERPROFILE%\Music\Peacockery Meetily\<title>_<YYYY-MM-DD_HH-MM>\` (Music is not OneDrive-redirected on CICA; never fall back to Documents).
+Identity: productName `Peacockery Meetily`, identifier `studio.peacockery.meetily`, Cargo package `peacockery-meetily`. The version is synchronized in the frontend package, Tauri configuration and Cargo package. App data: `%APPDATA%\studio.peacockery.meetily\`. Recordings: `%USERPROFILE%\Music\Peacockery Meetily\<title>_<YYYY-MM-DD_HH-MM>\`.
 
 ## 2. Credential and settings
+
+`activate_access(code)` redeems an eight-digit invitation at the activation Worker. A Durable Object atomically binds the code to the persistent installation UUID, permits that installation's retries, and enforces seven-day expiry. The Rust command validates the returned host and credential, verifies Voice model access, then saves the credential and settings with rollback. The webview receives the recipient name. Operators issue and revoke invitations using private credentials; recipients enter their code.
 
 - API key: Windows Credential Manager, generic credential, target name **`studio.peacockery.meetily/peacockery-voice-api-key`** (via the `keyring` crate, `Entry::new_with_target(TARGET, "studio.peacockery.meetily", "peacockery-voice-api-key")`). The key never reaches the webview or SQLite. Paste it in Settings, or run `cmdkey /generic:<target> /user:peacockery-voice-api-key /pass:<key>` in the desktop session (an ssh session cannot write it).
 - Settings: Rust-owned store file `voice-settings.json` (tauri-plugin-store), shape `VoiceSettings`:
@@ -143,7 +145,7 @@ Recording:
 
 - `recording_mode` is `in_person` (default), `online` or `phone`. In person requires a microphone, captures no system source and uses a mixed diarized session. Online and phone capture both selected sources with diarized split sessions. The selected mode overrides the legacy live topology preference. Sidebar and tray actions open setup; capture begins only at the recording screen Start button.
 - `calendar_event` optionally carries the selected occurrence ID, title, start/end, location, online flag, organizer and invitees. It is stored with `mode` in `recording-context.json` beside the audio before capture starts.
-- `get_recording_calendar() -> CalendarSnapshot|null` reads the private `calendar-events.json` in app data. The existing GMK Outlook collector writes it atomically with hash readback. The UI shows Arizona-today events and marks copies older than 15 minutes. Calendar availability never gates capture.
+- `get_recording_calendar() -> CalendarSnapshot|null` reads the selected account's Outlook REST calendar, with pagination and UTC times. `outlook_connect`, `outlook_status`, `outlook_select` and `outlook_disconnect` manage a dedicated Edge session. `outlook-session.bin` uses Windows DPAPI with app-specific entropy; expired tokens trigger headless session capture, with a five-minute backoff after failure. Background browser throttling is disabled so sign-in progresses while another app has focus. An initial installation with an existing GMK `calendar-events.json` uses that private snapshot until a local account is connected; explicit disconnect disables calendar use. The UI shows Arizona-today events and marks copies older than 15 minutes. Recording remains available independently.
 - `get_audio_devices() -> AudioDevice[]` – includes the pseudo system device `{name:"app:chrome", device_type:"Output", label:"Google Chrome app audio (Google Voice)"}` on Windows.
 - `start_recording_with_devices_and_meeting(mic_device_name?, system_device_name?, meeting_name?, recording_mode?, calendar_event?) -> {meeting_id, folder_path}`
 - `stop_recording() -> {meeting_id, folder_path, audio_path: string|null}` – always resolves once the stop has run; a failed save is reported by one `recording-error` event and `audio_path: null` (the command does not also reject)
@@ -204,8 +206,6 @@ The shadcn shell owns sidebar collapse state, persisted locally. Meeting data li
 Search debounces 200 ms and invalidates prior responses immediately, including on clear and unmount. Rust returns at most 100 distinct meeting hits, newest first, from the best transcript. SQL wildcard characters are escaped so search terms are literal. Indexed full-text search remains a separate scaling option.
 
 Ultracite's core, React, Next.js, anti-slop, and shadcn presets run through Oxlint. Oxfmt uses Ultracite's formatter preset through explicit config. Project exceptions are documented inline: component naming, native callback APIs, compiler-only checks, runtime parsers, native test fixtures, and measured transcript virtualization. `pnpm check` runs the complete frontend gate.
-
-The browser preview serves the static export, with an explicit desktop-capability banner. Native recording and credentials remain in Tauri. `scripts/preview.sh up|down|status` manages both the systemd user service and public tunnel. The preview service has no login or boot autostart.
 
 ### Scribe v3 live delivery
 

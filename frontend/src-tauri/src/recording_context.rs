@@ -62,7 +62,8 @@ impl RecordingContext {
 
 /// Private, read-only snapshot from the existing GMK Outlook calendar collector.
 #[tauri::command]
-pub fn get_recording_calendar(app: tauri::AppHandle) -> Result<Option<CalendarSnapshot>, String> {
+pub async fn get_recording_calendar(app: tauri::AppHandle) -> Result<Option<CalendarSnapshot>, String> {
+    if let Some(snapshot) = crate::outlook_calendar::snapshot(&app).await? { return Ok(snapshot); }
     let path = app.path().app_data_dir().map_err(|e| e.to_string())?.join("calendar-events.json");
     if !path.exists() { return Ok(None); }
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;

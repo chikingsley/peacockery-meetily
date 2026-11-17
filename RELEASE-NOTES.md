@@ -1,6 +1,6 @@
-Updates and coworker activation
+Simple activation and personal Outlook calendars
 
-- Get notified when a release is available. Open Settings > General > App updates to download, verify, install and restart.
-- Update installation waits for recording and audio processing to finish. Recordings and preferences stay in place.
-- Activate access using the private file supplied by your administrator. Credentials are stored in Windows Credential Manager.
-- Existing recording types, calendar context and speaker separation remain available.
+- Enter an eight-digit code on first launch to activate your installation. Access is personal and revocable.
+- Connect your own work Outlook account in Settings > General, choose a calendar, and use its meetings when starting a recording.
+- Outlook sessions are protected by Windows and renew from the saved browser sign-in. Reconnect prompts appear when Microsoft needs fresh authentication.
+- Get new releases through Settings > General > App updates, then install and restart. Recordings and preferences stay in place.

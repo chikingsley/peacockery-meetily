@@ -23,6 +23,7 @@ import { VoiceNotConfiguredDialog } from "./_components/VoiceNotConfiguredDialog
 export default function Home() {
   const desktop = useDesktopRuntime();
   const [showVoiceDialog, setShowVoiceDialog] = useState(false);
+  const [activationDismissed, setActivationDismissed] = useState(false);
   const [title, setTitle] = useState("");
   const [mode, setMode] = useState<RecordingMode>("in_person");
 
@@ -40,7 +41,7 @@ export default function Home() {
   };
 
   const { isRecording, isStartingRecording, isStopping } = useRecordingState();
-  const { selectedDevices, setSelectedDevices } = useConfig();
+  const { selectedDevices, setSelectedDevices, keyStatus } = useConfig();
   const onVoiceNotConfigured = useCallback(() => setShowVoiceDialog(true), []);
   const { startRecording } = useRecordingStart(onVoiceNotConfigured);
   const active = isRecording || isStartingRecording || isStopping;
@@ -48,8 +49,17 @@ export default function Home() {
   return (
     <div className="flex h-full flex-col bg-background">
       <VoiceNotConfiguredDialog
-        open={showVoiceDialog}
-        onOpenChange={setShowVoiceDialog}
+        open={
+          showVoiceDialog ||
+          (desktop && keyStatus?.configured === false && !activationDismissed)
+        }
+        onOpenChange={(open) => {
+          setShowVoiceDialog(open);
+
+          if (!open) {
+            setActivationDismissed(true);
+          }
+        }}
       />
       {active ? (
         <>

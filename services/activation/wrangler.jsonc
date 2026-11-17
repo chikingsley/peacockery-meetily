@@ -1,0 +1,9 @@
+{
+  "name": "meetily-activation",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-16",
+  "account_id": "5888cce2210bbb0bda4b77fd8a9018e1",
+  "workers_dev": true,
+  "durable_objects": {"bindings": [{"name":"STATE","class_name":"ActivationState"}]},
+  "migrations": [{"tag":"v1","new_sqlite_classes":["ActivationState"]}]
+}

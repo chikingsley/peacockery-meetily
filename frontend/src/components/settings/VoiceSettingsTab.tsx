@@ -1,6 +1,5 @@
 "use client";
 
-import { invoke } from "@tauri-apps/api/core";
 import {
   AudioLines,
   CheckCircle2,
@@ -37,6 +36,7 @@ import {
 import { voiceService, errorMessage } from "@/services/voiceService";
 import type { ConnectionTestResult, VoiceSettings } from "@/types/voice";
 
+import { ActivationForm } from "./ActivationForm";
 import {
   ModelSelect,
   SettingsSection,
@@ -318,32 +318,12 @@ function ApiKeySection() {
     refreshVoiceModels,
     keyStatus,
     setKeyStatus,
-    refreshKeyStatus,
   } = useConfig();
 
   const keyInputRef = useRef<HTMLInputElement>(null);
   const [hasKeyInput, setHasKeyInput] = useState(false);
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-
-  const activate = async () => {
-    setIsSavingKey(true);
-
-    try {
-      const recipient = await invoke<string | null>("activate_access");
-
-      if (recipient) {
-        await saveVoiceSettings(await voiceService.getSettings());
-        await refreshKeyStatus();
-        await refreshVoiceModels();
-        toast.success(`Access activated for ${recipient}`);
-      }
-    } catch (error) {
-      toast.error("Activation failed", { description: errorMessage(error) });
-    } finally {
-      setIsSavingKey(false);
-    }
-  };
 
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(
     null
@@ -425,12 +405,12 @@ function ApiKeySection() {
   return (
     <SettingsSection title="Access" icon={<KeyRound className="h-5 w-5" />}>
       <p className="text-sm text-muted-foreground">
-        Choose the private activation file supplied with your invitation. Access
-        is stored securely on this PC.
+        Enter the activation code you received.
       </p>
-      <Button disabled={isSavingKey} onClick={() => void activate()}>
-        Activate access
-      </Button>
+      <ActivationForm />
+      {keyStatus?.configured && (
+        <p className="text-sm text-success">Access is active on this PC.</p>
+      )}
       <details>
         <summary className="cursor-pointer text-sm text-muted-foreground">
           Advanced connection settings

@@ -7,12 +7,12 @@ Fork of [Meetily](https://github.com/Zackriya-Solutions/meeting-minutes) (MIT, s
 ## Using it
 
 1. Start **Peacockery Meetily** from the Start menu.
-1. First run only: **Settings → Voice → Activate access** and choose your private activation file. Access is kept in Windows Credential Manager. Advanced connection settings remain available for operators.
+1. First run only: enter your eight-digit activation code. **Settings → Voice → Access** also accepts it. Personal access is kept in Windows Credential Manager. Advanced connection settings remain available for operators.
 1. Pick the microphone and the system source next to the record button:
    - the default speakers: everything the PC plays;
    - **Google Chrome app audio (Google Voice)**: only Chrome's sound, so other apps stay out of the recording. Chrome must be running. This captures every Chrome tab, not only Google Voice.
 1. Choose **In person**, **Online meeting** or **Phone call** before recording. In person captures the microphone only and separates voices in the room. Online and phone capture the microphone and PC audio, with speaker separation on both channels. For a separate phone on speaker beside the microphone, choose In person.
-1. Choose an event from **Today’s calendar**, or leave **Unscheduled meeting** and enter a title. A physical room suggests In person even if the invitation contains a Teams link. You can override the suggestion. Start recording; pause and resume as needed.
+1. Choose an event from **Today’s calendar**, or leave **Unscheduled meeting** and optionally enter a title. A physical room suggests In person even if the invitation contains a Teams link. You can override the suggestion. Start recording; pause and resume as needed.
 1. Press **Stop**. The app finishes the live transcript, saves `audio.mp4`, then uploads it for the final transcript. When that is done the meeting page shows it in place of the live one.
 1. On the meeting page: play the audio, click a line to jump to it, rename speakers, generate a summary, or run the final transcript again with another model.
 
@@ -41,7 +41,9 @@ Other settings: live transcript on or off, language, key terms, final speaker la
 
 ## Calendar and capture context
 
-The existing GMK CICA Outlook collector projects a private, read-only calendar snapshot to `%APPDATA%\studio.peacockery.meetily\calendar-events.json`. It uses the primary work calendar, includes yesterday through tomorrow, and refreshes at least every five minutes while CICA is reachable. The app shows a stale-copy notice after 15 minutes and remains able to record without a calendar. No new calendar credentials or scheduled worker run on CICA.
+Connect your own work Outlook account through **Settings → General → Outlook calendar**, complete Microsoft's sign-in in the dedicated Edge window, and choose a calendar. Meetily reads nearby events through the same Outlook Web route as the CICA collector. Windows protects the session on your PC, and the saved browser session supplies renewed access automatically. **Reconnect Outlook** handles a fresh Microsoft sign-in challenge. **Disconnect** removes the local session and browser profile.
+
+Existing installations retain the GMK collector's private `calendar-events.json` snapshot until a local account is connected. Recording also works with an unscheduled meeting. Calendar context is optional and read-only.
 
 Each recording saves its chosen mode and the selected calendar occurrence, organizer and invitees in `recording-context.json` beside its audio. These remain unchanged when settings change later. Final transcripts for these recordings keep numbered speakers rather than assigning a person from microphone energy.
 
@@ -54,7 +56,7 @@ scripts/build-windows.sh   # cross-compiles the NSIS installer with cargo-xwin
 scripts/install-cica.sh    # copies it to CICA over ssh and installs it silently
 ```
 
-The API key cannot be stored over ssh (Credential Manager refuses a network logon session). Paste it in Settings, or run `cmdkey /generic:studio.peacockery.meetily/peacockery-voice-api-key /user:peacockery-voice-api-key /pass:<key>` in a terminal on the PC itself.
+Activation runs in the signed-in Windows desktop session and stores the credential there. Give coworkers their activation code and the installer link; operator credential records stay in the private operator store.
 
 ## Development
 
@@ -67,11 +69,9 @@ cd frontend && pnpm install --frozen-lockfile && pnpm check
 
 The live-API tests in `crates/peacockery-voice` are ignored by default; run them with `PEACOCKERY_VOICE_LAB_API_KEY` set and `cargo test -p peacockery-voice -- --ignored`.
 
-## UI development and preview
+## UI development
 
 The UI uses Next.js 16, React 19, Tailwind 4 and shadcn components. General settings include light, dark and system themes. Use `pnpm format` to apply the Ultracite/Oxfmt preset and `pnpm lint` for the Oxlint core, React, Next.js, anti-slop and shadcn checks.
-
-After `pnpm build`, run `scripts/preview.sh up` from the repository root for the supervised browser preview. Use `scripts/preview.sh status` to inspect it and `scripts/preview.sh down` to stop it and remove its tunnel. The browser preview shows UI; recording runs in the desktop app.
 
 ## Sharing and updating
 
