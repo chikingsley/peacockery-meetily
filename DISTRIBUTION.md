@@ -28,7 +28,7 @@ A startup notice links to Settings > General > App updates. Check for updates an
 
 ## Outlook calendars
 
-Settings > General > Outlook calendar opens a dedicated Edge window for the person's own work Outlook sign-in. The app verifies the account, displays its calendar list and lets the person select a calendar. Disconnect removes the protected session and the dedicated browser profile. Calendar access is optional and separate from Voice activation.
+Settings > General > Outlook calendar opens a dedicated Edge window at CICA's tenant-specific Outlook entry point for the person's own work sign-in. The app verifies the account, displays its calendar list and lets the person select a calendar. Disconnect removes the protected session and the dedicated browser profile. Calendar access is optional and separate from Voice activation.
 
 This uses the same Outlook Web session and Outlook REST calendar route as the existing CICA collector. The November 13 Graph consent experiment belongs to a separate integration; it is unrelated to this connection route. Each coworker signs into their own Microsoft account and completes any Microsoft authentication challenge.
 
@@ -39,3 +39,7 @@ Calendar reads include pagination, UTC event times, organizer and invitees. Canc
 ## Prior update verification
 
 The 0.6.7 release was installed through the signed update flow from 0.6.6 on CICA. All 28 recording files matched their backup hashes and Voice settings were byte-identical. A second check reported the installation current.
+
+The 0.6.9 release was installed through the published GitHub feed from 0.6.8 on CICA. Install and restart completed, all 28 recording files matched the pre-onboarding hashes, and Voice settings stayed byte-identical. Native activation retained the existing Voice credential. The app connected the CICA Outlook account, listed its four calendars, loaded the day's meetings, and filled a selected meeting's title. A forced expiry of the protected app token triggered automatic capture from the saved browser session and restored valid calendar access. Initial authentication used the existing CICA browser session after Microsoft rejected the saved password.
+
+Release checks passed: 151 Rust tests including the documentation test, 67 frontend tests, the frontend lint/type/build gates, three activation service tests, and the Windows DPAPI large-session roundtrip and corruption checks. Live provider tests remain a separate opt-in suite.
