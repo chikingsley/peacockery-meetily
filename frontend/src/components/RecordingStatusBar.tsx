@@ -14,7 +14,7 @@ export const RecordingStatusBar: React.FC<RecordingStatusBarProps> = ({
 }) => {
   // Get recording duration from backend-synced context (in seconds)
   // Backend polls every 500ms, providing smooth updates
-  const { activeDuration } = useRecordingState();
+  const { activeDuration, progress } = useRecordingState();
 
   // Display state synced from backend
   const [displaySeconds, setDisplaySeconds] = useState(0);
@@ -34,6 +34,24 @@ export const RecordingStatusBar: React.FC<RecordingStatusBarProps> = ({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const behind = progress && (activeDuration ?? 0) - progress.received > 5;
+
+  let health = progress?.received
+    ? "Recording locally"
+    : "Waiting for local audio";
+
+  if (behind) {
+    health = "Local audio behind";
+  }
+
+  if (progress?.write_failed) {
+    health = "Audio save failed";
+  }
+
+  if (isPaused) {
+    health = "Paused";
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -48,7 +66,10 @@ export const RecordingStatusBar: React.FC<RecordingStatusBarProps> = ({
       <span
         className={`text-sm ${isPaused ? "text-warning" : "text-foreground"}`}
       >
-        {isPaused ? "Paused" : "Recording"} • {formatDuration(displaySeconds)}
+        {health} • {formatDuration(displaySeconds)}
+        {progress && (
+          <> · On disk {formatDuration(Math.floor(progress.saved))}</>
+        )}
       </span>
     </motion.div>
   );

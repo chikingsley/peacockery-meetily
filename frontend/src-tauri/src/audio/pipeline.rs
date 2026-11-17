@@ -317,6 +317,7 @@ impl AudioPipeline {
         info!("Audio pipeline started");
         let mut idle_check = tokio::time::interval(IDLE_CHECK_INTERVAL);
         idle_check.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let mut last_report = 0.0;
         loop {
             tokio::select! {
                 chunk = self.receiver.recv() => match chunk {
@@ -333,6 +334,10 @@ impl AudioPipeline {
                 _ = idle_check.tick() => {}
             }
             let now = self.now();
+            if now - last_report >= 30.0 {
+                info!("Capture progress: elapsed={now:.1}s interval={:.1}s mic_samples={} system_samples={} mixed_samples={} queued_chunks={}", now - last_report, self.mic_stats.samples, self.system_stats.samples, self.samples_out, self.receiver.len());
+                last_report = now;
+            }
             while let Some((mic, sys)) = self.aligner.next_window(now) {
                 self.process_window(&mic, &sys);
             }

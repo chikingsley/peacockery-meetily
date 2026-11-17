@@ -94,6 +94,7 @@ export interface RecordingState {
   is_stopping: boolean;
   meeting_id: string | null;
   recording_duration: number | null;
+  local_progress?: { received: number; saved: number; write_failed: boolean };
   active_duration: number | null;
 }
 

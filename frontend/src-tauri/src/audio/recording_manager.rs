@@ -154,6 +154,14 @@ impl RecordingManager {
             error!("Error stopping audio streams: {}", e);
         }
         let stats = self.pipeline_manager.wait_for_drain().await;
+        if let (Some(active), Some(pipeline)) = (duration_seconds, stats.as_ref()) {
+            let mixed =
+                pipeline.aligned_samples as f64 / super::pipeline::PIPELINE_SAMPLE_RATE as f64;
+            let shortfall = active - mixed;
+            if shortfall > 3.0 {
+                warn!("Capture duration shortfall: meeting={} active={active:.1}s mixed={mixed:.1}s difference={shortfall:.1}s", self.recording_saver.target().meeting_id);
+            }
+        }
         let live = self.live.take();
         let (audio_path, live) = tokio::join!(self.recording_saver.finish(), async move {
             match live {
@@ -169,6 +177,10 @@ impl RecordingManager {
             stats,
         }
     }
+    pub fn recording_progress(&self) -> serde_json::Value {
+        self.recording_saver.progress()
+    }
+
     pub fn target(&self) -> &MeetingTarget {
         self.recording_saver.target()
     }

@@ -1,3 +1,1 @@
-New meetings include a visible Publish to CICA meetings switch, enabled by default, plus a global default in Settings. Selected recordings upload automatically after stop. The website generates the shared transcript and notes and publishes audio. Progress, restart recovery, retries and website links appear in the meeting view. Existing recordings keep their current publication state.
-
-Operators can issue, inspect and revoke access with one name-based command. Repeat invites reuse the existing credential and code; additional computers receive independent access. Outlook connection errors now identify Edge policy restrictions early.
+While recording, Meetily shows local audio progress and the duration written to disk in completed checkpoints. It flags capture delays and checkpoint write errors separately from live transcription. Scribe retries shared connection failures. Provider-specific failures can still switch live transcription to Nova.

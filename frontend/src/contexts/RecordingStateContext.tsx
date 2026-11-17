@@ -12,6 +12,7 @@ import React, {
 import { toast } from "sonner";
 
 import { voiceService } from "@/services/voiceService";
+import type { RecordingState as BackendRecordingState } from "@/types/voice";
 
 /**
  * Single source of truth for the recording lifecycle, synced with the Rust core through
@@ -31,6 +32,7 @@ interface RecordingState {
   isPaused: boolean;
   isActive: boolean;
   recordingDuration: number | null;
+  progress?: BackendRecordingState["local_progress"];
   activeDuration: number | null;
   /** Meeting being recorded (from `recording-started` / `get_recording_state` sync). */
   meetingId: string | null;
@@ -122,6 +124,7 @@ export function RecordingStateProvider({
 
         return {
           ...prev,
+          progress: backend.local_progress,
           activeDuration: backend.active_duration,
           isActive: backend.is_active,
           isPaused: backend.is_paused,
@@ -216,6 +219,7 @@ export function RecordingStateProvider({
           lifecycleEpochRef.current += 1;
           setState((prev) => ({
             ...prev,
+            progress: undefined,
             activeDuration: null,
             isActive: false,
             isPaused: false,

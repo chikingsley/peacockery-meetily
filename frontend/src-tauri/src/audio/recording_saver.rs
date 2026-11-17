@@ -108,7 +108,17 @@ fn write_live_lines(
     }
 }
 
+#[derive(Default)]
+struct DiskProgress {
+    received: std::sync::atomic::AtomicU64,
+    saved: std::sync::atomic::AtomicU64,
+    write_failed: std::sync::atomic::AtomicBool,
+}
+
+use std::sync::atomic::Ordering::Relaxed;
+
 pub struct RecordingSaver {
+    progress: Arc<DiskProgress>,
     target: MeetingTarget,
     accumulation: Option<JoinHandle<Result<IncrementalAudioSaver>>>,
     live_lines: LiveLineStore,
@@ -122,10 +132,19 @@ impl RecordingSaver {
         mut receiver: mpsc::UnboundedReceiver<AudioChunk>,
     ) -> Result<Self> {
         let mut saver = IncrementalAudioSaver::new(target.folder.clone(), PIPELINE_SAMPLE_RATE)?;
+        let progress = Arc::<DiskProgress>::default();
+        let writer = progress.clone();
         let accumulation = tokio::task::spawn_blocking(move || {
             while let Some(chunk) = receiver.blocking_recv() {
+                let received = writer.received.fetch_add(chunk.data.len() as u64, Relaxed)
+                    + chunk.data.len() as u64;
+                let previous = saver.checkpoint_count();
                 if let Err(e) = saver.add_chunk(chunk) {
+                    writer.write_failed.store(true, Relaxed);
                     error!("Failed to write audio checkpoint: {}", e);
+                } else if saver.checkpoint_count() > previous {
+                    writer.saved.store(received, Relaxed);
+                    writer.write_failed.store(false, Relaxed);
                 }
             }
             Ok(saver)
@@ -134,9 +153,15 @@ impl RecordingSaver {
         let live_lines = LiveLineStore::new(&target.folder);
         Ok(Self {
             target,
+            progress,
             accumulation: Some(accumulation),
             live_lines,
         })
+    }
+
+    pub fn progress(&self) -> serde_json::Value {
+        let seconds = |count: u64| count as f64 / f64::from(PIPELINE_SAMPLE_RATE);
+        serde_json::json!({ "received": seconds(self.progress.received.load(Relaxed)), "saved": seconds(self.progress.saved.load(Relaxed)), "write_failed": self.progress.write_failed.load(Relaxed) })
     }
 
     pub fn target(&self) -> &MeetingTarget {

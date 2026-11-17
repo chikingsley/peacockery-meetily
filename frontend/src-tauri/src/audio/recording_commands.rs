@@ -435,7 +435,8 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
     info!("Stopping recording");
     let _ = app.emit(
         "recording-stopping",
-        serde_json::json!({ "meeting_id": manager.target().meeting_id }),
+        serde_json::json!({ "local_progress": manager.recording_progress(),
+            "meeting_id": manager.target().meeting_id }),
     );
     crate::tray::set_tray_state(&app, crate::tray::RecordingState::Stopping);
 

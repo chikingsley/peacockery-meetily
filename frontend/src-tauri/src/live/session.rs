@@ -154,7 +154,7 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
             failures = 0;
             state = LiveState::Reconnecting;
             message = Some(format!(
-                "Scribe unavailable: {}. Switching to Nova; local audio recording continues.",
+                "Scribe unavailable: {}. Switching live transcription to Nova.",
                 reason
             ));
             continue;
@@ -202,11 +202,10 @@ async fn connect(
     let catalog = shared.client.models().await?;
     let route = catalog
         .realtime_model_id(model)
-        .ok_or_else(|| {
-            Error::Config(format!(
-                "{} has no realtime route on this server",
-                config.model
-            ))
+        .ok_or_else(|| Error::SessionFailed {
+            code: "model_unavailable".into(),
+            message: format!("{model} has no realtime route on this server"),
+            retryable: false,
         })?
         .to_string();
     let mut options = RealtimeOptions::new(route);
@@ -390,10 +389,7 @@ async fn finish(
 
 fn should_fallback(model: &str, failures: usize, error: &Error) -> bool {
     model == "elevenlabs-scribe_v3"
-        && !matches!(
-            error,
-            Error::Unauthorized | Error::Forbidden(_) | Error::Cancelled
-        )
+        && matches!(error, Error::SessionFailed { code, .. } if matches!(code.as_str(), "provider_error" | "model_unavailable" | "unsupported_model"))
         && (failures >= 2 || !retryable(error))
 }
 
@@ -419,7 +415,7 @@ mod tests {
     fn scribe_falls_back_after_retry_or_provider_rejection() {
         let transient = Error::Network("unavailable".into());
         assert!(!should_fallback("elevenlabs-scribe_v3", 1, &transient));
-        assert!(should_fallback("elevenlabs-scribe_v3", 2, &transient));
+        assert!(!should_fallback("elevenlabs-scribe_v3", 2, &transient));
         assert!(should_fallback(
             "elevenlabs-scribe_v3",
             1,
