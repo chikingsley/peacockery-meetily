@@ -46,7 +46,7 @@ This uses the same Outlook Web session and Outlook REST calendar route as the ex
 
 The session stays on that PC, encrypted with Windows DPAPI for that Windows user. Routine token renewal opens the dedicated profile headlessly. An expired browser session or provider challenge produces a Reconnect Outlook prompt. Failed renewal backs off for five minutes. Microsoft controls the web session and endpoint behavior, so provider changes can require maintenance.
 
-Calendar reads include pagination, UTC event times, organizer and invitees. Cancelled and all-day entries are excluded from the nearby meeting list. Read-only calendar context can set a meeting's title and recording mode. Existing installations retain their private collector snapshot as the default source until a local account is connected. Disconnect disables calendar use explicitly. Existing recordings and saved meeting context remain intact.
+Calendar reads include pagination, UTC event times, organizer and invitees. Cancelled and all-day entries are excluded from the nearby meeting list. Read-only calendar context can set a meeting's title and recording mode. Disconnect disables calendar use explicitly. Existing recordings and saved meeting context remain intact.
 
 ## Automatic meeting publication
 

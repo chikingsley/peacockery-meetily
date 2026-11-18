@@ -2,7 +2,6 @@
 use peacockery_voice::LiveMode;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use tauri::Manager;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -66,26 +65,12 @@ impl RecordingContext {
     }
 }
 
-/// Private, read-only snapshot from the existing GMK Outlook calendar collector.
+/// Today's meetings from the connected Outlook account; `None` without a calendar.
 #[tauri::command]
 pub async fn get_recording_calendar(
     app: tauri::AppHandle,
 ) -> Result<Option<CalendarSnapshot>, String> {
-    if let Some(snapshot) = crate::outlook_calendar::snapshot(&app).await? {
-        return Ok(snapshot);
-    }
-    let path = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("calendar-events.json");
-    if !path.exists() {
-        return Ok(None);
-    }
-    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
-    serde_json::from_slice(&bytes)
-        .map(Some)
-        .map_err(|e| format!("Could not read meeting calendar: {e}"))
+    Ok(crate::outlook_calendar::snapshot(&app).await?.flatten())
 }
 
 #[cfg(test)]

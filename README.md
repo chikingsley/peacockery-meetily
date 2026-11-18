@@ -43,7 +43,7 @@ Other settings: live transcript on or off, language, key terms, final speaker la
 
 Connect your own work Outlook account through **Settings → General → Outlook calendar**, complete Microsoft's sign-in in the dedicated Edge window, and choose a calendar. Meetily reads nearby events through the same Outlook Web route as the CICA collector. Windows protects the session on your PC, and the saved browser session supplies renewed access automatically. **Reconnect Outlook** handles a fresh Microsoft sign-in challenge. **Disconnect** removes the local session and browser profile.
 
-Existing installations retain the GMK collector's private `calendar-events.json` snapshot until a local account is connected. Recording also works with an unscheduled meeting. Calendar context is optional and read-only.
+Recording also works with an unscheduled meeting. Calendar context is optional and read-only.
 
 Each recording saves its chosen mode and the selected calendar occurrence, organizer and invitees in `recording-context.json` beside its audio. These remain unchanged when settings change later. Final transcripts for these recordings keep numbered speakers rather than assigning a person from microphone energy.
 

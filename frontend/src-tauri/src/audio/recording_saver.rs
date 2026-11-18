@@ -125,8 +125,8 @@ pub struct RecordingSaver {
 }
 
 impl RecordingSaver {
-    /// Start consuming mixed audio for `target`. The checkpoint encoder runs on a
-    /// blocking thread so ffmpeg never stalls the async runtime.
+    /// Start consuming mixed audio for `target`. The journal writer runs on a blocking
+    /// thread so disk I/O never stalls the async runtime.
     pub fn start(
         target: MeetingTarget,
         mut receiver: mpsc::UnboundedReceiver<AudioChunk>,
@@ -136,14 +136,14 @@ impl RecordingSaver {
         let writer = progress.clone();
         let accumulation = tokio::task::spawn_blocking(move || {
             while let Some(chunk) = receiver.blocking_recv() {
-                let received = writer.received.fetch_add(chunk.data.len() as u64, Relaxed)
-                    + chunk.data.len() as u64;
-                let previous = saver.checkpoint_count();
+                writer.received.fetch_add(chunk.data.len() as u64, Relaxed);
                 if let Err(e) = saver.add_chunk(chunk) {
-                    writer.write_failed.store(true, Relaxed);
-                    error!("Failed to write audio checkpoint: {}", e);
-                } else if saver.checkpoint_count() > previous {
-                    writer.saved.store(received, Relaxed);
+                    // The audio stays pending and the next chunk retries the write.
+                    if !writer.write_failed.swap(true, Relaxed) {
+                        error!("Failed to write the audio journal: {}", e);
+                    }
+                } else {
+                    writer.saved.store(saver.saved_samples(), Relaxed);
                     writer.write_failed.store(false, Relaxed);
                 }
             }
@@ -172,8 +172,8 @@ impl RecordingSaver {
         &self.live_lines
     }
 
-    /// Wait until the pipeline has closed the audio channel and every chunk is in a
-    /// checkpoint, then merge the checkpoints into `audio.mp4`.
+    /// Wait until the pipeline has closed the audio channel and every chunk is in the
+    /// journal, then encode the journal into `audio.mp4`.
     pub async fn finish(&mut self) -> Result<PathBuf> {
         let accumulation = self
             .accumulation

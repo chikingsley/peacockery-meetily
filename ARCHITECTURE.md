@@ -91,7 +91,7 @@ Model allow-lists (labels shown in the UI; availability = present in `GET /v1/mo
 - Capture (cpal WASAPI): mic = selected capture device; system = selected render endpoint loopback, or the pseudo-device **`app:chrome`** = process-tree loopback of the Chrome browser process (Google Voice is a Chrome PWA on CICA) via `crates/app-loopback`. Each source → mono → 48 kHz → `AudioChunk{device_type}`.
 - `AudioPipeline::run` aligns mic and system into equal windows (mic is the master clock; system is zero-filled only while its stream is idle; system drift beyond 1.2 s is trimmed).
 - From each aligned window (`mic_window`, `sys_window`, `mixed`):
-  1. recording path: the mix → incremental AAC checkpoints → `audio.mp4` (96 kbps mono) at stop;
+  1. recording path: the mix → raw PCM journal `.checkpoints/audio.s16le`, synced to disk every 2 s with no process started → encoded to `audio.mp4` (96 kbps mono) at stop, about 25 s per recorded hour;
   1. live path: resample 48 kHz → 16 kHz, f32 → i16, push to the live sessions (`split`: mic → "Me" session, system → "Them" session; `mixed`: the mix → one session);
   1. energy track: per 100 ms frame RMS dBFS of mic and system → `channel-energy.json` in the meeting folder;
   1. levels: `audio-levels` event at ~10 Hz.
@@ -137,7 +137,7 @@ summary_processes(meeting_id TEXT PK REFERENCES meetings(id) ON DELETE CASCADE, 
                   processing_time REAL, metadata TEXT, result_backup TEXT, result_backup_timestamp TEXT)
 ```
 
-"Best" transcript of a meeting = `final` rows if any exist, else `live` rows. On startup, meetings still `recording` become `interrupted`; their checkpoints are recovered into `audio.mp4` and, if `auto_final`, the final transcript runs for every interrupted meeting that has an `audio.*` file (including one whose `audio.mp4` was already written before the crash, with no checkpoints left).
+"Best" transcript of a meeting = `final` rows if any exist, else `live` rows. On startup, meetings still `recording` become `interrupted`; their audio journal is encoded into `audio.mp4` (as is the journal of any meeting whose encode failed at stop) and, if `auto_final`, the final transcript runs for every interrupted meeting that has an `audio.*` file (including one whose `audio.mp4` was already written before the crash, with no journal left).
 
 ## 8. Tauri commands (frontend → Rust)
 
@@ -145,7 +145,7 @@ Recording:
 
 - `recording_mode` is `in_person` (default), `online` or `phone`. In person requires a microphone, captures no system source and uses a mixed diarized session. Online and phone capture both selected sources with diarized split sessions. The selected mode overrides the legacy live topology preference. Sidebar and tray actions open setup; capture begins only at the recording screen Start button.
 - `calendar_event` optionally carries the selected occurrence ID, title, start/end, location, online flag, organizer and invitees. It is stored with `mode` in `recording-context.json` beside the audio before capture starts.
-- `get_recording_calendar() -> CalendarSnapshot|null` reads the selected account's Outlook REST calendar, with pagination and UTC times. `outlook_connect`, `outlook_status`, `outlook_select` and `outlook_disconnect` manage a dedicated Edge session. `outlook-session.bin` uses Windows DPAPI with app-specific entropy; expired tokens trigger headless session capture, with a five-minute backoff after failure. Background browser throttling is disabled so sign-in progresses while another app has focus. An initial installation with an existing GMK `calendar-events.json` uses that private snapshot until a local account is connected; explicit disconnect disables calendar use. The UI shows Arizona-today events and marks copies older than 15 minutes. Recording remains available independently.
+- `get_recording_calendar() -> CalendarSnapshot|null` reads the selected account's Outlook REST calendar, with pagination and UTC times. `outlook_connect`, `outlook_status`, `outlook_select` and `outlook_disconnect` manage a dedicated Edge session. `outlook-session.bin` uses Windows DPAPI with app-specific entropy; expired tokens trigger headless session capture, with a five-minute backoff after failure. Background browser throttling is disabled so sign-in progresses while another app has focus. Without a connected account there is no calendar. The UI shows Arizona-today events and marks copies older than 15 minutes. Recording remains available independently.
 - `get_audio_devices() -> AudioDevice[]` – includes the pseudo system device `{name:"app:chrome", device_type:"Output", label:"Google Chrome app audio (Google Voice)"}` on Windows.
 - `start_recording_with_devices_and_meeting(mic_device_name?, system_device_name?, meeting_name?, recording_mode?, calendar_event?) -> {meeting_id, folder_path}`
 - `stop_recording() -> {meeting_id, folder_path, audio_path: string|null}` – always resolves once the stop has run; a failed save is reported by one `recording-error` event and `audio_path: null` (the command does not also reject)
