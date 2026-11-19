@@ -1,7 +1,6 @@
 import { useCallback, useRef } from "react";
 import { toast } from "sonner";
 
-import { useSidebar } from "@/components/Sidebar/SidebarProvider";
 import { useConfig } from "@/contexts/ConfigContext";
 import {
   useRecordingState,
@@ -24,10 +23,7 @@ function generateMeetingTitle(now = new Date()): string {
 export function useRecordingStart(onVoiceNotConfigured: () => void) {
   // Synchronous latch: a double click re-enters before any state update lands.
   const isStartingRef = useRef(false);
-  const { clearTranscripts, setMeetingTitle } = useTranscripts();
-
-  const { setIsMeetingActive } = useSidebar();
-
+  const { clearTranscripts } = useTranscripts();
   const { selectedDevices, refreshKeyStatus } = useConfig();
 
   const { isRecording, isStopping, setStatus, setMeetingId } =
@@ -35,10 +31,10 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
 
   const startRecording = useCallback(
     async (
-      meetingTitle?: string,
-      recordingMode: RecordingMode = "in_person",
-      calendarEvent: CalendarEvent | null = null,
-      publishToCica = false
+      meetingTitle: string,
+      recordingMode: RecordingMode,
+      calendarEvent: CalendarEvent | null,
+      publishToCica: boolean
     ) => {
       if (isStartingRef.current || isRecording || isStopping) {
         return;
@@ -55,10 +51,9 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
           return;
         }
 
-        const title = meetingTitle?.trim() || generateMeetingTitle();
+        const title = meetingTitle.trim() || generateMeetingTitle();
         setStatus(RecordingStatus.STARTING, "Starting recording...");
         clearTranscripts();
-        setMeetingTitle(title);
 
         const result = await voiceService.startRecording(
           selectedDevices.micDevice,
@@ -70,7 +65,6 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
         );
 
         setMeetingId(result.meeting_id);
-        setIsMeetingActive(true);
       } catch (error) {
         const message = errorMessage(error);
 
@@ -97,10 +91,8 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
       onVoiceNotConfigured,
       setStatus,
       clearTranscripts,
-      setMeetingTitle,
       selectedDevices,
       setMeetingId,
-      setIsMeetingActive,
     ]
   );
 

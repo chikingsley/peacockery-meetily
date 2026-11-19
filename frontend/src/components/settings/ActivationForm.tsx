@@ -7,10 +7,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConfig } from "@/contexts/ConfigContext";
-import { errorMessage, voiceService } from "@/services/voiceService";
+import { errorMessage } from "@/services/voiceService";
 
 export function ActivationForm({ onActivated }: { onActivated?: () => void }) {
-  const { saveVoiceSettings, refreshKeyStatus, refreshVoiceModels } =
+  const { reloadVoiceSettings, refreshKeyStatus, refreshVoiceModels } =
     useConfig();
 
   const [code, setCode] = useState("");
@@ -24,7 +24,7 @@ export function ActivationForm({ onActivated }: { onActivated?: () => void }) {
     try {
       const recipient = await invoke<string>("activate_access", { code });
 
-      await saveVoiceSettings(await voiceService.getSettings());
+      await reloadVoiceSettings();
       await refreshKeyStatus();
       await refreshVoiceModels();
       setCode("");

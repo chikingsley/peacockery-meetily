@@ -15,8 +15,7 @@ import { ImportAudioDialog, ImportDropOverlay } from "@/components/ImportAudio";
 import MainContent from "@/components/MainContent";
 import { UpdateNotice } from "@/components/settings/AppUpdates";
 import Sidebar from "@/components/Sidebar";
-import { SidebarProvider } from "@/components/Sidebar/SidebarProvider";
-import { SidebarProvider as ShellSidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   isAudioExtension,
@@ -24,6 +23,7 @@ import {
 } from "@/constants/audioFormats";
 import { ConfigProvider } from "@/contexts/ConfigContext";
 import { ImportDialogProvider } from "@/contexts/ImportDialogContext";
+import { MeetingProvider } from "@/contexts/MeetingContext";
 import { RecordingStateProvider } from "@/contexts/RecordingStateContext";
 import { RecordingStopProvider } from "@/contexts/RecordingStopContext";
 import { TranscriptProvider } from "@/contexts/TranscriptContext";
@@ -132,14 +132,14 @@ export default function RootLayout({
             <TranscriptProvider>
               <ConfigProvider>
                 <UpdateNotice />
-                <SidebarProvider>
+                <MeetingProvider>
                   <RecordingStopProvider>
                     <TooltipProvider>
                       <ImportDialogProvider onOpen={openImportDialog}>
-                        <ShellSidebarProvider>
+                        <SidebarProvider>
                           <Sidebar />
                           <MainContent>{children}</MainContent>
-                        </ShellSidebarProvider>
+                        </SidebarProvider>
                         <ImportDropOverlay visible={showDropOverlay} />
                         <ImportAudioDialog
                           open={showImportDialog}
@@ -149,7 +149,7 @@ export default function RootLayout({
                       </ImportDialogProvider>
                     </TooltipProvider>
                   </RecordingStopProvider>
-                </SidebarProvider>
+                </MeetingProvider>
               </ConfigProvider>
             </TranscriptProvider>
           </RecordingStateProvider>

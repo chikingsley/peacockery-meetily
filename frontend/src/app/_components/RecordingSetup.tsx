@@ -84,9 +84,6 @@ export function RecordingSetup({
   }, [desktop]);
   const events = eventsToday(snapshot?.events ?? [], new Date(checkedAt));
 
-  const stale =
-    snapshot && checkedAt - Date.parse(snapshot.observed) > 15 * 60_000;
-
   return (
     <div className="space-y-4">
       <fieldset className="space-y-2">
@@ -142,9 +139,7 @@ export function RecordingSetup({
             : error
               ? `Calendar refresh needs attention: ${error}`
               : snapshot
-                ? stale
-                  ? "Calendar copy is over 15 minutes old. Recording remains available."
-                  : "Calendar times are Arizona time. The invitation is saved with the recording."
+                ? "Calendar times are Arizona time. The invitation is saved with the recording."
                 : "Connect Outlook in Settings to choose calendar meetings. You can record an unscheduled meeting."}
         </p>
         {event && (

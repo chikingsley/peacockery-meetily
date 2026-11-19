@@ -3,16 +3,16 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { useSidebar } from "@/components/Sidebar/SidebarProvider";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { useMeetings } from "@/contexts/MeetingContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { useDesktopRuntime } from "@/hooks/useDesktopRuntime";
 
 export default function MainContent({ children }: { children: ReactNode }) {
   const path = usePathname();
   const desktop = useDesktopRuntime();
-  const { currentMeeting } = useSidebar();
+  const { currentMeeting } = useMeetings();
   const { isRecording } = useRecordingState();
 
   const title =

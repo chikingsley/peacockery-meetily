@@ -8,20 +8,7 @@ import { useSummaryPolling } from "@/hooks/meeting-details/useSummaryPolling";
 import { useMeetingSearch } from "@/hooks/useMeetingSearch";
 import { voiceService } from "@/services/voiceService";
 import type { SummaryProcessResponse } from "@/types";
-import type {
-  FinalTranscriptState,
-  MeetingListItem,
-  TranscriptSearchResult,
-} from "@/types/voice";
-
-export interface SidebarItem {
-  id: string;
-  title: string;
-  type: "folder" | "file";
-  /** Final transcript state of a meeting item. */
-  finalStatus?: FinalTranscriptState | null;
-  children?: SidebarItem[];
-}
+import type { MeetingListItem, TranscriptSearchResult } from "@/types/voice";
 
 export interface CurrentMeeting {
   id: string;
@@ -31,12 +18,8 @@ export interface CurrentMeeting {
 interface MeetingContextType {
   currentMeeting: CurrentMeeting | null;
   setCurrentMeeting: (meeting: CurrentMeeting | null) => void;
-  sidebarItems: SidebarItem[];
   meetings: MeetingListItem[];
   setMeetings: (meetings: MeetingListItem[]) => void;
-  isMeetingActive: boolean;
-  setIsMeetingActive: (active: boolean) => void;
-  handleRecordingToggle: () => void;
   searchTranscripts: (query: string) => Promise<void>;
   searchResults: TranscriptSearchResult[];
   isSearching: boolean;
@@ -53,26 +36,24 @@ interface MeetingContextType {
 
 const MeetingContext = createContext<MeetingContextType | null>(null);
 
-export const useSidebar = () => {
+export const useMeetings = () => {
   const context = useContext(MeetingContext);
 
   if (!context) {
-    throw new Error("useSidebar must be used within a MeetingProvider");
+    throw new Error("useMeetings must be used within a MeetingProvider");
   }
 
   return context;
 };
 
 export function MeetingProvider({ children }: { children: React.ReactNode }) {
-  const [currentMeeting, setCurrentMeeting] = useState<CurrentMeeting | null>({
-    id: "intro-call",
-    title: "+ New Call",
-  });
+  const [currentMeeting, setCurrentMeeting] = useState<CurrentMeeting | null>(
+    null
+  );
 
   const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
   const meetingsRef = React.useRef(meetings);
   meetingsRef.current = meetings;
-  const [isMeetingActive, setIsMeetingActive] = useState(false);
 
   // Use recording state from RecordingStateContext (single source of truth)
   const { isRecording } = useRecordingState();
@@ -129,42 +110,24 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchMeetings]);
 
-  const sidebarItems = React.useMemo<SidebarItem[]>(
-    () => [
-      {
-        children: meetings.map((meeting) => ({
-          finalStatus: meeting.final_status,
-          id: meeting.id,
-          title: meeting.title,
-          type: "file" as const,
-        })),
-        id: "meetings",
-        title: "Meeting Notes",
-        type: "folder" as const,
-      },
-    ],
-    [meetings]
-  );
-
   useEffect(() => {
     if (pathname === "/") {
-      setCurrentMeeting({ id: "intro-call", title: "+ New Call" });
+      setCurrentMeeting(null);
     }
   }, [pathname]);
 
-  // Function to handle recording toggle from sidebar
-  const handleRecordingToggle = () => {
+  // Tray "Start Recording" opens recording setup; capture starts from there.
+  const openRecordingSetup = () => {
     if (!isRecording) {
       router.push("/");
     }
   };
 
-  // The tray and sidebar open recording setup before capture begins.
-  const recordingToggleRef = React.useRef(handleRecordingToggle);
-  recordingToggleRef.current = handleRecordingToggle;
+  const openRecordingSetupRef = React.useRef(openRecordingSetup);
+  openRecordingSetupRef.current = openRecordingSetup;
   useEffect(() => {
-    const unlisten = voiceService.onRequestRecordingToggle(() =>
-      recordingToggleRef.current()
+    const unlisten = voiceService.onOpenRecordingSetup(() =>
+      openRecordingSetupRef.current()
     );
 
     return () => {
@@ -184,17 +147,13 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     <MeetingContext.Provider
       value={{
         currentMeeting,
-        handleRecordingToggle,
-        isMeetingActive,
         isSearching,
         meetings,
         refetchMeetings: fetchMeetings,
         searchResults,
         searchTranscripts,
         setCurrentMeeting,
-        setIsMeetingActive,
         setMeetings,
-        sidebarItems,
         startSummaryPolling,
         stopSummaryPolling,
       }}

@@ -62,12 +62,11 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { useImportDialog } from "@/contexts/ImportDialogContext";
+import { useMeetings } from "@/contexts/MeetingContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { isFinalInProgress } from "@/lib/live-transcript";
 import { voiceService, errorMessage } from "@/services/voiceService";
 import type { MeetingListItem } from "@/types/voice";
-
-import { useSidebar as useMeetings } from "./SidebarProvider";
 
 function dateGroup(value: string | null) {
   if (!value) {

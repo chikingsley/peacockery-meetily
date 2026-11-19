@@ -93,10 +93,10 @@ export const voiceService = {
   startRecording: (
     micDeviceName: string | null,
     systemDeviceName: string | null,
-    meetingName: string | null,
-    recordingMode: RecordingMode = "in_person",
-    calendarEvent: CalendarEvent | null = null,
-    publishToCica = false
+    meetingName: string,
+    recordingMode: RecordingMode,
+    calendarEvent: CalendarEvent | null,
+    publishToCica: boolean
   ) =>
     withTimeout(
       invoke<StartRecordingResult>("start_recording_with_devices_and_meeting", {
@@ -113,10 +113,7 @@ export const voiceService = {
   stopRecording: () => invoke<StopRecordingResult>("stop_recording"),
   pauseRecording: () => invoke<void>("pause_recording"),
   resumeRecording: () => invoke<void>("resume_recording"),
-  isRecording: () => invoke<boolean>("is_recording"),
   getRecordingState: () => invoke<RecordingState>("get_recording_state"),
-  getRecordingMeetingName: () =>
-    invoke<string | null>("get_recording_meeting_name"),
 
   getTranscriptHistory: () => invoke<LiveLine[]>("get_transcript_history"),
   getRecordingPreferences: () =>
@@ -209,9 +206,9 @@ export const voiceService = {
   listTemplates: () => invoke<SummaryTemplate[]>("api_list_templates"),
 
   // --- Events ------------------------------------------------------------
-  /** Tray "Start Recording": the sidebar's start path handles it on every page. */
-  onRequestRecordingToggle: (cb: () => void) =>
-    on<unknown>("request-recording-toggle", () => cb()),
+  /** Tray "Start Recording": MeetingContext opens recording setup on every page. */
+  onOpenRecordingSetup: (cb: () => void) =>
+    on<null>("open-recording-setup", () => cb()),
   onRecordingStarting: (cb: () => void) =>
     on<null>("recording-starting", () => cb()),
   onRecordingStarted: (cb: (p: RecordingStartedEvent) => void) =>

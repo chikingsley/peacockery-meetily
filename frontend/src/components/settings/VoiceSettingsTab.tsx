@@ -33,7 +33,6 @@ import {
   formatKeyterms,
   modelLabel,
   parseKeyterms,
-  supportsLiveSpeakerLabels,
 } from "@/lib/voice-models";
 import { voiceService, errorMessage } from "@/services/voiceService";
 import type { ConnectionTestResult, VoiceSettings } from "@/types/voice";
@@ -93,14 +92,7 @@ export function VoiceSettingsTab() {
           value={voiceSettings.live_model}
           options={voiceModels?.live ?? []}
           disabled={!voiceSettings.live_enabled}
-          onChange={(live_model) =>
-            update({
-              live_diarize: supportsLiveSpeakerLabels(live_model)
-                ? voiceSettings.live_diarize
-                : false,
-              live_model,
-            })
-          }
+          onChange={(live_model) => update({ live_model })}
         />
         <p className="text-sm text-muted-foreground">
           Choose In person, Online meeting or Phone call on the recording
@@ -193,7 +185,7 @@ function LanguageSection({
   );
 
   const corrections = useCommitDraft(
-    (settings.transcript_corrections ?? [])
+    settings.transcript_corrections
       .map((rule) => `${rule.heard} => ${rule.replacement}`)
       .join("\n"),
     (text) =>

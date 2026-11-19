@@ -10,7 +10,7 @@ import type { SelectedDevices } from "@/contexts/ConfigContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { selectionLabel } from "@/lib/audio-devices";
 import { voiceService, errorMessage } from "@/services/voiceService";
-import type { RecordingPreferences } from "@/types/voice";
+import type { AudioDevice, RecordingPreferences } from "@/types/voice";
 
 import { SettingsSection } from "./SettingsParts";
 
@@ -21,7 +21,10 @@ export function RecordingTab() {
   const { isRecording } = useRecordingState();
   const { setSelectedDevices } = useConfig();
 
-  const handleDeviceChange = async (devices: SelectedDevices) => {
+  const handleDeviceChange = async (
+    devices: SelectedDevices,
+    available: AudioDevice[]
+  ) => {
     if (!preferences) {
       return;
     }
@@ -40,7 +43,7 @@ export function RecordingTab() {
     try {
       await voiceService.setRecordingPreferences(next);
       toast.success("Devices saved", {
-        description: `Microphone: ${selectionLabel(devices.micDevice)} · System: ${selectionLabel(devices.systemDevice)}`,
+        description: `Microphone: ${selectionLabel(devices.micDevice, available)} · System: ${selectionLabel(devices.systemDevice, available)}`,
       });
     } catch (error) {
       toast.error("Failed to save devices", {

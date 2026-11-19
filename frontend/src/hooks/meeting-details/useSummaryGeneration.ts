@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 
-import { useSidebar } from "@/components/Sidebar/SidebarProvider";
+import { useMeetings } from "@/contexts/MeetingContext";
 import {
   parseSummaryContent,
   readSummaryMetadata,
@@ -86,7 +86,7 @@ export function useSummaryGeneration({
   visibleMeetingIdRef.current = meeting.id;
   const generationIdRef = useRef(0);
   const activeProcessIdRef = useRef<string | null>(null);
-  const { startSummaryPolling, stopSummaryPolling } = useSidebar();
+  const { startSummaryPolling, stopSummaryPolling } = useMeetings();
 
   const getSummaryStatusMessage = useCallback((status: SummaryStatus) => {
     switch (status) {

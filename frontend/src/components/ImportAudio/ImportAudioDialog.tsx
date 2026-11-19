@@ -13,9 +13,9 @@ import { toast } from "sonner";
 
 import { getAudioFormatsDisplayList } from "@/constants/audioFormats";
 import { useConfig } from "@/contexts/ConfigContext";
+import { useMeetings } from "@/contexts/MeetingContext";
 import { useImportAudio } from "@/hooks/useImportAudio";
 
-import { useSidebar } from "../Sidebar/SidebarProvider";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -67,7 +67,7 @@ export function ImportAudioDialog({
   preselectedFile,
 }: ImportAudioDialogProps) {
   const router = useRouter();
-  const { refetchMeetings } = useSidebar();
+  const { refetchMeetings } = useMeetings();
   const { voiceSettings, voiceModels } = useConfig();
   const [title, setTitle] = useState("");
   // "Dialog not yet opened": the init effect must run even when mounted with open=true.

@@ -75,16 +75,7 @@ export default function Home() {
             <TranscriptPanel />
           </div>
           <div className="flex shrink-0 justify-center border-t p-4">
-            <RecordingControls
-              onStart={() =>
-                startRecording(
-                  title,
-                  mode,
-                  calendarEvent,
-                  publishToCica ?? false
-                )
-              }
-            />
+            <RecordingControls />
           </div>
         </>
       ) : (
@@ -95,12 +86,13 @@ export default function Home() {
               onSubmit={(event) => {
                 event.preventDefault();
 
-                if (desktop) {
+                // Start is disabled until the publishing default has loaded.
+                if (desktop && publishToCica !== null) {
                   void startRecording(
                     title,
                     mode,
                     calendarEvent,
-                    publishToCica ?? false
+                    publishToCica
                   );
                 }
               }}

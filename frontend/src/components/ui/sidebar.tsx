@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state";
+/** localStorage key that keeps the expanded/collapsed state across launches. */
+const SIDEBAR_STORAGE_KEY = "sidebar_state";
 
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
@@ -76,7 +77,7 @@ function SidebarProvider({
   const [_open, _setOpen] = React.useState(defaultOpen);
   React.useEffect(() => {
     try {
-      const saved = localStorage.getItem(SIDEBAR_COOKIE_NAME);
+      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
 
       if (saved !== null) {
         _setOpen(saved === "true");
@@ -97,9 +98,9 @@ function SidebarProvider({
         _setOpen(openState);
       }
 
-      // This sets the cookie to keep the sidebar state.
+      // Remember the state for the next launch.
       try {
-        localStorage.setItem(SIDEBAR_COOKIE_NAME, String(openState));
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, String(openState));
       } catch {
         /* Storage is optional in restricted webviews. */
       }

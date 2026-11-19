@@ -37,8 +37,6 @@ interface TranscriptContextType {
   /** Latest live-session state per channel. */
   liveStatus: StatusByChannel;
   transcriptContainerRef: React.RefObject<HTMLDivElement | null>;
-  meetingTitle: string;
-  setMeetingTitle: (title: string) => void;
   copyTranscript: () => void;
   clearTranscripts: () => void;
 }
@@ -51,7 +49,6 @@ export function TranscriptProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<LiveLine[]>([]);
   const [interims, setInterims] = useState<InterimsByChannel>({});
   const [liveStatus, setLiveStatus] = useState<StatusByChannel>({});
-  const [meetingTitle, setMeetingTitle] = useState("+ New Call");
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
   const { isRecording } = useRecordingState();
 
@@ -77,17 +74,6 @@ export function TranscriptProvider({ children }: { children: ReactNode }) {
       // Cleared at `recording-starting`: the first live status events arrive before
       // `recording-started` and must survive it.
       keep(await voiceService.onRecordingStarting(clearTranscripts));
-      keep(
-        await voiceService.onRecordingStarted(async () => {
-          const name = await voiceService
-            .getRecordingMeetingName()
-            .catch(() => null);
-
-          if (name) {
-            setMeetingTitle(name);
-          }
-        })
-      );
       keep(
         await voiceService.onTranscriptUpdate((line) => {
           setLines((prev) => insertLiveLine(prev, line));
@@ -131,20 +117,13 @@ export function TranscriptProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const [history, name] = await Promise.all([
-          voiceService.getTranscriptHistory(),
-          voiceService.getRecordingMeetingName(),
-        ]);
+        const history = await voiceService.getTranscriptHistory();
 
         if (cancelled) {
           return;
         }
 
         setLines((prev) => history.reduce(insertLiveLine, prev));
-
-        if (name) {
-          setMeetingTitle(name);
-        }
       } catch (error) {
         console.error(
           "[TranscriptContext] Failed to sync transcript history:",
@@ -187,8 +166,6 @@ export function TranscriptProvider({ children }: { children: ReactNode }) {
     interims,
     lines,
     liveStatus,
-    meetingTitle,
-    setMeetingTitle,
     transcriptContainerRef,
   };
 

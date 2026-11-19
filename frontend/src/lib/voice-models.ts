@@ -1,13 +1,4 @@
-import type {
-  AutoFinal,
-  LiveMode,
-  MeetingMetadata,
-  ModelOption,
-} from "@/types/voice";
-
-/** Voxtral supports live speaker labels alongside Scribe v3. */
-export const LIVE_SPEAKER_LABEL_MODEL =
-  "mistral-voxtral-mini-transcribe-realtime-3";
+import type { AutoFinal, MeetingMetadata, ModelOption } from "@/types/voice";
 
 export const DEFAULT_BASE_URL = "https://voice-lab.peacockery.studio";
 
@@ -103,24 +94,6 @@ export function retryModel(
 /** Text of one select item: label, plus "recommended" / "unavailable" markers. */
 export function modelOptionText(option: ModelOption): string {
   return `${option.label}${option.recommended ? " · recommended" : ""}${option.available ? "" : " · unavailable"}`;
-}
-
-export function supportsLiveSpeakerLabels(modelId: string): boolean {
-  return (
-    modelId === LIVE_SPEAKER_LABEL_MODEL ||
-    modelId === "elevenlabs-scribe_v3" ||
-    modelId === "deepgram-nova-3"
-  );
-}
-
-/** What "live speaker labels" does in each live mode (§5 speaker rules). */
-export function liveSpeakerLabelsHelp(
-  mode: LiveMode,
-  themLabel: string
-): string {
-  return mode === "split"
-    ? `Numbers voices on both sides: "Local speaker 1" for the microphone and "${themLabel} 1" for computer audio.`
-    : 'Mixed mode hears one combined stream. Turning this on labels lines "Speaker 1", "Speaker 2"; without it, live lines have no speaker.';
 }
 
 /** Vocabulary hints from free text: comma- or line-separated, trimmed, de-duplicated. */

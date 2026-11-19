@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { toast } from "sonner";
 
-import { useSidebar } from "@/components/Sidebar/SidebarProvider";
 import { useConfig } from "@/contexts/ConfigContext";
+import { useMeetings } from "@/contexts/MeetingContext";
 import { usePaginatedTranscripts } from "@/hooks/usePaginatedTranscripts";
 import { parseSummaryContent } from "@/lib/summary-content";
 import { voiceService } from "@/services/voiceService";
@@ -22,7 +22,7 @@ const AUTO_SUMMARY_ATTACH_DELAY_MS = 1500;
 function MeetingDetailsContent() {
   const searchParams = useSearchParams();
   const meetingId = searchParams.get("id");
-  const { setCurrentMeeting, refetchMeetings } = useSidebar();
+  const { setCurrentMeeting, refetchMeetings } = useMeetings();
   const { voiceSettings } = useConfig();
   const router = useRouter();
   const [meeting, setMeeting] = useState<MeetingMetadata | null>(null);

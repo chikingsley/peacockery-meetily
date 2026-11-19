@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 
 import type { BlockNoteSummaryViewRef } from "@/components/AISummary/BlockNoteSummaryView";
-import { useSidebar } from "@/components/Sidebar/SidebarProvider";
+import { useMeetings } from "@/contexts/MeetingContext";
 import { hasVisibleSummaryContent } from "@/lib/summary-content";
 import { voiceService } from "@/services/voiceService";
 import type { MeetingSummary } from "@/types";
@@ -33,7 +33,7 @@ export function useMeetingData({ meeting, summaryData }: UseMeetingDataProps) {
     setCurrentMeeting,
     setMeetings,
     meetings: sidebarMeetings,
-  } = useSidebar();
+  } = useMeetings();
 
   // Sync aiSummary state when summaryData prop changes (fixes display of fetched summaries)
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Mic, Pause, Play, Square } from "lucide-react";
+import { Loader2, Pause, Play, Square } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -14,11 +14,8 @@ import { useAudioLevels } from "@/hooks/useAudioLevels";
 import { SYSTEM_SILENCE_WARN_SECONDS } from "@/lib/live-transcript";
 import { voiceService, errorMessage } from "@/services/voiceService";
 
-export function RecordingControls({
-  onStart,
-}: {
-  onStart: () => Promise<void>;
-}) {
+/** Pause, resume and stop for the active recording; status text while it starts or stops. */
+export function RecordingControls() {
   const { isRecording, isPaused, isStartingRecording, isStopping } =
     useRecordingState();
 
@@ -69,10 +66,11 @@ export function RecordingControls({
           </Button>
         </>
       ) : (
-        <Button onClick={onStart} disabled={busy}>
-          {isStartingRecording ? <Loader2 className="animate-spin" /> : <Mic />}
-          {isStartingRecording ? "Starting…" : "Start recording"}
-        </Button>
+        // Shown only while active: not recording or stopping means starting.
+        <div role="status" className="flex items-center gap-2 text-sm">
+          <Loader2 className="size-4 animate-spin" />
+          Starting…
+        </div>
       )}
       <LevelBar label="Microphone" level={isPaused ? 0 : levels.mic} />
       <LevelBar

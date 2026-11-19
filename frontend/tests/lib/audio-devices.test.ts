@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  CHROME_APP_LABEL,
   deviceLabel,
   deviceValue,
   inputDevices,
@@ -27,10 +26,11 @@ describe("audio devices", () => {
     expect(deviceValue(devices[2])).toBe("app:chrome (output)");
   });
 
-  test("the Chrome pseudo device is shown by name and listed first", () => {
-    expect(deviceLabel({ device_type: "Output", name: "app:chrome" })).toBe(
-      CHROME_APP_LABEL
+  test("the Chrome pseudo device shows the label Rust sends and is listed first", () => {
+    expect(deviceLabel(devices[2])).toBe(
+      "Google Chrome app audio (Google Voice)"
     );
+    expect(deviceLabel(devices[0])).toBe("Speakers (Realtek)");
     expect(systemDevices(devices).map((d) => d.name)).toEqual([
       "app:chrome",
       "Speakers (Realtek)",
@@ -42,10 +42,14 @@ describe("audio devices", () => {
   });
 
   test("labels stored selections", () => {
-    expect(selectionLabel(null)).toBe("Default");
-    expect(selectionLabel("app:chrome (output)")).toBe(CHROME_APP_LABEL);
-    expect(selectionLabel("Headset (Jabra Evolve2 65) (input)")).toBe(
+    expect(selectionLabel(null, devices)).toBe("Default");
+    expect(selectionLabel("app:chrome (output)", devices)).toBe(
+      "Google Chrome app audio (Google Voice)"
+    );
+    expect(selectionLabel("Headset (Jabra Evolve2 65) (input)", devices)).toBe(
       "Headset (Jabra Evolve2 65)"
     );
+    // A device that is no longer listed keeps its stored name.
+    expect(selectionLabel("Old USB Mic (input)", devices)).toBe("Old USB Mic");
   });
 });

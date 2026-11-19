@@ -77,8 +77,8 @@ mock.module("@tauri-apps/api/event", () => ({
   listen: async () => () => {},
 }));
 
-const { SidebarProvider, useSidebar } =
-  await import("../../src/components/Sidebar/SidebarProvider");
+const { MeetingProvider, useMeetings } =
+  await import("../../src/contexts/MeetingContext");
 
 const { useSummaryGeneration } =
   await import("../../src/hooks/meeting-details/useSummaryGeneration");
@@ -168,7 +168,7 @@ async function show(
 ) {
   await act(async () => {
     const view = (
-      <SidebarProvider>
+      <MeetingProvider>
         {initialSummary && (
           <Status
             key={meetingId}
@@ -176,7 +176,7 @@ async function show(
             meetingId={meetingId}
           />
         )}
-      </SidebarProvider>
+      </MeetingProvider>
     );
 
     if (renderer) {
@@ -232,7 +232,7 @@ describe("summary state restored when returning to a meeting", () => {
     "polling stops when %s fails and its error callback also rejects",
     async (failure) => {
       function RejectingConsumer() {
-        const { startSummaryPolling } = useSidebar();
+        const { startSummaryPolling } = useMeetings();
         useEffect(() => {
           startSummaryPolling("meeting-a", "attempt-a", async () => {
             throw new Error("Consumer failed");
@@ -244,9 +244,9 @@ describe("summary state restored when returning to a meeting", () => {
 
       await act(async () => {
         renderer = create(
-          <SidebarProvider>
+          <MeetingProvider>
             <RejectingConsumer />
-          </SidebarProvider>
+          </MeetingProvider>
         );
       });
       getSummary = async () => {

@@ -23,7 +23,8 @@ import type { AudioDevice, AudioLevels } from "@/types/voice";
 
 interface DeviceSelectionProps {
   selectedDevices: SelectedDevices;
-  onDeviceChange: (devices: SelectedDevices) => void;
+  /** `available` is the device list the selection was made from. */
+  onDeviceChange: (devices: SelectedDevices, available: AudioDevice[]) => void;
   disabled?: boolean;
 }
 
@@ -98,9 +99,16 @@ export function DeviceSelection({
     }
 
     if (next !== selectedDevices) {
-      onDeviceChangeRef.current(next);
+      onDeviceChangeRef.current(next, devices);
     }
-  }, [inputDevices, outputDevices, loading, disabled, selectedDevices]);
+  }, [
+    devices,
+    inputDevices,
+    outputDevices,
+    loading,
+    disabled,
+    selectedDevices,
+  ]);
 
   // Device test: real RMS levels while monitoring.
   useEffect(() => {
@@ -236,7 +244,7 @@ export function DeviceSelection({
         devices={inputDevices}
         value={selectedDevices.micDevice}
         onChange={(micDevice) =>
-          onDeviceChange({ ...selectedDevices, micDevice })
+          onDeviceChange({ ...selectedDevices, micDevice }, devices)
         }
         disabled={disabled}
         level={isTesting ? (levels?.mic ?? 0) : null}
@@ -249,7 +257,7 @@ export function DeviceSelection({
         devices={outputDevices}
         value={selectedDevices.systemDevice}
         onChange={(systemDevice) =>
-          onDeviceChange({ ...selectedDevices, systemDevice })
+          onDeviceChange({ ...selectedDevices, systemDevice }, devices)
         }
         disabled={disabled}
         level={isTesting ? (levels?.system ?? 0) : null}

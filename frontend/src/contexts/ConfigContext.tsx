@@ -22,6 +22,8 @@ interface ConfigContextType {
   /** Rust-owned Peacockery Voice settings; null until loaded. */
   voiceSettings: VoiceSettings | null;
   saveVoiceSettings: (settings: VoiceSettings) => Promise<VoiceSettings>;
+  /** Re-read the settings after a command that changed them (activation). */
+  reloadVoiceSettings: () => Promise<void>;
   voiceModels: VoiceModels | null;
   refreshVoiceModels: () => Promise<void>;
   keyStatus: KeyStatus | null;
@@ -76,13 +78,14 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     return saved;
   }, []);
 
+  const reloadVoiceSettings = useCallback(async () => {
+    setVoiceSettings(await voiceService.getSettings());
+  }, []);
+
   useEffect(() => {
-    voiceService
-      .getSettings()
-      .then(setVoiceSettings)
-      .catch((error) =>
-        console.error("[ConfigContext] voice_get_settings failed:", error)
-      );
+    reloadVoiceSettings().catch((error) =>
+      console.error("[ConfigContext] voice_get_settings failed:", error)
+    );
     void refreshKeyStatus();
     void refreshVoiceModels();
 
@@ -120,13 +123,14 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       unlisten?.();
     };
-  }, [refreshKeyStatus, refreshVoiceModels]);
+  }, [refreshKeyStatus, refreshVoiceModels, reloadVoiceSettings]);
 
   const value = useMemo<ConfigContextType>(
     () => ({
       keyStatus,
       refreshKeyStatus,
       refreshVoiceModels,
+      reloadVoiceSettings,
       saveVoiceSettings,
       selectedDevices,
       setKeyStatus,
@@ -137,6 +141,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     [
       voiceSettings,
       saveVoiceSettings,
+      reloadVoiceSettings,
       voiceModels,
       refreshVoiceModels,
       keyStatus,

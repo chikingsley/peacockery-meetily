@@ -111,8 +111,7 @@ mock.module("@tauri-apps/api/event", () => ({
   },
 }));
 
-const { SidebarProvider } =
-  await import("../../src/components/Sidebar/SidebarProvider");
+const { MeetingProvider } = await import("../../src/contexts/MeetingContext");
 
 const { useSummaryGeneration } =
   await import("../../src/hooks/meeting-details/useSummaryGeneration");
@@ -205,9 +204,9 @@ afterEach(async () => {
 async function show() {
   await act(async () => {
     const view = (
-      <SidebarProvider>
+      <MeetingProvider>
         <MeetingDetails />
-      </SidebarProvider>
+      </MeetingProvider>
     );
 
     if (renderer) {

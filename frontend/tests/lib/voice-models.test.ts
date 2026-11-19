@@ -2,17 +2,14 @@ import { describe, expect, test } from "bun:test";
 
 import {
   AUTO_FINAL_CHOICES,
-  LIVE_SPEAKER_LABEL_MODEL,
   formatKeyterms,
   languageLabel,
-  liveSpeakerLabelsHelp,
   liveTranscriptLabel,
   modelChoices,
   modelLabel,
   modelOptionText,
   parseKeyterms,
   retryModel,
-  supportsLiveSpeakerLabels,
 } from "../../src/lib/voice-models";
 import type { ModelOption } from "../../src/types/voice";
 
@@ -29,16 +26,16 @@ const option = (
   ...overrides,
 });
 
+const VOXTRAL = "mistral-voxtral-mini-transcribe-realtime-3";
+
 describe("model options", () => {
   const live = [
-    option(LIVE_SPEAKER_LABEL_MODEL, { label: "Voxtral Mini Realtime 3" }),
+    option(VOXTRAL, { label: "Voxtral Mini Realtime 3" }),
     option("deepgram-nova-3", { available: false }),
   ];
 
   test("labels known ids and falls back to the id", () => {
-    expect(modelLabel(live, LIVE_SPEAKER_LABEL_MODEL)).toBe(
-      "Voxtral Mini Realtime 3"
-    );
+    expect(modelLabel(live, VOXTRAL)).toBe("Voxtral Mini Realtime 3");
     expect(modelLabel(live, "unknown-model")).toBe("unknown-model");
     expect(modelLabel(undefined, "x")).toBe("x");
     expect(modelLabel(live, null)).toBeNull();
@@ -49,7 +46,7 @@ describe("model options", () => {
     const choices = modelChoices(live, "retired-model");
     expect(choices.map((c) => c.id)).toEqual([
       "retired-model",
-      LIVE_SPEAKER_LABEL_MODEL,
+      VOXTRAL,
       "deepgram-nova-3",
     ]);
     expect(choices[0].available).toBe(false);
@@ -64,18 +61,6 @@ describe("model options", () => {
       )
     ).toBe("Deepgram Nova · recommended");
     expect(modelOptionText(live[1])).toBe("DEEPGRAM-NOVA-3 · unavailable");
-  });
-
-  test("Scribe v3, Voxtral realtime 3 and Nova support live speaker labels", () => {
-    expect(supportsLiveSpeakerLabels(LIVE_SPEAKER_LABEL_MODEL)).toBe(true);
-    expect(supportsLiveSpeakerLabels("deepgram-nova-3")).toBe(true);
-    expect(supportsLiveSpeakerLabels("elevenlabs-scribe_v3")).toBe(true);
-    expect(supportsLiveSpeakerLabels("cohere-transcribe")).toBe(false);
-  });
-
-  test("explains live speaker labels per mode", () => {
-    expect(liveSpeakerLabelsHelp("split", "Them")).toContain('"Them 1"');
-    expect(liveSpeakerLabelsHelp("mixed", "Them")).toContain('"Speaker 1"');
   });
 
   test("names languages", () => {

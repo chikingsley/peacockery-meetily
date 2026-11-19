@@ -16,15 +16,13 @@ export interface VoiceSettings {
   base_url: string;
   live_enabled: boolean;
   live_model: string;
-  live_mode: LiveMode;
-  live_diarize: boolean;
   final_model: string;
   final_diarize: boolean;
   auto_final: AutoFinal;
   /** ISO-639-1 code, or "auto". */
   language: string;
   keyterms: string[];
-  transcript_corrections?: { heard: string; replacement: string }[];
+  transcript_corrections: { heard: string; replacement: string }[];
   me_label: string;
   them_label: string;
   summary_model: string;
@@ -87,6 +85,13 @@ export interface StopRecordingResult {
   folder_path: string;
 }
 
+/** Seconds of audio received from capture and written to the journal. */
+export interface LocalProgress {
+  received: number;
+  saved: number;
+  write_failed: boolean;
+}
+
 export interface RecordingState {
   is_recording: boolean;
   is_paused: boolean;
@@ -95,7 +100,8 @@ export interface RecordingState {
   is_stopping: boolean;
   meeting_id: string | null;
   recording_duration: number | null;
-  local_progress?: { received: number; saved: number; write_failed: boolean };
+  /** Present while a recording is running; absent once its stop has begun. */
+  local_progress?: LocalProgress;
   active_duration: number | null;
 }
 

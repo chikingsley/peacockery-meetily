@@ -11,7 +11,7 @@ import {
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
-import { useSidebar } from "@/components/Sidebar/SidebarProvider";
+import { useMeetings } from "@/contexts/MeetingContext";
 import { voiceService, errorMessage } from "@/services/voiceService";
 
 import {
@@ -51,8 +51,7 @@ export function RecordingStopProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { setStatus } = useRecordingState();
 
-  const { refetchMeetings, setCurrentMeeting, setIsMeetingActive } =
-    useSidebar();
+  const { refetchMeetings, setCurrentMeeting } = useMeetings();
 
   const openedMeetingIdRef = useRef<string | null>(null);
   const stopInProgressRef = useRef(false);
@@ -64,7 +63,6 @@ export function RecordingStopProvider({ children }: { children: ReactNode }) {
       }
 
       openedMeetingIdRef.current = meetingId;
-      setIsMeetingActive(false);
       await refetchMeetings();
 
       if (title) {
@@ -73,7 +71,7 @@ export function RecordingStopProvider({ children }: { children: ReactNode }) {
 
       router.push(`/meeting-details?id=${encodeURIComponent(meetingId)}`);
     },
-    [refetchMeetings, router, setCurrentMeeting, setIsMeetingActive]
+    [refetchMeetings, router, setCurrentMeeting]
   );
 
   const stopRecording = useCallback(async () => {
