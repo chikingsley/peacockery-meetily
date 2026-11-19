@@ -90,7 +90,8 @@ impl MeetingsRepository {
         Ok(unfinished)
     }
 
-    /// Summaries may name timestamp placeholders; user titles stay authoritative.
+    /// Summaries may rename the recording screen's `Meeting <YYYY-MM-DD HH:MM>` placeholder;
+    /// user titles stay authoritative.
     pub async fn update_generated_title(
         pool: &SqlitePool,
         meeting_id: &str,
@@ -99,10 +100,8 @@ impl MeetingsRepository {
         let Some(meeting) = Self::get(pool, meeting_id).await? else {
             return Ok(false);
         };
-        let placeholder = ["Call ", "Meeting "].iter().any(|prefix| {
-            meeting.title.strip_prefix(prefix).is_some_and(|date| {
-                chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%d %H:%M").is_ok()
-            })
+        let placeholder = meeting.title.strip_prefix("Meeting ").is_some_and(|date| {
+            chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%d %H:%M").is_ok()
         });
         if !placeholder {
             return Ok(false);
@@ -228,6 +227,14 @@ mod tests {
                 .unwrap()
         );
         MeetingsRepository::update_title(&pool, "title-test", "Call 2026-11-13 10:00")
+            .await
+            .unwrap();
+        assert!(
+            !MeetingsRepository::update_generated_title(&pool, "title-test", "AI title")
+                .await
+                .unwrap()
+        );
+        MeetingsRepository::update_title(&pool, "title-test", "Meeting 2026-11-13 10:00")
             .await
             .unwrap();
         assert!(

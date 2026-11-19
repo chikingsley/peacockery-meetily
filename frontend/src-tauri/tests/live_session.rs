@@ -1,6 +1,6 @@
 //! Live check of the live session manager against the lab API (no GUI, no audio devices):
-//! `dialogue.wav` as the mic and silence as the system audio, split mode, Voxtral realtime 3,
-//! fed at twice real time through the same taps the audio pipeline uses.
+//! `dialogue.wav` as the mic and silence as the system audio, split mode, Scribe v3 (the
+//! default live model), fed at twice real time through the same taps the audio pipeline uses.
 //! `PEACOCKERY_LIVE_MODEL=deepgram-nova-3` runs the same check on another live model.
 //!
 //! ```text
@@ -10,13 +10,14 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use app_lib::audio::recording_saver::{LiveLineStore, LIVE_LINES_FILE};
+use app_lib::audio::recording_saver::LiveLineStore;
 use app_lib::database::manager::DatabaseManager;
 use app_lib::database::models::meeting_status;
 use app_lib::database::repositories::meeting::{MeetingsRepository, NewMeeting};
 use app_lib::database::repositories::transcript::TranscriptsRepository;
 use app_lib::live::{
-    channels_for, LiveConfig, LiveInterim, LiveLine, LiveManager, LiveSink, LiveState, LiveStatus,
+    channels_for, diarize_for_model, LiveConfig, LiveInterim, LiveLine, LiveManager, LiveSink,
+    LiveState, LiveStatus,
 };
 use app_lib::voice::VoiceSettings;
 use peacockery_voice::{Channel, ClientConfig, LiveMode, VoiceClient, DEFAULT_BASE_URL};
@@ -98,17 +99,17 @@ async fn split_session_on_dialogue_produces_lines() {
     .await
     .unwrap();
 
-    // Voxtral realtime 3 (the default) unless PEACOCKERY_LIVE_MODEL names another live model.
+    // Scribe v3 (the default) unless PEACOCKERY_LIVE_MODEL names another live model.
     let mut settings = VoiceSettings::default();
     if let Ok(model) = std::env::var("PEACOCKERY_LIVE_MODEL") {
         settings.live_model = model;
     }
     println!("model {}", settings.live_model);
-    assert_eq!(settings.live_mode, LiveMode::Split);
-    let config = LiveConfig::from_settings("m-live", &settings);
+    let diarized = diarize_for_model(&settings.live_model);
+    let config = LiveConfig::from_settings("m-live", &settings, LiveMode::Split);
     let client = VoiceClient::new(ClientConfig::new(DEFAULT_BASE_URL, key)).unwrap();
     let sink = Arc::new(Collect::default());
-    let store = LiveLineStore::new(dir.path());
+    let store = LiveLineStore::default();
     let channels = channels_for(LiveMode::Split, true, true);
     let (manager, mut taps) = LiveManager::start(
         config,
@@ -145,7 +146,15 @@ async fn split_session_on_dialogue_produces_lines() {
     let lines = sink.lines.lock().unwrap().clone();
     let mic_lines: Vec<_> = lines.iter().filter(|l| l.channel == Channel::Mic).collect();
     assert!(!mic_lines.is_empty(), "no mic lines");
-    assert!(mic_lines.iter().all(|l| l.speaker.as_deref() == Some("Me")));
+    // Diarized split mic lines are numbered local speakers; otherwise every line is "Me".
+    assert!(mic_lines.iter().all(|l| {
+        let speaker = l.speaker.as_deref().unwrap_or_default();
+        if diarized {
+            speaker.starts_with("Local speaker")
+        } else {
+            speaker == "Me"
+        }
+    }));
     let words: usize = mic_lines
         .iter()
         .map(|l| l.text.split_whitespace().count())
@@ -197,10 +206,16 @@ async fn split_session_on_dialogue_produces_lines() {
         .await
         .unwrap();
     assert_eq!(rows.len(), lines.len(), "every line is a live row");
-    assert_eq!(store.lines().len(), lines.len());
-    let file: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(dir.path().join(LIVE_LINES_FILE)).unwrap()).unwrap();
-    assert_eq!(file.as_array().unwrap().len(), lines.len());
+    let mut row_texts: Vec<&str> = rows.iter().map(|r| r.transcript.as_str()).collect();
+    let mut line_texts: Vec<&str> = lines.iter().map(|l| l.text.as_str()).collect();
+    row_texts.sort_unstable();
+    line_texts.sort_unstable();
+    assert_eq!(row_texts, line_texts, "the rows hold the emitted lines");
+    assert_eq!(
+        store.lines(),
+        lines,
+        "get_transcript_history holds every line"
+    );
     println!(
         "{} lines ({} mic), {} words, {} previews",
         lines.len(),

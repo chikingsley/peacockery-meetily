@@ -1,8 +1,6 @@
 //! `VoiceSettings` (ARCHITECTURE.md §2), stored by Rust in `voice-settings.json`.
 
-use peacockery_voice::{
-    curated_final, curated_live, curated_summary, Catalog, LiveMode, DEFAULT_BASE_URL,
-};
+use peacockery_voice::{curated_final, curated_live, curated_summary, Catalog, DEFAULT_BASE_URL};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tauri::{AppHandle, Runtime};
@@ -29,15 +27,12 @@ pub struct VoiceSettings {
     pub base_url: String,
     pub live_enabled: bool,
     pub live_model: String,
-    pub live_mode: LiveMode,
-    pub live_diarize: bool,
     pub final_model: String,
     pub final_diarize: bool,
     pub auto_final: AutoFinal,
     /// ISO-639-1, or `auto`.
     pub language: String,
     pub keyterms: Vec<String>,
-    #[serde(default)]
     pub transcript_corrections: Vec<super::corrections::TranscriptCorrection>,
     pub me_label: String,
     pub them_label: String,
@@ -52,8 +47,6 @@ impl Default for VoiceSettings {
             base_url: DEFAULT_BASE_URL.to_string(),
             live_enabled: true,
             live_model: "elevenlabs-scribe_v3".to_string(),
-            live_mode: LiveMode::Split,
-            live_diarize: true,
             final_model: "elevenlabs-scribe_v3".to_string(),
             final_diarize: true,
             auto_final: AutoFinal::WhenLiveIncomplete,
@@ -268,20 +261,19 @@ mod tests {
         let defaults = VoiceSettings::default();
         assert_eq!(defaults.clone().normalized().unwrap(), defaults);
         let value = serde_json::to_value(&defaults).unwrap();
-        assert_eq!(value["live_mode"], "split");
         assert_eq!(value["auto_final"], "when_live_incomplete");
         assert_eq!(value["base_url"], "https://voice-lab.peacockery.studio");
         assert_eq!(
             value["summary_fallback_models"],
             json!(["deepseek-deepseek-v4-flash", "google-gemini-3.1-flash-lite"])
         );
-        assert_eq!(value.as_object().unwrap().len(), 16);
+        assert_eq!(value.as_object().unwrap().len(), 14);
     }
 
     #[test]
     fn missing_and_invalid_keys_keep_defaults() {
         let stored = json!({
-            "live_mode": "mixed",
+            "live_enabled": false,
             "final_model": "not-a-model",
             "language": "EN-us",
             "auto_summary": true,
@@ -289,7 +281,7 @@ mod tests {
             "me_label": "  Simon "
         });
         let settings = VoiceSettings::from_stored(Some(&stored));
-        assert_eq!(settings.live_mode, LiveMode::Mixed);
+        assert!(!settings.live_enabled);
         assert_eq!(settings.final_model, "elevenlabs-scribe_v3");
         assert_eq!(settings.language, "en");
         assert!(settings.auto_summary);
@@ -302,12 +294,30 @@ mod tests {
     }
 
     #[test]
-    fn enum_values_are_checked() {
+    fn removed_live_topology_keys_are_ignored() {
+        let settings = VoiceSettings::from_stored(Some(&json!({
+            "live_mode": "split",
+            "live_diarize": true,
+            "auto_summary": true
+        })));
+        assert!(settings.auto_summary);
+        let value = serde_json::to_value(&settings).unwrap();
+        assert!(value.get("live_mode").is_none());
+        assert!(value.get("live_diarize").is_none());
+    }
+
+    #[test]
+    fn transcript_corrections_are_required_on_save() {
         let mut value = serde_json::to_value(VoiceSettings::default()).unwrap();
-        value["live_mode"] = json!("stereo");
-        assert!(serde_json::from_value::<VoiceSettings>(value).is_err());
-        let settings = VoiceSettings::from_stored(Some(&json!({ "live_mode": "stereo" })));
-        assert_eq!(settings.live_mode, LiveMode::Split);
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("transcript_corrections");
+        assert!(serde_json::from_value::<VoiceSettings>(value.clone()).is_err());
+        assert_eq!(
+            VoiceSettings::from_stored(Some(&value)),
+            VoiceSettings::default()
+        );
     }
 
     #[test]

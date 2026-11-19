@@ -1,6 +1,6 @@
 //! Headless smoke test of the Windows runtime paths, using the app's own code: credential
-//! read, device list, capture → pipeline → audio journal, live sessions, the stop's
-//! background encode into `audio.mp4`, final transcript.
+//! read, device list, capture → pipeline → audio journal, split live sessions (as an online
+//! or phone recording), the stop's background encode into `audio.mp4`, final transcript.
 //!
 //! `capture_smoke <report.json> [seconds=25] [default|app:chrome]`
 //!
@@ -30,7 +30,7 @@ use app_lib::live::{LiveConfig, LiveInterim, LiveLine, LiveSink, LiveStatus};
 use app_lib::voice::credential::{self, KeyStatus};
 use app_lib::voice::service::VoiceService;
 use app_lib::voice::settings::VoiceSettings;
-use peacockery_voice::CancellationToken;
+use peacockery_voice::{CancellationToken, LiveMode};
 use serde_json::{json, Map, Value};
 
 static STARTED: Mutex<Option<Instant>> = Mutex::new(None);
@@ -182,7 +182,7 @@ async fn run(
     let levels = Arc::new(Mutex::new(LevelSummary::default()));
     let levels_in = levels.clone();
     let live = LiveSetup {
-        config: LiveConfig::from_settings(&meeting_id, &settings),
+        config: LiveConfig::from_settings(&meeting_id, &settings, LiveMode::Split),
         client: service.client(),
         sink: collector.clone(),
         pool: Some(pool.clone()),

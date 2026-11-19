@@ -5,7 +5,7 @@
 //! connect in the background (start never waits for them), buffer up to ~10 s of audio while
 //! connecting, reconnect with backoff, and turn events into lines with the crate's
 //! `LineBuilder` on the recording clock. Final lines are numbered per recording, emitted,
-//! kept in the session's `LiveLineStore` (`transcripts.json`) and inserted as `live` rows.
+//! kept in the session's in-memory `LiveLineStore` and inserted as `live` rows.
 //! The pipeline closing the taps is the stop signal: every session then finishes.
 
 mod session;
@@ -39,8 +39,8 @@ pub struct LiveConfig {
     pub meeting_id: String,
     /// Public model id (`live_model`).
     pub model: String,
+    /// Session topology, from the recording mode.
     pub mode: LiveMode,
-    pub diarize: bool,
     /// `None` = provider detects.
     pub language: Option<String>,
     pub keyterms: Vec<String>,
@@ -53,12 +53,11 @@ pub struct LiveConfig {
 }
 
 impl LiveConfig {
-    pub fn from_settings(meeting_id: &str, settings: &VoiceSettings) -> Self {
+    pub fn from_settings(meeting_id: &str, settings: &VoiceSettings, mode: LiveMode) -> Self {
         Self {
             meeting_id: meeting_id.to_string(),
             model: settings.live_model.clone(),
-            mode: settings.live_mode,
-            diarize: settings.live_diarize,
+            mode,
             language: (settings.language != "auto").then(|| settings.language.clone()),
             keyterms: settings.keyterms.clone(),
             transcript_corrections: settings.transcript_corrections.clone(),
@@ -68,23 +67,19 @@ impl LiveConfig {
         }
     }
 
-    /// Separate voices on every captured channel, including a shared room microphone.
-    pub fn diarize_for(&self, channel: Channel) -> bool {
-        self.diarize_for_model(channel, &self.model)
-    }
-
-    pub fn diarize_for_model(&self, _channel: Channel, model: &str) -> bool {
-        self.diarize
-            && (ModelFamily::of(model) == ModelFamily::VoxtralRealtime3
-                || matches!(model, "elevenlabs-scribe_v3" | "deepgram-nova-3"))
-    }
-
     pub fn mode_name(&self) -> &'static str {
         match self.mode {
             LiveMode::Split => "split",
             LiveMode::Mixed => "mixed",
         }
     }
+}
+
+/// Live models that separate voices; every channel of such a model is diarized, a shared
+/// room microphone included.
+pub fn diarize_for_model(model: &str) -> bool {
+    ModelFamily::of(model) == ModelFamily::VoxtralRealtime3
+        || matches!(model, "elevenlabs-scribe_v3" | "deepgram-nova-3")
 }
 
 /// Sessions for a recording: split → one per captured source, mixed → one on the mix.
@@ -418,7 +413,6 @@ impl LiveManager {
                 warn!("Live transcript rows were still being written after 10 s");
             }
         }
-        self.shared.store.flush().await;
         let session_ids = self
             .shared
             .session_ids
@@ -473,25 +467,29 @@ mod tests {
     }
 
     #[test]
-    fn config_from_settings() {
+    fn config_from_settings_takes_the_recording_topology() {
         let settings = VoiceSettings {
             language: "auto".into(),
-            live_model: "mistral-voxtral-mini-transcribe-realtime-3".into(),
-            live_diarize: true,
             ..VoiceSettings::default()
         };
-        let config = LiveConfig::from_settings("m", &settings);
+        let config = LiveConfig::from_settings("m", &settings, LiveMode::Mixed);
         assert_eq!(config.language, None);
-        assert!(config.diarize_for(Channel::Mic));
-        assert!(config.diarize_for(Channel::System));
-        let nova = LiveConfig {
-            model: "deepgram-nova-3".into(),
-            ..config
-        };
+        assert_eq!(config.mode, LiveMode::Mixed);
+        assert_eq!(config.mode_name(), "mixed");
+        assert_eq!(config.model, "elevenlabs-scribe_v3");
+    }
+
+    #[test]
+    fn diarization_follows_the_model() {
+        assert!(diarize_for_model("elevenlabs-scribe_v3"));
+        assert!(diarize_for_model(
+            "mistral-voxtral-mini-transcribe-realtime-3"
+        ));
         assert!(
-            nova.diarize_for(Channel::Mixed),
+            diarize_for_model("deepgram-nova-3"),
             "Nova fallback keeps speaker separation"
         );
+        assert!(!diarize_for_model("cohere-transcribe"));
     }
 
     #[test]

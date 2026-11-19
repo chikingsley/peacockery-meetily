@@ -181,14 +181,6 @@ impl SystemSource {
         }
     }
 
-    /// The endpoint the device monitor should watch (none for the Chrome capture).
-    pub fn endpoint(&self) -> Option<Arc<AudioDevice>> {
-        match self {
-            SystemSource::Endpoint(device) => Some(device.clone()),
-            SystemSource::ChromeApp => None,
-        }
-    }
-
     /// Fails early when the source cannot be opened (Chrome not running / unsupported OS).
     pub fn check(&self) -> Result<()> {
         match self {

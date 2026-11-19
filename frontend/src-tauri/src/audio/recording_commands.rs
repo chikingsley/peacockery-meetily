@@ -5,7 +5,7 @@
 // the audio journal, marks the meeting 'stopped', hands it to the final transcript and
 // queues the `audio.mp4` encode in the background (`audio_save`).
 
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use serde::Serialize;
 use std::path::Path;
 use std::sync::{
@@ -14,7 +14,7 @@ use std::sync::{
 };
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
-use super::device_monitor::{DeviceEvent, DeviceMonitorType};
+use super::device_monitor::MicDisconnected;
 use super::recording_manager::{LiveSetup, RecordingManager};
 use super::recording_saver::MeetingTarget;
 use super::stream::{SystemSource, CHROME_APP_DEVICE, CHROME_APP_LABEL};
@@ -185,10 +185,6 @@ pub fn resolve_system_or_default(
     }
 }
 
-fn default_meeting_title() -> String {
-    format!("Call {}", chrono::Local::now().format("%Y-%m-%d %H:%M"))
-}
-
 // ============================================================================
 // DEVICE COMMANDS
 // ============================================================================
@@ -232,16 +228,16 @@ pub async fn stop_audio_level_monitoring() -> Result<(), String> {
 // ============================================================================
 
 /// Start recording a new meeting: creates the meeting row (status `recording`) and its
-/// folder, then starts capture.
+/// folder, then starts capture. A `None` device means the system default.
 #[tauri::command]
 pub async fn start_recording_with_devices_and_meeting(
     app: AppHandle,
     mic_device_name: Option<String>,
     system_device_name: Option<String>,
-    meeting_name: Option<String>,
-    recording_mode: Option<RecordingMode>,
+    meeting_name: String,
+    recording_mode: RecordingMode,
     calendar_event: Option<CalendarEvent>,
-    publish_to_cica: Option<bool>,
+    publish_to_cica: bool,
 ) -> Result<RecordingStarted, String> {
     let _lifecycle = LIFECYCLE_LOCK.lock().await;
     if IS_RECORDING.load(Ordering::SeqCst) {
@@ -254,7 +250,7 @@ pub async fn start_recording_with_devices_and_meeting(
         meeting_name,
         recording_mode,
         calendar_event,
-        publish_to_cica.unwrap_or(false),
+        publish_to_cica,
     )
     .await;
     // Every outcome, failures included, puts the tray back in step with the real state.
@@ -266,25 +262,25 @@ async fn start_recording(
     app: &AppHandle,
     mic_device_name: Option<String>,
     system_device_name: Option<String>,
-    meeting_name: Option<String>,
-    recording_mode: Option<RecordingMode>,
+    meeting_name: String,
+    mode: RecordingMode,
     calendar_event: Option<CalendarEvent>,
     publish_to_cica: bool,
 ) -> Result<RecordingStarted, String> {
     info!(
-        "Starting recording: mic={:?}, system={:?}, meeting={:?}",
-        mic_device_name, system_device_name, meeting_name
+        "Starting recording: mic={:?}, system={:?}, meeting={:?}, mode={:?}",
+        mic_device_name, system_device_name, meeting_name, mode
     );
+    let title = meeting_name.trim().to_string();
+    if title.is_empty() {
+        return Err("A meeting title is required".into());
+    }
     let _ = app.emit("recording-starting", serde_json::json!({}));
     crate::tray::set_tray_state(app, crate::tray::RecordingState::Starting);
 
-    let preferences = super::recording_preferences::load_recording_preferences(app);
-    let mic_name = mic_device_name.or(preferences.preferred_mic_device);
-    let system_name = system_device_name.or(preferences.preferred_system_device);
-    let microphone_device = resolve_mic_or_default(app, mic_name.as_deref());
-    let mode = recording_mode.unwrap_or_default();
+    let microphone_device = resolve_mic_or_default(app, mic_device_name.as_deref());
     let system_source = if mode.captures_system() {
-        resolve_system_or_default(system_name.as_deref())?
+        resolve_system_or_default(system_device_name.as_deref())?
     } else {
         None
     };
@@ -294,10 +290,6 @@ async fn start_recording(
     // The device test holds the same devices open.
     super::level_monitor::stop_monitoring();
 
-    let title = meeting_name
-        .map(|name| name.trim().to_string())
-        .filter(|name| !name.is_empty())
-        .unwrap_or_else(default_meeting_title);
     let base_folder = super::recording_preferences::recordings_folder(app)?;
     let folder = super::audio_processing::create_meeting_folder(&base_folder, &title)
         .map_err(|e| format!("Failed to create meeting folder: {}", e))?;
@@ -403,11 +395,8 @@ fn live_setup(
         info!("Live transcription is off");
         return None;
     }
-    let mut config = LiveConfig::from_settings(meeting_id, &settings);
-    config.mode = mode.live_mode();
-    config.diarize = true;
     Some(LiveSetup {
-        config,
+        config: LiveConfig::from_settings(meeting_id, &settings, mode.live_mode()),
         client: service.client(),
         sink: Arc::new(TauriLiveSink::new(app.clone())),
         pool: Some(pool.clone()),
@@ -435,8 +424,7 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
     info!("Stopping recording");
     let _ = app.emit(
         "recording-stopping",
-        serde_json::json!({ "local_progress": manager.recording_progress(),
-            "meeting_id": manager.target().meeting_id }),
+        serde_json::json!({ "meeting_id": manager.target().meeting_id }),
     );
     crate::tray::set_tray_state(&app, crate::tray::RecordingState::Stopping);
 
@@ -541,11 +529,6 @@ pub fn is_recording_paused() -> bool {
 }
 
 #[tauri::command]
-pub async fn is_recording() -> bool {
-    is_recording_active()
-}
-
-#[tauri::command]
 pub async fn pause_recording(app: AppHandle) -> Result<(), String> {
     if !is_recording_active() {
         return Err("No recording is currently active".to_string());
@@ -593,7 +576,8 @@ pub async fn get_recording_state() -> serde_json::Value {
             "recording_duration": manager.get_recording_duration(),
             "active_duration": manager.get_active_recording_duration(),
             "total_pause_duration": manager.get_total_pause_duration(),
-            "current_pause_duration": manager.get_current_pause_duration()
+            "current_pause_duration": manager.get_current_pause_duration(),
+            "local_progress": manager.recording_progress()
         }),
         // Also the stop tail: the manager is taken while the recording is being finished.
         None => serde_json::json!({
@@ -619,25 +603,16 @@ pub async fn get_transcript_history() -> Vec<LiveLine> {
         .unwrap_or_default()
 }
 
-#[tauri::command]
-pub async fn get_recording_meeting_name() -> Option<String> {
-    lock_manager()
-        .as_ref()
-        .map(|m| m.target().meeting_name.clone())
-}
-
 // ============================================================================
 // MIC HOT-SWAP (disconnect recovery)
 // ============================================================================
 
-// Guard against concurrent mic hot-swap tasks. Only used by the disconnect
-// fallback path (trigger_mic_fallback_to_default) — the "chase the new
-// default" auto-swap has been removed.
+// Guard against concurrent mic hot-swaps (trigger_mic_fallback_to_default).
 static MIC_SWAP_IN_PROGRESS: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
-// Bounded retry budget for the disconnect fallback (P1 #2). Counts COMPLETED
-// failed attempts; MIC_SWAP_IN_PROGRESS still prevents overlapping swaps.
+// Bounded retry budget for the disconnect fallback. Counts completed failed
+// attempts; MIC_SWAP_IN_PROGRESS still prevents overlapping swaps.
 static MIC_FALLBACK_FAILED_ATTEMPTS: std::sync::atomic::AtomicU32 =
     std::sync::atomic::AtomicU32::new(0);
 const MAX_MIC_FALLBACK_ATTEMPTS: u32 = 3;
@@ -720,8 +695,8 @@ async fn do_mic_swap(
     }; // lock released
 
     // Tear down the dead mic OUTSIDE the lock — cpal stop()/drop on a
-    // disconnected BT device can stall; doing it
-    // under RECORDING_MANAGER would freeze stop_recording (deep-review #2).
+    // disconnected BT device can stall; doing it under RECORDING_MANAGER
+    // would freeze stop_recording.
     // Non-fatal: the replacement stream is created next regardless, so a
     // teardown error/stall on the already-dead device must not abort the swap.
     if let Some(s) = old_mic {
@@ -740,7 +715,7 @@ async fn do_mic_swap(
     // (trigger_mic_fallback_to_default) already resolved it via
     // default_input_device(). Skipping list_audio_devices() here avoids a
     // full cpal enumeration on the exact BT-transition hot path where it's
-    // known to hang 100+ s (see H2 in PR-175 review). The real device
+    // known to hang 100+ s. The real device
     // validation happens inside AudioStream::create → get_device_and_config
     // which does a targeted host.input_devices() lookup by name.
     let device_arc =
@@ -758,16 +733,12 @@ async fn do_mic_swap(
     .await
     .map_err(|e| format!("Failed to create mic stream: {}", e))?;
 
-    // Resolve the current default output OUTSIDE the lock — a driver stall here
-    // must not block stop_recording (which needs RECORDING_MANAGER). (P1 #1)
-    let system_name = default_output_device().ok().map(|d| d.name);
-
     // Phase 3: Lock briefly — install ONLY if still the same session
     {
         let mut guard = lock_manager();
         match guard.as_mut() {
             Some(manager) if Arc::ptr_eq(manager.get_state(), session) => {
-                manager.set_mic_stream_after_swap(new_stream, device_arc, system_name);
+                manager.set_mic_stream_after_swap(new_stream, device_arc);
                 info!("[HOT_SWAP] Mic hot-swap to '{}' completed", device_name);
             }
             Some(_) => {
@@ -786,81 +757,42 @@ async fn do_mic_swap(
 
 /// Background processor for device monitor events during a recording session.
 ///
-/// The ONLY mid-recording mic switch that is allowed is the fallback from a
-/// dead device to the system default, triggered by the device monitor's
-/// DeviceDisconnected event. Any other device event is explicitly ignored —
-/// recording stays on whatever device was picked at start time until the
-/// meeting ends.
+/// The only mid-recording mic switch is the fallback from a dead microphone to
+/// the system default input. Recording otherwise stays on the devices picked at
+/// start, and a fallback is sticky when the old device comes back: swapping to a
+/// freshly connected BT device during recording has hung cpal's stream creation.
 ///
-/// Rationale: auto-swapping to a freshly-connected BT device during recording
-/// has hung cpal's stream creation. Locking
-/// the device at start eliminates that hang and also makes the recording
-/// session predictable.
-///
-/// The task stops automatically when the receiver is dropped (recording
-/// ends / monitor stops).
+/// The task stops when the monitor drops its sender (recording ends).
 fn spawn_device_event_processor<R: Runtime>(
     app: AppHandle<R>,
-    mut receiver: tokio::sync::mpsc::UnboundedReceiver<DeviceEvent>,
+    mut receiver: tokio::sync::mpsc::UnboundedReceiver<MicDisconnected>,
     session: Arc<super::RecordingState>,
 ) {
     tokio::spawn(async move {
         info!("[DEVICE_EVENTS] Background event processor started");
 
-        while let Some(event) = receiver.recv().await {
-            // Skip if recording has stopped
+        while let Some(MicDisconnected { device_name }) = receiver.recv().await {
             if !recording_live() {
                 info!(
-                    "[DEVICE_EVENTS] Recording stopped — ignoring event: {:?}",
-                    event
+                    "[DEVICE_EVENTS] Recording stopped — ignoring disconnect of '{}'",
+                    device_name
                 );
                 continue;
             }
-
-            match event {
-                DeviceEvent::DeviceDisconnected {
-                    ref device_name,
-                    ref device_type,
-                } => {
-                    info!(
-                        "[DEVICE_EVENTS] Device disconnected: '{}' ({:?})",
-                        device_name, device_type
-                    );
-                    // The only automatic mid-recording mic change allowed:
-                    // when the active microphone dies, fall back to the
-                    // system default input. Triggered after the device
-                    // monitor's polling threshold fires.
-                    if matches!(device_type, DeviceMonitorType::Microphone) {
-                        let name = device_name.clone();
-                        let app_clone = app.clone();
-                        let session = session.clone();
-                        tokio::spawn(async move {
-                            trigger_mic_fallback_to_default(app_clone, name, session).await;
-                        });
-                    }
-                }
-                DeviceEvent::DeviceReconnected {
-                    ref device_name,
-                    ref device_type,
-                } => {
-                    // Per product decision: once we have fallen back to the
-                    // built-in mic we stay there for the rest of the meeting.
-                    // This is intentional — just log and do nothing.
-                    info!("[DEVICE_EVENTS] Device reconnected: '{}' ({:?}) — staying on current mic (fallback is sticky)", device_name, device_type);
-                }
-                DeviceEvent::DeviceListChanged => {
-                    debug!("[DEVICE_EVENTS] Device list changed");
-                }
-            }
+            info!("[DEVICE_EVENTS] Microphone disconnected: '{}'", device_name);
+            let app_clone = app.clone();
+            let session = session.clone();
+            tokio::spawn(async move {
+                trigger_mic_fallback_to_default(app_clone, device_name, session).await;
+            });
         }
         info!("[DEVICE_EVENTS] Background event processor stopped (channel closed)");
     });
 }
 
 /// Disconnect fallback: swap the active mic to the system default input
-/// device. Triggered from the background device event processor after the
-/// device monitor's polling threshold (3 × 2s) fires `DeviceDisconnected`
-/// for the active microphone.
+/// device. Triggered from the background device event processor when the
+/// device monitor reports `MicDisconnected` (2 or 3 missing polls of 2 s).
 ///
 /// `disconnected_name` is the device that just died. We keep it to detect
 /// the edge case where the OS hasn't yet updated the system default input

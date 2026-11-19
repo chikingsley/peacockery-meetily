@@ -54,9 +54,8 @@ pub async fn voice_save_settings(
     let saved = settings::save(&app, settings)?;
     voice.set_settings(saved.clone());
     log::info!(
-        "Voice settings saved: live {} ({:?}, enabled {}), final {}, summary {}",
+        "Voice settings saved: live {} (enabled {}), final {}, summary {}",
         saved.live_model,
-        saved.live_mode,
         saved.live_enabled,
         saved.final_model,
         saved.summary_model

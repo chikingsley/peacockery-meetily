@@ -12,7 +12,7 @@ use peacockery_voice::{
 use tokio::sync::mpsc;
 
 use super::taps::LiveFrame;
-use super::{LiveState, Shared};
+use super::{diarize_for_model, LiveState, Shared};
 use crate::voice::describe_error;
 
 /// Waits before reconnect attempts 1…5.
@@ -115,7 +115,7 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
     loop {
         shared.status_model(channel, state, message.take(), &model);
         let connected = {
-            let connect = connect(&shared, channel, &model);
+            let connect = connect(&shared, &model);
             tokio::pin!(connect);
             loop {
                 tokio::select! {
@@ -203,7 +203,6 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
 
 async fn connect(
     shared: &Shared,
-    channel: Channel,
     model: &str,
 ) -> Result<(RealtimeSender, mpsc::Receiver<RealtimeEvent>), Error> {
     let config = &shared.config;
@@ -218,7 +217,7 @@ async fn connect(
         .to_string();
     let mut options = RealtimeOptions::new(route);
     options.language = config.language.clone();
-    options.diarize = config.diarize_for_model(channel, model);
+    options.diarize = diarize_for_model(model);
     options.keyterms = config.keyterms.clone();
     options.client_session_id = Some(config.meeting_id.clone());
     RealtimeSession::connect(&shared.client, options).await
@@ -229,7 +228,7 @@ fn builder_for(shared: &Shared, channel: Channel, model: &str, offset: f64) -> L
     let speakers = SpeakerLabels::for_session(
         config.mode,
         channel,
-        config.diarize_for_model(channel, model),
+        diarize_for_model(model),
         &config.me_label,
         &config.them_label,
     );

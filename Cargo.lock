@@ -3330,7 +3330,6 @@ dependencies = [
  "anyhow",
  "app-loopback",
  "base64 0.22.1",
- "bytemuck",
  "chrono",
  "cpal",
  "dirs 5.0.1",

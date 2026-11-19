@@ -1,21 +1,17 @@
 //! Writes the mixed recording of one meeting to its audio journal and keeps the live lines
-//! of the current session (memory for `get_transcript_history`, `transcripts.json` in the
-//! meeting folder).
+//! of the current session in memory (`get_transcript_history`; the database has the rows).
 
 use anyhow::{anyhow, Result};
-use log::{error, info, warn};
-use std::path::{Path, PathBuf};
+use log::{error, info};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use super::journal::AudioJournal;
 use super::pipeline::PIPELINE_SAMPLE_RATE;
 use super::recording_state::AudioChunk;
 use crate::live::LiveLine;
-
-/// Live lines of a recording, mirrored to `<meeting>/transcripts.json`.
-pub const LIVE_LINES_FILE: &str = "transcripts.json";
 
 /// Identity of the meeting being recorded.
 #[derive(Debug, Clone)]
@@ -25,86 +21,22 @@ pub struct MeetingTarget {
     pub folder: PathBuf,
 }
 
-/// The finalized live lines of the current recording session. `transcripts.json` is
-/// rewritten by one writer thread, so adding a line never does file I/O on the caller
-/// (the async live sessions); lines that arrive during a write share the next one.
-#[derive(Clone)]
+/// The finalized live lines of the current recording session.
+#[derive(Clone, Default)]
 pub struct LiveLineStore {
     lines: Arc<Mutex<Vec<LiveLine>>>,
-    writer: std::sync::mpsc::Sender<WriteRequest>,
-}
-
-enum WriteRequest {
-    Changed,
-    /// Answered once the file holds every line pushed before the request.
-    Flush(oneshot::Sender<()>),
 }
 
 impl LiveLineStore {
-    pub fn new(folder: &Path) -> Self {
-        let lines: Arc<Mutex<Vec<LiveLine>>> = Arc::default();
-        let (writer, requests) = std::sync::mpsc::channel();
-        let path = folder.join(LIVE_LINES_FILE);
-        let shared = lines.clone();
-        // Ends when the last clone of the store is dropped.
-        let spawned = std::thread::Builder::new()
-            .name("live-lines-writer".into())
-            .spawn(move || write_live_lines(&path, &shared, &requests));
-        if let Err(e) = spawned {
-            error!("Failed to start the transcripts.json writer: {}", e);
-        }
-        Self { lines, writer }
-    }
-
-    /// Add a line; `transcripts.json` follows in the background.
     pub fn push(&self, line: LiveLine) {
         self.lines
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .push(line);
-        let _ = self.writer.send(WriteRequest::Changed);
-    }
-
-    /// Wait until `transcripts.json` holds every line pushed so far.
-    pub async fn flush(&self) {
-        let (done, written) = oneshot::channel();
-        if self.writer.send(WriteRequest::Flush(done)).is_ok() {
-            let _ = written.await;
-        }
     }
 
     pub fn lines(&self) -> Vec<LiveLine> {
         self.lines.lock().unwrap_or_else(|p| p.into_inner()).clone()
-    }
-}
-
-fn write_live_lines(
-    path: &Path,
-    lines: &Mutex<Vec<LiveLine>>,
-    requests: &std::sync::mpsc::Receiver<WriteRequest>,
-) {
-    while let Ok(first) = requests.recv() {
-        let flushes: Vec<_> = std::iter::once(first)
-            .chain(requests.try_iter())
-            .filter_map(|request| match request {
-                WriteRequest::Changed => None,
-                WriteRequest::Flush(done) => Some(done),
-            })
-            .collect();
-        let snapshot = lines.lock().unwrap_or_else(|p| p.into_inner()).clone();
-        let result = serde_json::to_vec_pretty(&snapshot)
-            .map_err(std::io::Error::other)
-            .and_then(|bytes| {
-                let tmp = path.with_extension("json.tmp");
-                std::fs::write(&tmp, bytes)?;
-                std::fs::rename(&tmp, path)
-            });
-        if let Err(e) = result {
-            warn!("Failed to write {}: {}", path.display(), e);
-        }
-        for done in flushes {
-            let _ = done.send(());
-        }
     }
 }
 
@@ -150,12 +82,11 @@ impl RecordingSaver {
             journal
         });
         info!("Recording saver started for meeting {}", target.meeting_id);
-        let live_lines = LiveLineStore::new(&target.folder);
         Ok(Self {
             target,
             progress,
             journal_writer: Some(journal_writer),
-            live_lines,
+            live_lines: LiveLineStore::default(),
         })
     }
 
@@ -187,5 +118,39 @@ impl RecordingSaver {
             .map_err(|e| anyhow!("Closing the audio journal failed: {}", e))??;
         info!("Audio journal closed: {}", self.target.folder.display());
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::audio::recording_state::DeviceType;
+
+    fn seconds(value: f64) -> AudioChunk {
+        AudioChunk {
+            data: vec![0.1; (value * f64::from(PIPELINE_SAMPLE_RATE)) as usize],
+            device_type: DeviceType::Microphone,
+        }
+    }
+
+    #[tokio::test]
+    async fn progress_reports_received_and_synced_seconds() {
+        let dir = tempfile::tempdir().unwrap();
+        let (sender, receiver) = mpsc::unbounded_channel();
+        let target = MeetingTarget {
+            meeting_id: "m".into(),
+            meeting_name: "Meeting".into(),
+            folder: dir.path().to_path_buf(),
+        };
+        let mut saver = RecordingSaver::start(target, receiver).unwrap();
+        sender.send(seconds(2.0)).unwrap();
+        sender.send(seconds(0.5)).unwrap();
+        drop(sender);
+        saver.close_journal().await.unwrap();
+        // The `local_progress` of `get_recording_state`: the last 0.5 s waits for the next sync.
+        assert_eq!(
+            saver.progress(),
+            serde_json::json!({ "received": 2.5, "saved": 2.0, "write_failed": false })
+        );
     }
 }

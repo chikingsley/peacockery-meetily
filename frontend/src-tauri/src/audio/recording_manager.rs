@@ -7,7 +7,7 @@ use log::{error, info, warn};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use super::device_monitor::{AudioDeviceMonitor, DeviceEvent};
+use super::device_monitor::{AudioDeviceMonitor, MicDisconnected};
 use super::devices::AudioDevice;
 use super::levels::LevelsCallback;
 use super::pipeline::{AudioPipelineManager, EnergyRecorder, PipelineOutputs, PipelineStats};
@@ -46,7 +46,7 @@ pub struct RecordingManager {
     recording_saver: RecordingSaver,
     live: Option<LiveManager>,
     device_monitor: AudioDeviceMonitor,
-    device_event_receiver: Option<mpsc::UnboundedReceiver<DeviceEvent>>,
+    device_event_receiver: Option<mpsc::UnboundedReceiver<MicDisconnected>>,
 }
 
 // SAFETY: the cpal streams inside `AudioStreamManager` are only touched through the
@@ -71,7 +71,6 @@ impl RecordingManager {
         // Streams first (into the not-yet-ready pipeline, chunks are skipped), so the live
         // sessions know which sources exist.
         let mut stream_manager = AudioStreamManager::new(state.clone());
-        let monitored_system = system_source.as_ref().and_then(SystemSource::endpoint);
         if let Err(e) = stream_manager
             .start_streams(microphone_device.clone(), system_source)
             .await
@@ -126,8 +125,8 @@ impl RecordingManager {
         );
 
         let (mut device_monitor, device_event_receiver) = AudioDeviceMonitor::new();
-        if let Err(e) = device_monitor.start_monitoring(microphone_device, monitored_system) {
-            warn!("Failed to start device monitoring: {}", e);
+        if let Some(microphone) = microphone_device {
+            device_monitor.start_monitoring(microphone);
         }
 
         info!("Recording manager started");
@@ -233,8 +232,10 @@ impl RecordingManager {
         self.recording_saver.live_lines().lines()
     }
 
-    /// Hand the device event stream to the background hot-swap processor.
-    pub fn take_device_event_receiver(&mut self) -> Option<mpsc::UnboundedReceiver<DeviceEvent>> {
+    /// Hand the mic disconnect stream to the background hot-swap processor.
+    pub fn take_device_event_receiver(
+        &mut self,
+    ) -> Option<mpsc::UnboundedReceiver<MicDisconnected>> {
         self.device_event_receiver.take()
     }
 
@@ -245,15 +246,9 @@ impl RecordingManager {
     }
 
     /// Install the replacement mic stream after a hot-swap.
-    pub fn set_mic_stream_after_swap(
-        &mut self,
-        stream: AudioStream,
-        device: Arc<AudioDevice>,
-        system_name: Option<String>,
-    ) {
+    pub fn set_mic_stream_after_swap(&mut self, stream: AudioStream, device: Arc<AudioDevice>) {
         self.stream_manager.set_mic_stream(stream);
-        self.device_monitor
-            .notify_mic_swapped(device.name.clone(), system_name);
+        self.device_monitor.notify_mic_swapped(device.name.clone());
     }
 
     pub fn get_state(&self) -> &Arc<RecordingState> {

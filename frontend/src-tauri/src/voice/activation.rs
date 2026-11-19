@@ -38,7 +38,7 @@ pub async fn activate_access(
     app: tauri::AppHandle,
     voice: State<'_, VoiceService>,
     code: String,
-) -> Result<Option<String>, String> {
+) -> Result<String, String> {
     let code: String = code
         .chars()
         .filter(|c| !c.is_whitespace() && *c != '-')
@@ -96,7 +96,7 @@ pub async fn activate_access(
         }
     };
     voice.set_settings(saved);
-    Ok(Some(activation.recipient))
+    Ok(activation.recipient)
 }
 
 #[cfg(test)]

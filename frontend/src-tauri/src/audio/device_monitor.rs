@@ -1,5 +1,5 @@
-// Audio device monitoring for disconnect/reconnect detection
-use anyhow::Result;
+//! Watches the recording microphone and reports when it disappears, which drives the mic
+//! fallback to the system default input (`recording_commands`).
 use log::{debug, error, info, warn};
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,203 +8,140 @@ use tokio::task::JoinHandle;
 
 use super::devices::{list_audio_devices, AudioDevice};
 
-/// Device monitoring events
+/// How often the device list is read.
+const POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+/// The monitored microphone has been missing for its disconnect threshold.
 #[derive(Debug, Clone)]
-pub enum DeviceEvent {
-    /// A device that was in use has disconnected
-    DeviceDisconnected {
-        device_name: String,
-        device_type: DeviceMonitorType,
-    },
-    /// A previously disconnected device has reconnected
-    DeviceReconnected {
-        device_name: String,
-        device_type: DeviceMonitorType,
-    },
-    /// Device list has changed (new device added or removed)
-    DeviceListChanged,
+pub struct MicDisconnected {
+    pub device_name: String,
 }
 
-/// Type of device being monitored
-#[derive(Debug, Clone, PartialEq)]
-pub enum DeviceMonitorType {
-    Microphone,
-    SystemAudio,
-}
-
-/// Monitor state for a single device
+/// Monitor state for the microphone.
 #[derive(Debug, Clone)]
-struct MonitoredDevice {
+struct MonitoredMic {
     name: String,
-    device_type: DeviceMonitorType,
     consecutive_missing: u32,
     is_bluetooth: bool,
 }
 
-impl MonitoredDevice {
-    fn new(name: String, device_type: DeviceMonitorType) -> Self {
-        // Heuristic: check if device name contains bluetooth-related keywords
-        let is_bluetooth = name.to_lowercase().contains("airpods")
-            || name.to_lowercase().contains("bluetooth")
-            || name.to_lowercase().contains("wireless");
-
+impl MonitoredMic {
+    fn new(name: String) -> Self {
+        // Heuristic: Bluetooth devices drop out briefly, so they get more grace.
+        let lower = name.to_lowercase();
+        let is_bluetooth =
+            lower.contains("airpods") || lower.contains("bluetooth") || lower.contains("wireless");
         Self {
             name,
-            device_type,
             consecutive_missing: 0,
             is_bluetooth,
         }
     }
 
-    /// Get appropriate disconnect threshold based on device type
+    /// Missing polls before a disconnect is reported.
     fn disconnect_threshold(&self) -> u32 {
-        // Bluetooth devices get more grace period (they can briefly disconnect)
         if self.is_bluetooth {
-            3 // 3 polling cycles (6-15 seconds)
+            3 // 6 s
         } else {
-            2 // 2 polling cycles (4-10 seconds)
+            2 // 4 s
         }
+    }
+
+    /// Record one poll; true when a disconnect should be reported. While the device stays
+    /// missing this repeats every threshold polls: a failed fallback leaves the dead device
+    /// tracked, so the repeat retries it (attempts are bounded by the fallback).
+    fn observe(&mut self, present: bool) -> bool {
+        if present {
+            if self.consecutive_missing > 0 {
+                info!(
+                    "Microphone '{}' is back after {} missing checks",
+                    self.name, self.consecutive_missing
+                );
+                self.consecutive_missing = 0;
+            }
+            return false;
+        }
+        self.consecutive_missing += 1;
+        debug!(
+            "Microphone '{}' missing for {} checks (threshold: {})",
+            self.name,
+            self.consecutive_missing,
+            self.disconnect_threshold()
+        );
+        self.consecutive_missing % self.disconnect_threshold() == 0
     }
 }
 
-/// Hot-swap mailbox: `(new_mic_name, optional_new_system_name)`.
-type DeviceUpdateMailbox = Arc<std::sync::Mutex<Option<(String, Option<String>)>>>;
+/// New microphone name after a hot-swap, picked up on the next poll.
+type MicUpdateMailbox = Arc<std::sync::Mutex<Option<String>>>;
 
-/// Audio device monitor that detects disconnects and reconnects
+/// Polls the device list for the recording microphone.
 pub struct AudioDeviceMonitor {
     monitor_handle: Option<JoinHandle<()>>,
-    event_sender: mpsc::UnboundedSender<DeviceEvent>,
+    event_sender: mpsc::UnboundedSender<MicDisconnected>,
     stop_signal: Arc<tokio::sync::Notify>,
-    /// Mailbox for hot-swap device updates. When a mic hot-swap completes,
-    /// the new device names are written here. The monitor loop reads it on
-    /// its next poll cycle and updates its tracked device list.
-    /// Format: (new_mic_name, optional_new_system_name)
-    device_update_mailbox: DeviceUpdateMailbox,
+    mic_update_mailbox: MicUpdateMailbox,
 }
 
 impl AudioDeviceMonitor {
-    /// Create a new device monitor
-    pub fn new() -> (Self, mpsc::UnboundedReceiver<DeviceEvent>) {
+    pub fn new() -> (Self, mpsc::UnboundedReceiver<MicDisconnected>) {
         let (event_sender, event_receiver) = mpsc::unbounded_channel();
-        let stop_signal = Arc::new(tokio::sync::Notify::new());
-
         (
             Self {
                 monitor_handle: None,
                 event_sender,
-                stop_signal,
-                device_update_mailbox: Arc::new(std::sync::Mutex::new(None)),
+                stop_signal: Arc::new(tokio::sync::Notify::new()),
+                mic_update_mailbox: Arc::default(),
             },
             event_receiver,
         )
     }
 
-    /// Notify the monitor that the mic has been hot-swapped to a new device.
-    /// Optionally also update the system audio tracked name (since BT devices
-    /// like AirPods are often both mic AND speaker — when they disconnect,
-    /// both entries go stale). The monitor loop picks this up on its next
-    /// poll cycle.
-    pub fn notify_mic_swapped(&self, new_mic_name: String, new_system_name: Option<String>) {
-        if let Ok(mut mailbox) = self.device_update_mailbox.lock() {
-            *mailbox = Some((new_mic_name, new_system_name));
+    /// The mic was hot-swapped: watch `new_mic_name` from the next poll on.
+    pub fn notify_mic_swapped(&self, new_mic_name: String) {
+        if let Ok(mut mailbox) = self.mic_update_mailbox.lock() {
+            *mailbox = Some(new_mic_name);
         }
     }
 
-    /// Start monitoring specified devices
-    pub fn start_monitoring(
-        &mut self,
-        microphone: Option<Arc<AudioDevice>>,
-        system_audio: Option<Arc<AudioDevice>>,
-    ) -> Result<()> {
+    pub fn start_monitoring(&mut self, microphone: Arc<AudioDevice>) {
         if self.monitor_handle.is_some() {
             warn!("Device monitor already running");
-            return Ok(());
+            return;
         }
-
-        let mut monitored_devices = Vec::new();
-
-        if let Some(mic) = microphone {
-            monitored_devices.push(MonitoredDevice::new(
-                mic.name.clone(),
-                DeviceMonitorType::Microphone,
-            ));
-            info!(
-                "🔍 Monitoring microphone: '{}' (Bluetooth: {})",
-                mic.name,
-                monitored_devices.last().unwrap().is_bluetooth
-            );
-        }
-
-        if let Some(sys) = system_audio {
-            monitored_devices.push(MonitoredDevice::new(
-                sys.name.clone(),
-                DeviceMonitorType::SystemAudio,
-            ));
-            info!(
-                "🔍 Monitoring system audio: '{}' (Bluetooth: {})",
-                sys.name,
-                monitored_devices.last().unwrap().is_bluetooth
-            );
-        }
-
-        if monitored_devices.is_empty() {
-            return Err(anyhow::anyhow!("No devices to monitor"));
-        }
-
+        let mic = MonitoredMic::new(microphone.name.clone());
+        info!(
+            "Monitoring microphone: '{}' (Bluetooth: {})",
+            mic.name, mic.is_bluetooth
+        );
         let event_sender = self.event_sender.clone();
         let stop_signal = self.stop_signal.clone();
-        let device_update_mailbox = self.device_update_mailbox.clone();
-
-        let handle = tokio::spawn(async move {
-            Self::monitor_loop(
-                monitored_devices,
-                event_sender,
-                stop_signal,
-                device_update_mailbox,
-            )
-            .await;
-        });
-
-        self.monitor_handle = Some(handle);
-        info!("✅ Device monitor started");
-        Ok(())
+        let mailbox = self.mic_update_mailbox.clone();
+        self.monitor_handle = Some(tokio::spawn(async move {
+            Self::monitor_loop(mic, event_sender, stop_signal, mailbox).await;
+        }));
     }
 
-    /// Stop monitoring
     pub async fn stop_monitoring(&mut self) {
-        info!("Stopping device monitor");
         self.stop_signal.notify_one();
-
         if let Some(handle) = self.monitor_handle.take() {
             let _ = handle.await;
+            info!("Device monitor stopped");
         }
-
-        info!("Device monitor stopped");
     }
 
-    /// Main monitoring loop
     async fn monitor_loop(
-        mut monitored_devices: Vec<MonitoredDevice>,
-        event_sender: mpsc::UnboundedSender<DeviceEvent>,
+        mut mic: MonitoredMic,
+        event_sender: mpsc::UnboundedSender<MicDisconnected>,
         stop_signal: Arc<tokio::sync::Notify>,
-        device_update_mailbox: DeviceUpdateMailbox,
+        mailbox: MicUpdateMailbox,
     ) {
-        let mut last_device_list = Vec::new();
-        let check_interval = Duration::from_secs(2); // Poll every 2 seconds
-
         loop {
-            // Check for stop signal with timeout
             tokio::select! {
-                _ = stop_signal.notified() => {
-                    info!("Device monitor received stop signal");
-                    break;
-                }
-                _ = tokio::time::sleep(check_interval) => {
-                    // Continue with monitoring check
-                }
+                _ = stop_signal.notified() => break,
+                _ = tokio::time::sleep(POLL_INTERVAL) => {}
             }
 
-            // Get current device list
             let current_devices = match list_audio_devices().await {
                 Ok(devices) => devices,
                 Err(e) => {
@@ -213,125 +150,28 @@ impl AudioDeviceMonitor {
                 }
             };
 
-            // Check for hot-swap device update from the mailbox.
-            // If a hot-swap completed since our last cycle, update our tracked
-            // devices so we stop polling for the dead ones and start watching
-            // the fallback devices instead. Rebuilding via MonitoredDevice::new
-            // re-derives is_bluetooth from the new name and resets
-            // consecutive_missing.
-            if let Ok(mut mailbox) = device_update_mailbox.lock() {
-                if let Some((new_mic_name, new_system_name)) = mailbox.take() {
-                    for dev in &mut monitored_devices {
-                        match dev.device_type {
-                            DeviceMonitorType::Microphone => {
-                                info!(
-                                    "[DEVICE_MONITOR] Updated tracked mic: '{}' → '{}' (hot-swap)",
-                                    dev.name, new_mic_name
-                                );
-                                *dev = MonitoredDevice::new(
-                                    new_mic_name.clone(),
-                                    dev.device_type.clone(),
-                                );
-                            }
-                            DeviceMonitorType::SystemAudio => {
-                                if let Some(ref sys_name) = new_system_name {
-                                    info!("[DEVICE_MONITOR] Updated tracked system audio: '{}' → '{}' (hot-swap)", dev.name, sys_name);
-                                    *dev = MonitoredDevice::new(
-                                        sys_name.clone(),
-                                        dev.device_type.clone(),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Check if device list changed
-            if current_devices.len() != last_device_list.len() {
-                debug!(
-                    "Device list changed: {} -> {} devices",
-                    last_device_list.len(),
-                    current_devices.len()
+            // A completed hot-swap retargets the monitor and resets the missing count.
+            if let Some(new_name) = mailbox.lock().ok().and_then(|mut m| m.take()) {
+                info!(
+                    "[DEVICE_MONITOR] Updated tracked mic: '{}' → '{}' (hot-swap)",
+                    mic.name, new_name
                 );
-                let _ = event_sender.send(DeviceEvent::DeviceListChanged);
-            }
-            last_device_list = current_devices.clone();
-
-            // Check each monitored device
-            for monitored in &mut monitored_devices {
-                let device_found = current_devices.iter().any(|d| d.name == monitored.name);
-
-                if device_found {
-                    // Device is present
-                    if monitored.consecutive_missing > 0 {
-                        // Device has reconnected!
-                        info!(
-                            "✅ Device '{}' reconnected after {} missing checks",
-                            monitored.name, monitored.consecutive_missing
-                        );
-
-                        let _ = event_sender.send(DeviceEvent::DeviceReconnected {
-                            device_name: monitored.name.clone(),
-                            device_type: monitored.device_type.clone(),
-                        });
-
-                        monitored.consecutive_missing = 0;
-                    }
-                } else {
-                    // Device is missing
-                    monitored.consecutive_missing += 1;
-
-                    debug!(
-                        "⚠️ Device '{}' missing for {} checks (threshold: {})",
-                        monitored.name,
-                        monitored.consecutive_missing,
-                        monitored.disconnect_threshold()
-                    );
-
-                    // Re-fire every `threshold` cycles while the device is still missing. A
-                    // successful hot-swap retargets us via the mailbox (resets the counter); a
-                    // FAILED swap leaves the dead device tracked, so this re-fire is what retries
-                    // it. Total attempts are bounded in trigger_mic_fallback_to_default. (P1 #2)
-                    if monitored.consecutive_missing % monitored.disconnect_threshold() == 0 {
-                        warn!(
-                            "❌ Device '{}' ({:?}) disconnected!",
-                            monitored.name, monitored.device_type
-                        );
-
-                        let _ = event_sender.send(DeviceEvent::DeviceDisconnected {
-                            device_name: monitored.name.clone(),
-                            device_type: monitored.device_type.clone(),
-                        });
-                    }
-                }
+                mic = MonitoredMic::new(new_name);
             }
 
-            // Adjust check interval based on device states
-            // If any device is missing, check more frequently
-            let has_missing = monitored_devices.iter().any(|d| d.consecutive_missing > 0);
-            let next_interval = if has_missing {
-                Duration::from_secs(2) // Fast polling when device missing
-            } else {
-                Duration::from_secs(5) // Slower polling when all devices present
-            };
-
-            if next_interval != check_interval {
-                debug!("Adjusting monitor interval to {:?}", next_interval);
+            let present = current_devices.iter().any(|d| d.name == mic.name);
+            if mic.observe(present) {
+                warn!("Microphone '{}' disconnected", mic.name);
+                let _ = event_sender.send(MicDisconnected {
+                    device_name: mic.name.clone(),
+                });
             }
         }
     }
 }
 
-impl Default for AudioDeviceMonitor {
-    fn default() -> Self {
-        Self::new().0
-    }
-}
-
 impl Drop for AudioDeviceMonitor {
     fn drop(&mut self) {
-        // Signal stop
         self.stop_signal.notify_one();
     }
 }
@@ -341,28 +181,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bluetooth_detection() {
-        let airpods = MonitoredDevice::new(
-            "John's AirPods Pro".to_string(),
-            DeviceMonitorType::Microphone,
-        );
+    fn bluetooth_mics_get_more_grace() {
+        let airpods = MonitoredMic::new("John's AirPods Pro".to_string());
         assert!(airpods.is_bluetooth);
         assert_eq!(airpods.disconnect_threshold(), 3);
 
-        let builtin = MonitoredDevice::new(
-            "Built-in Microphone".to_string(),
-            DeviceMonitorType::Microphone,
-        );
+        let builtin = MonitoredMic::new("Built-in Microphone".to_string());
         assert!(!builtin.is_bluetooth);
         assert_eq!(builtin.disconnect_threshold(), 2);
     }
 
+    #[test]
+    fn a_missing_mic_is_reported_at_its_threshold_and_again_while_missing() {
+        let mut mic = MonitoredMic::new("USB Microphone".to_string());
+        assert!(!mic.observe(true));
+        assert!(!mic.observe(false));
+        assert!(mic.observe(false), "reported after two missing polls");
+        assert!(!mic.observe(false));
+        assert!(mic.observe(false), "reported again while still missing");
+        assert!(!mic.observe(true));
+        assert_eq!(mic.consecutive_missing, 0);
+        assert!(!mic.observe(false), "a returned mic starts counting again");
+    }
+
     #[tokio::test]
-    async fn test_monitor_creation() {
+    async fn stopping_an_unstarted_monitor_is_safe() {
         let (mut monitor, _receiver) = AudioDeviceMonitor::new();
         assert!(monitor.monitor_handle.is_none());
-
-        // Stop should be safe even if not started
         monitor.stop_monitoring().await;
     }
 }

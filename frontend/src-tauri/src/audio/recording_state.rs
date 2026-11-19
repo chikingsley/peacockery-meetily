@@ -18,36 +18,28 @@ pub struct AudioChunk {
     pub device_type: DeviceType,
 }
 
-/// Comprehensive error types for audio system
+/// Errors reported by the capture streams.
 #[derive(Debug, Clone)]
 pub enum AudioError {
     DeviceDisconnected,
     StreamFailed,
     ProcessingFailed,
     ChannelClosed,
-    InitializationFailed,
-    ConfigurationError,
     PermissionDenied,
-    BufferOverflow,
-    SampleRateUnsupported,
     /// The Chrome process loopback ended (Chrome closed or the stream failed).
     AppAudioEnded,
 }
 
 impl AudioError {
-    /// Check if error is recoverable (can attempt reconnection)
+    /// Capture continues after a recoverable error (a disconnected mic falls back to the
+    /// default input).
     pub fn is_recoverable(&self) -> bool {
         match self {
-            // Device disconnect is now recoverable - we can attempt reconnection
             AudioError::DeviceDisconnected => true,
             AudioError::StreamFailed => true,
             AudioError::ProcessingFailed => true,
             AudioError::ChannelClosed => false,
-            AudioError::InitializationFailed => false,
-            AudioError::ConfigurationError => false,
             AudioError::PermissionDenied => false,
-            AudioError::BufferOverflow => true,
-            AudioError::SampleRateUnsupported => false,
             AudioError::AppAudioEnded => true,
         }
     }
@@ -59,11 +51,7 @@ impl AudioError {
             AudioError::StreamFailed => "Audio stream encountered an error",
             AudioError::ProcessingFailed => "Audio processing failed",
             AudioError::ChannelClosed => "Audio channel was closed unexpectedly",
-            AudioError::InitializationFailed => "Failed to initialize audio system",
-            AudioError::ConfigurationError => "Audio configuration error",
             AudioError::PermissionDenied => "Microphone permission denied",
-            AudioError::BufferOverflow => "Audio buffer overflow",
-            AudioError::SampleRateUnsupported => "Audio sample rate not supported",
             AudioError::AppAudioEnded => "Google Chrome audio capture stopped (was Chrome closed?). The microphone is still recording.",
         }
     }

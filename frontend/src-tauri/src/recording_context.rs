@@ -3,10 +3,9 @@ use peacockery_voice::LiveMode;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RecordingMode {
-    #[default]
     InPerson,
     Online,
     Phone,
@@ -70,7 +69,7 @@ impl RecordingContext {
 pub async fn get_recording_calendar(
     app: tauri::AppHandle,
 ) -> Result<Option<CalendarSnapshot>, String> {
-    Ok(crate::outlook_calendar::snapshot(&app).await?.flatten())
+    crate::outlook_calendar::snapshot(&app).await
 }
 
 #[cfg(test)]

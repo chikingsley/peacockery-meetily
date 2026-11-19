@@ -32,9 +32,8 @@ pub enum Channel {
     Mixed,
 }
 
-/// `live_mode` setting.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+/// Live session topology of a recording (from its recording mode).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiveMode {
     /// mic → "Me" session, system → "Them" session.
     Split,

@@ -105,12 +105,12 @@ pub fn exit_ready() -> bool {
     EXIT_READY.load(Ordering::SeqCst)
 }
 
-/// Starting needs the device picks and the key check of the main window, so the tray asks
-/// the page to start. The tray shows "Starting..." only once the start command runs.
+/// The tray opens recording setup in the main window; capture starts at its Start button.
+/// The tray shows "Starting..." only once the start command runs.
 fn start_recording_handler(app: &AppHandle) {
     focus_main_window(app);
-    if let Err(e) = app.emit("request-recording-toggle", serde_json::json!({})) {
-        log::error!("Failed to ask the main window to start recording: {}", e);
+    if let Err(e) = app.emit("open-recording-setup", serde_json::json!({})) {
+        log::error!("Failed to open recording setup: {}", e);
     }
 }
 

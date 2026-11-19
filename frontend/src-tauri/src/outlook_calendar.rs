@@ -24,10 +24,10 @@ struct Auth {
     token: String,
     account: String,
 }
+/// `outlook-calendar.json`; an empty calendar means none is selected.
 #[derive(Default, Serialize, Deserialize)]
 struct Selection {
     calendar: String,
-    disabled: bool,
 }
 #[derive(Serialize)]
 pub struct Connection {
@@ -102,8 +102,11 @@ fn selection(app: &tauri::AppHandle) -> Selection {
     selection_path(app)
         .ok()
         .and_then(|p| std::fs::read(p).ok())
-        .and_then(|s| serde_json::from_slice(&s).ok())
+        .map(|bytes| parse_selection(&bytes))
         .unwrap_or_default()
+}
+fn parse_selection(bytes: &[u8]) -> Selection {
+    serde_json::from_slice(bytes).unwrap_or_default()
 }
 async fn get(auth: &Auth, path: &str) -> Result<Value, String> {
     let url = if path.starts_with("https://outlook.office.com/api/v2.0/") {
@@ -226,11 +229,7 @@ pub async fn outlook_select(app: tauri::AppHandle, calendar: String) -> Result<(
     }
     std::fs::write(
         selection_path(&app)?,
-        serde_json::to_vec(&Selection {
-            calendar,
-            disabled: false,
-        })
-        .map_err(|e| e.to_string())?,
+        serde_json::to_vec(&Selection { calendar }).map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())
 }
@@ -239,8 +238,11 @@ pub fn outlook_disconnect(app: tauri::AppHandle) -> Result<(), String> {
     if CONNECTING.load(std::sync::atomic::Ordering::SeqCst) {
         return Err("Finish Outlook sign-in before disconnecting.".into());
     }
-    std::fs::write(selection_path(&app)?, br#"{"calendar":"","disabled":true}"#)
-        .map_err(|e| e.to_string())?;
+    std::fs::write(
+        selection_path(&app)?,
+        serde_json::to_vec(&Selection::default()).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
     match std::fs::remove_file(auth_path(&app)?) {
         Ok(()) => (),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
@@ -460,7 +462,6 @@ async fn capture(app: &tauri::AppHandle, interactive: bool) -> Result<Connection
                             selection_path(app)?,
                             serde_json::to_vec(&Selection {
                                 calendar: chosen.clone(),
-                                disabled: false,
                             })
                             .map_err(|e| e.to_string())?,
                         )
@@ -525,17 +526,16 @@ fn person(v: &Value) -> CalendarPerson {
         email: a["Address"].as_str().unwrap_or("").into(),
     }
 }
-pub async fn snapshot(app: &tauri::AppHandle) -> Result<Option<Option<CalendarSnapshot>>, String> {
+/// The selected calendar's events from yesterday to two days ahead; `None` without a selected
+/// calendar or a saved session. Disconnect clears both, so Microsoft is not contacted.
+pub async fn snapshot(app: &tauri::AppHandle) -> Result<Option<CalendarSnapshot>, String> {
     let s = selection(app);
-    if s.disabled {
-        return Ok(Some(None));
+    if s.calendar.is_empty() {
+        return Ok(None);
     }
     let Some(auth) = current_auth(app).await? else {
         return Ok(None);
     };
-    if s.calendar.is_empty() {
-        return Ok(Some(None));
-    }
     let start = (chrono::Utc::now() - chrono::Duration::days(1)).to_rfc3339();
     let end = (chrono::Utc::now() + chrono::Duration::days(2)).to_rfc3339();
     let id: String = url::form_urlencoded::byte_serialize(s.calendar.as_bytes()).collect();
@@ -599,10 +599,10 @@ pub async fn snapshot(app: &tauri::AppHandle) -> Result<Option<Option<CalendarSn
         match v["@odata.nextLink"].as_str() {
             None => {
                 events.sort_by(|a, b| a.start.cmp(&b.start));
-                return Ok(Some(Some(CalendarSnapshot {
+                return Ok(Some(CalendarSnapshot {
                     observed: chrono::Utc::now().to_rfc3339(),
                     events,
-                })));
+                }));
             }
             Some(n) if n.starts_with("https://outlook.office.com/api/v2.0/") => next = n.into(),
             _ => return Err("Unexpected calendar pagination.".into()),
@@ -629,6 +629,23 @@ mod tests {
         tokio::time::timeout(Duration::from_secs(2), waiting)
             .await
             .unwrap();
+    }
+
+    #[test]
+    fn disconnect_leaves_no_selected_calendar() {
+        // Files written before the `disabled` flag was removed still load.
+        assert_eq!(
+            parse_selection(br#"{"calendar":"","disabled":true}"#).calendar,
+            ""
+        );
+        assert_eq!(
+            parse_selection(br#"{"calendar":"abc","disabled":false}"#).calendar,
+            "abc"
+        );
+        let written = serde_json::to_vec(&Selection::default()).unwrap();
+        assert_eq!(written, br#"{"calendar":""}"#);
+        assert!(parse_selection(&written).calendar.is_empty());
+        assert!(parse_selection(b"junk").calendar.is_empty());
     }
 
     fn token(audience: &str, expires: i64) -> String {
