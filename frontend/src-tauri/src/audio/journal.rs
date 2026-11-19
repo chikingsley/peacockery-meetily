@@ -1,7 +1,8 @@
-//! Crash-safe recording: the mixed audio is appended to a raw PCM journal in
-//! `<meeting>/.checkpoints/` as it arrives and synced to disk every two seconds. The
-//! journal is encoded into `<meeting>/audio.mp4` at stop (or at startup recovery after a
-//! crash). Recording itself starts no process and holds at most two seconds in memory.
+//! Crash-safe recording audio: the mixed audio is appended to a raw PCM journal in
+//! `<meeting>/.checkpoints/` as it arrives and synced to disk every two seconds. Stop closes
+//! the journal; it is then encoded into `<meeting>/audio.mp4` in the background
+//! (`audio_save`), or at startup recovery after a crash. Recording itself starts no process
+//! and holds at most two seconds in memory.
 
 use super::encode::encode_pcm_file;
 use super::recording_state::AudioChunk;
@@ -12,6 +13,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+// The on-disk names are unchanged since 0.6.14, so a journal left by that version is
+// still recovered.
 pub const CHECKPOINTS_DIR: &str = ".checkpoints";
 pub const AUDIO_FILE_NAME: &str = "audio.mp4";
 /// Mono signed 16-bit little-endian PCM at the pipeline sample rate.
@@ -23,29 +26,27 @@ const ENCODE_ATTEMPTS: u32 = 3;
 const ENCODE_RETRY_DELAY: Duration = Duration::from_secs(2);
 
 /// Appends mixed mono audio to the journal and syncs it every two seconds.
-pub struct IncrementalAudioSaver {
-    journal: File,
+pub struct AudioJournal {
+    file: File,
     pending: Vec<u8>,
     sync_interval_bytes: usize,
     saved_samples: u64,
-    meeting_folder: PathBuf,
     sample_rate: u32,
 }
 
-impl IncrementalAudioSaver {
+impl AudioJournal {
     /// Creates `<meeting_folder>/.checkpoints/` and an empty journal.
-    pub fn new(meeting_folder: PathBuf, sample_rate: u32) -> Result<Self> {
+    pub fn create(meeting_folder: &Path, sample_rate: u32) -> Result<Self> {
         let checkpoints_dir = meeting_folder.join(CHECKPOINTS_DIR);
         std::fs::create_dir_all(&checkpoints_dir)?;
-        let journal = File::create(checkpoints_dir.join(JOURNAL_FILE_NAME))
+        let file = File::create(checkpoints_dir.join(JOURNAL_FILE_NAME))
             .context("Failed to create the audio journal")?;
         let sync_interval_bytes = sample_rate as usize * SYNC_SECONDS * BYTES_PER_SAMPLE;
         Ok(Self {
-            journal,
+            file,
             pending: Vec::with_capacity(sync_interval_bytes + 8192),
             sync_interval_bytes,
             saved_samples: 0,
-            meeting_folder,
             sample_rate,
         })
     }
@@ -68,10 +69,10 @@ impl IncrementalAudioSaver {
         }
         // Track the durable length so a failed write is retried without duplicating audio.
         let durable = self.saved_samples * BYTES_PER_SAMPLE as u64;
-        self.journal.set_len(durable)?;
-        std::io::Seek::seek(&mut self.journal, std::io::SeekFrom::Start(durable))?;
-        self.journal.write_all(&self.pending)?;
-        self.journal.sync_data()?;
+        self.file.set_len(durable)?;
+        std::io::Seek::seek(&mut self.file, std::io::SeekFrom::Start(durable))?;
+        self.file.write_all(&self.pending)?;
+        self.file.sync_data()?;
         self.saved_samples += (self.pending.len() / BYTES_PER_SAMPLE) as u64;
         self.pending.clear();
         Ok(())
@@ -82,9 +83,8 @@ impl IncrementalAudioSaver {
         self.saved_samples
     }
 
-    /// Sync the remaining audio, encode the journal into `audio.mp4` and remove
-    /// `.checkpoints/`. When encoding fails the journal stays for startup recovery.
-    pub fn finalize(&mut self) -> Result<PathBuf> {
+    /// Sync the remaining audio and close the journal. Fails when nothing was captured.
+    pub fn close(mut self) -> Result<()> {
         self.sync()?;
         if self.saved_samples == 0 {
             return Err(anyhow!("No audio was captured - recording may have failed"));
@@ -93,22 +93,7 @@ impl IncrementalAudioSaver {
             "Audio journal complete: {:.2}s",
             self.saved_samples as f64 / f64::from(self.sample_rate)
         );
-        let mut attempt = 1;
-        loop {
-            match encode_journal(&self.meeting_folder, self.sample_rate) {
-                Ok(path) => return Ok(path),
-                Err(e) if attempt < ENCODE_ATTEMPTS => {
-                    warn!("Encoding attempt {attempt} failed, retrying: {e:#}");
-                    attempt += 1;
-                    std::thread::sleep(ENCODE_RETRY_DELAY);
-                }
-                Err(e) => {
-                    return Err(e.context(
-                        "The recording is safe on disk and will be encoded at the next start",
-                    ))
-                }
-            }
-        }
+        Ok(())
     }
 }
 
@@ -122,13 +107,33 @@ pub fn has_journal(meeting_folder: &Path) -> bool {
         .is_ok_and(|meta| meta.len() >= BYTES_PER_SAMPLE as u64)
 }
 
-/// Encode the journal of `meeting_folder` into `audio.mp4` and delete `.checkpoints/`.
-/// Returns the path of `audio.mp4`.
+/// Encode the journal of `meeting_folder` into `audio.mp4` (up to three attempts) and
+/// delete `.checkpoints/`. Returns the path of `audio.mp4`. When encoding fails the
+/// journal stays for the next start. Blocks while ffmpeg runs.
 pub fn encode_journal(meeting_folder: &Path, sample_rate: u32) -> Result<PathBuf> {
-    let journal = journal_path(meeting_folder);
     if !has_journal(meeting_folder) {
         return Err(anyhow!("No audio journal in {}", meeting_folder.display()));
     }
+    let mut attempt = 1;
+    loop {
+        match encode_once(meeting_folder, sample_rate) {
+            Ok(path) => return Ok(path),
+            Err(e) if attempt < ENCODE_ATTEMPTS => {
+                warn!("Encoding attempt {attempt} failed, retrying: {e:#}");
+                attempt += 1;
+                std::thread::sleep(ENCODE_RETRY_DELAY);
+            }
+            Err(e) => {
+                return Err(anyhow!(
+                    "Could not encode the audio ({e:#}). The recording is safe on disk and will be encoded at the next start."
+                ))
+            }
+        }
+    }
+}
+
+fn encode_once(meeting_folder: &Path, sample_rate: u32) -> Result<PathBuf> {
+    let journal = journal_path(meeting_folder);
     // Encode beside the final name so an interrupted encode never looks complete.
     let partial = meeting_folder.join(PARTIAL_FILE_NAME);
     let output = meeting_folder.join(AUDIO_FILE_NAME);
@@ -165,17 +170,17 @@ mod tests {
     fn audio_reaches_disk_within_two_seconds_without_ffmpeg() {
         let temp_dir = tempdir().unwrap();
         let meeting_folder = temp_dir.path().join("Journal");
-        let mut saver = IncrementalAudioSaver::new(meeting_folder.clone(), 48000).unwrap();
+        let mut journal = AudioJournal::create(&meeting_folder, 48000).unwrap();
         for _ in 0..5 {
-            saver.add_chunk(chunk(24000)).unwrap(); // 2.5 s
+            journal.add_chunk(chunk(24000)).unwrap(); // 2.5 s
         }
         // The first two seconds are durable; the last half second is still pending.
-        assert_eq!(saver.saved_samples(), 96000);
-        let journal = std::fs::read(journal_path(&meeting_folder)).unwrap();
-        assert_eq!(journal.len(), 96000 * BYTES_PER_SAMPLE);
-        assert_eq!(i16::from_le_bytes([journal[0], journal[1]]), 3277);
+        assert_eq!(journal.saved_samples(), 96000);
+        let bytes = std::fs::read(journal_path(&meeting_folder)).unwrap();
+        assert_eq!(bytes.len(), 96000 * BYTES_PER_SAMPLE);
+        assert_eq!(i16::from_le_bytes([bytes[0], bytes[1]]), 3277);
         // A crash here leaves a journal that startup recovery can encode.
-        drop(saver);
+        drop(journal);
         assert!(has_journal(&meeting_folder));
     }
 
@@ -183,15 +188,15 @@ mod tests {
     fn samples_are_clamped_to_16_bit() {
         let temp_dir = tempdir().unwrap();
         let meeting_folder = temp_dir.path().join("Clamp");
-        let mut saver = IncrementalAudioSaver::new(meeting_folder.clone(), 2).unwrap();
-        saver
+        let mut journal = AudioJournal::create(&meeting_folder, 2).unwrap();
+        journal
             .add_chunk(AudioChunk {
                 data: vec![2.0, -2.0, 0.0, 1.0],
                 device_type: DeviceType::Microphone,
             })
             .unwrap();
-        let journal = std::fs::read(journal_path(&meeting_folder)).unwrap();
-        let samples: Vec<i16> = journal
+        let bytes = std::fs::read(journal_path(&meeting_folder)).unwrap();
+        let samples: Vec<i16> = bytes
             .chunks_exact(2)
             .map(|b| i16::from_le_bytes([b[0], b[1]]))
             .collect();
@@ -199,19 +204,60 @@ mod tests {
     }
 
     #[test]
-    fn encodes_the_journal_and_removes_it() {
+    fn close_syncs_the_pending_audio_and_keeps_the_journal() {
+        let temp_dir = tempdir().unwrap();
+        let meeting_folder = temp_dir.path().join("Closed");
+        let mut journal = AudioJournal::create(&meeting_folder, 48000).unwrap();
+        for _ in 0..3 {
+            journal.add_chunk(chunk(24000)).unwrap(); // 1.5 s, all pending
+        }
+        assert_eq!(journal.saved_samples(), 0);
+        journal.close().unwrap();
+        let bytes = std::fs::read(journal_path(&meeting_folder)).unwrap();
+        assert_eq!(bytes.len(), 3 * 24000 * BYTES_PER_SAMPLE);
+        assert!(has_journal(&meeting_folder));
+        assert!(!meeting_folder.join(AUDIO_FILE_NAME).exists());
+    }
+
+    #[test]
+    fn close_without_audio_fails() {
+        let temp_dir = tempdir().unwrap();
+        let meeting_folder = temp_dir.path().join("Empty");
+        let journal = AudioJournal::create(&meeting_folder, 48000).unwrap();
+        let error = journal.close().unwrap_err();
+        assert!(error.to_string().contains("No audio was captured"));
+        assert!(!has_journal(&meeting_folder));
+    }
+
+    #[test]
+    fn encoding_without_a_journal_fails_at_once() {
+        let temp_dir = tempdir().unwrap();
+        let started = std::time::Instant::now();
+        let error = encode_journal(temp_dir.path(), 48000).unwrap_err();
+        assert!(error.to_string().contains("No audio journal"));
+        assert!(started.elapsed() < ENCODE_RETRY_DELAY, "no retries");
+    }
+
+    #[test]
+    fn encodes_a_closed_journal_and_removes_it() {
         if super::super::ffmpeg::find_ffmpeg_path().is_none() {
             eprintln!("ffmpeg not available; skipping");
             return;
         }
         let temp_dir = tempdir().unwrap();
         let meeting_folder = temp_dir.path().join("Test_Meeting");
-        let mut saver = IncrementalAudioSaver::new(meeting_folder.clone(), 48000).unwrap();
+        let mut journal = AudioJournal::create(&meeting_folder, 48000).unwrap();
         for _ in 0..130 {
-            saver.add_chunk(chunk(24000)).unwrap(); // 65 s
+            journal.add_chunk(chunk(24000)).unwrap(); // 65 s
         }
-        let final_path = saver.finalize().unwrap();
-        assert_eq!(saver.saved_samples(), 130 * 24000);
+        journal.close().unwrap();
+        assert_eq!(
+            std::fs::metadata(journal_path(&meeting_folder))
+                .unwrap()
+                .len(),
+            (130 * 24000 * BYTES_PER_SAMPLE) as u64
+        );
+        let final_path = encode_journal(&meeting_folder, 48000).unwrap();
         assert_eq!(final_path, meeting_folder.join(AUDIO_FILE_NAME));
         assert!(final_path.is_file());
         assert!(!meeting_folder.join(CHECKPOINTS_DIR).exists());
@@ -226,23 +272,13 @@ mod tests {
         }
         let temp_dir = tempdir().unwrap();
         let meeting_folder = temp_dir.path().join("Crashed");
-        let mut saver = IncrementalAudioSaver::new(meeting_folder.clone(), 48000).unwrap();
+        let mut journal = AudioJournal::create(&meeting_folder, 48000).unwrap();
         for _ in 0..8 {
-            saver.add_chunk(chunk(24000)).unwrap(); // 4 s
+            journal.add_chunk(chunk(24000)).unwrap(); // 4 s
         }
-        drop(saver);
+        drop(journal);
         let path = encode_journal(&meeting_folder, 48000).unwrap();
         assert!(std::fs::metadata(path).unwrap().len() > 0);
-        assert!(!has_journal(&meeting_folder));
-    }
-
-    #[test]
-    fn finalize_without_audio_fails() {
-        let temp_dir = tempdir().unwrap();
-        let meeting_folder = temp_dir.path().join("Empty");
-        let mut saver = IncrementalAudioSaver::new(meeting_folder.clone(), 48000).unwrap();
-        let error = saver.finalize().unwrap_err();
-        assert!(error.to_string().contains("No audio was captured"));
         assert!(!has_journal(&meeting_folder));
     }
 }

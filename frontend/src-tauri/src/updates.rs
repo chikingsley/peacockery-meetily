@@ -5,6 +5,8 @@ use tauri::{ipc::Channel, Manager};
 use tauri_plugin_updater::UpdaterExt;
 
 static BUSY: AtomicBool = AtomicBool::new(false);
+const AUDIO_SAVING: &str =
+    "Wait for the recording's audio to finish saving, then install the update.";
 struct UpdateGuard;
 impl Drop for UpdateGuard {
     fn drop(&mut self) {
@@ -50,6 +52,9 @@ pub async fn install_app_update(
     if crate::audio::recording_commands::is_recording_active() {
         return Err("Finish recording before installing the update.".into());
     }
+    if crate::audio::audio_save::pending() > 0 {
+        return Err(AUDIO_SAVING.into());
+    }
     let update = app
         .updater()
         .map_err(|e| e.to_string())?
@@ -75,7 +80,7 @@ pub async fn install_app_update(
         )
         .await
         .map_err(|e| format!("Update download or signature verification failed: {e}"))?;
-    // Serialize with start/stop, including the final recording save.
+    // Serialize with start/stop; a stop registers its audio save before it releases the lock.
     let _lifecycle = crate::audio::recording_commands::LIFECYCLE_LOCK
         .lock()
         .await;
@@ -83,6 +88,9 @@ pub async fn install_app_update(
         return Err(
             "Recording started during download. Finish recording and try the update again.".into(),
         );
+    }
+    if crate::audio::audio_save::pending() > 0 {
+        return Err(AUDIO_SAVING.into());
     }
     let pool = app
         .state::<crate::state::AppState>()

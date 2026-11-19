@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 use tauri::{
     menu::{Menu, MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
     tray::TrayIconBuilder,
@@ -5,6 +7,15 @@ use tauri::{
 };
 
 const TRAY_ID: &str = "main-tray";
+
+/// Longest quit waits for background audio saves; an unfinished journal is encoded at the
+/// next start.
+const QUIT_SAVE_LIMIT: Duration = Duration::from_secs(5 * 60);
+
+/// Quit has started; later quit requests wait for it.
+static QUITTING: AtomicBool = AtomicBool::new(false);
+/// Quit has finished its work, so the exit it requests is not held back again.
+static EXIT_READY: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, Copy)]
 pub enum RecordingState {
@@ -15,6 +26,8 @@ pub enum RecordingState {
     Paused,
     Resuming,
     Stopping,
+    /// Quit waits for background audio saves.
+    SavingAudio,
 }
 
 pub fn create_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -49,23 +62,47 @@ fn handle_menu_event(app: &AppHandle, item_id: &str) {
     }
 }
 
-/// Quit the app. A running recording is stopped and saved first, so its audio is merged
-/// and the meeting is marked stopped instead of being left for crash recovery.
+/// Quit the app. A running recording is stopped first and pending audio saves are awaited
+/// (at most five minutes), so the meeting is marked stopped and its `audio.mp4` written
+/// instead of being left for startup recovery.
 pub fn quit(app: &AppHandle) {
-    if !crate::audio::recording_commands::is_recording_active() {
-        app.exit(0);
+    if QUITTING.swap(true, Ordering::SeqCst) {
         return;
     }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        log::info!("Quit requested while recording: stopping the recording first");
-        // "No recording in progress" here means another stop is already saving it; that
-        // stop holds the lifecycle lock, so this call returns only after it finished.
-        if let Err(e) = crate::audio::recording_commands::stop_recording(app.clone()).await {
-            log::info!("Stop before quit: {}", e);
+        // Repeats when a recording was started while quit waited.
+        while crate::audio::recording_commands::is_recording_active()
+            || crate::audio::audio_save::pending() > 0
+        {
+            if crate::audio::recording_commands::is_recording_active() {
+                log::info!("Quit requested while recording: stopping the recording first");
+                // "No recording in progress" here means another stop is running; that stop
+                // holds the lifecycle lock and registers its save before releasing it.
+                if let Err(e) = crate::audio::recording_commands::stop_recording(app.clone()).await
+                {
+                    log::info!("Stop before quit: {}", e);
+                }
+            }
+            if crate::audio::audio_save::pending() > 0 {
+                log::info!("Quit waits for the audio saves");
+                update_tray_menu_async(&app).await;
+                if !crate::audio::audio_save::wait_for_pending(QUIT_SAVE_LIMIT).await {
+                    log::warn!(
+                        "Quitting with audio still saving; the journal is encoded at the next start"
+                    );
+                    break;
+                }
+            }
         }
+        EXIT_READY.store(true, Ordering::SeqCst);
         app.exit(0);
     });
+}
+
+/// Quit has finished stopping and saving; the app may exit.
+pub fn exit_ready() -> bool {
+    EXIT_READY.load(Ordering::SeqCst)
 }
 
 /// Starting needs the device picks and the key check of the main window, so the tray asks
@@ -99,8 +136,8 @@ fn resume_recording_handler(app: &AppHandle) {
     });
 }
 
-/// Stop is fully Rust-owned: `stop_recording` saves the audio, updates the meeting and
-/// emits `recording-stopped`.
+/// Stop is fully Rust-owned: `stop_recording` closes the audio journal, updates the meeting,
+/// emits `recording-stopped` and encodes the audio in the background.
 fn stop_recording_handler(app: &AppHandle) {
     set_tray_state(app, RecordingState::Stopping);
     focus_main_window(app);
@@ -136,6 +173,8 @@ pub fn set_tray_state(app: &AppHandle, state: RecordingState) {
 fn current_recording_state() -> RecordingState {
     if crate::audio::recording_commands::is_recording_stopping() {
         RecordingState::Stopping
+    } else if QUITTING.load(Ordering::SeqCst) && crate::audio::audio_save::pending() > 0 {
+        RecordingState::SavingAudio
     } else if !crate::audio::recording_commands::is_recording_active() {
         RecordingState::Stopped
     } else if crate::audio::recording_commands::is_recording_paused() {
@@ -168,6 +207,7 @@ fn build_menu(app: &AppHandle, state: RecordingState) -> tauri::Result<Menu<taur
             .item(&stop()?),
         RecordingState::Resuming => builder.item(&disabled("Resuming...")?).item(&stop()?),
         RecordingState::Stopping => builder.item(&disabled("Stopping...")?),
+        RecordingState::SavingAudio => builder.item(&disabled("Saving audio…")?),
     };
 
     builder

@@ -87,8 +87,9 @@ export function RecordingStopProvider({ children }: { children: ReactNode }) {
     setStatus(RecordingStatus.STOPPING, STOPPING_MESSAGE);
 
     try {
-      // Resolves once the live transcript is drained and the audio is saved. A failed save still
-      // resolves (audio_path null) and is reported once through `recording-error`.
+      // Resolves once the live transcript is drained and the audio journal is closed; the audio
+      // file is encoded afterwards (`recording-audio`). A failed save still resolves and is
+      // reported once through `recording-error`.
       const result = await voiceService.stopRecording();
       setStatus(RecordingStatus.IDLE);
       await openStoppedMeeting(result.meeting_id);

@@ -1,3 +1,7 @@
+Stop no longer waits for the audio file
+
+- Stop returns as soon as the live transcript is finished; the audio file is written in the background and the meeting page shows Saving audio until it is ready.
+
 Recordings survive a struggling PC
 
 - Audio is written straight to disk every two seconds while recording. A crash, a frozen PC or a failed encoder can no longer erase a meeting.

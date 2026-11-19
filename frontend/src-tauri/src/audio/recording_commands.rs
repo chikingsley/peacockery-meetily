@@ -1,8 +1,9 @@
 // audio/recording_commands.rs
 //
 // Tauri commands for recording. Rust owns the whole meeting lifecycle: start creates the
-// meeting row (status 'recording') and its folder; stop drains and saves `audio.mp4`,
-// marks the meeting 'stopped' and hands it to the final transcript.
+// meeting row (status 'recording') and its folder; stop drains the live transcript, closes
+// the audio journal, marks the meeting 'stopped', hands it to the final transcript and
+// queues the `audio.mp4` encode in the background (`audio_save`).
 
 use log::{debug, error, info, warn};
 use serde::Serialize;
@@ -90,8 +91,6 @@ pub struct RecordingStarted {
 pub struct RecordingStopped {
     pub meeting_id: String,
     pub folder_path: String,
-    /// `None` when the audio could not be saved (reported through `recording-error`).
-    pub audio_path: Option<String>,
 }
 
 // ============================================================================
@@ -421,10 +420,11 @@ fn remove_folder(folder: &Path) {
     }
 }
 
-/// Stop the recording: emit `recording-stopping`, stop capture, drain the saver, write
-/// `audio.mp4`, mark the meeting `stopped`, emit `recording-stopped`, then start the final
-/// transcript. The recording is over even when the audio could not be saved: that case
-/// resolves with `audio_path: null` and is reported once, through `recording-error`.
+/// Stop the recording: emit `recording-stopping`, stop capture, finish the live sessions and
+/// close the audio journal, mark the meeting `stopped`, start its automatic work, emit
+/// `recording-stopped`, then encode `audio.mp4` in the background (`recording-audio` reports
+/// the result). The recording is over even when the journal could not be closed: that case
+/// resolves and is reported once, through `recording-error`.
 #[tauri::command]
 pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> {
     let _lifecycle = LIFECYCLE_LOCK.lock().await;
@@ -440,11 +440,16 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
     );
     crate::tray::set_tray_state(&app, crate::tray::RecordingState::Stopping);
 
-    // Audio finalized and live sessions finished (both inside stop_and_save) before the
-    // meeting is marked stopped and handed to the final transcript.
+    // Live sessions finished and the audio journal closed (both inside stop_and_save); the
+    // encode runs after the stop returns.
     let stopped = manager.stop_and_save().await;
     let target = manager.target().clone();
     drop(manager);
+    // Registered before the meeting reads as stopped and before the recording flag and the
+    // lifecycle lock are released, so every reader sees either the recording or the save.
+    if stopped.journal.is_ok() {
+        super::audio_save::register(&target.meeting_id);
+    }
     IS_RECORDING.store(false, Ordering::SeqCst);
 
     let pool = app.state::<AppState>().db_manager.pool().clone();
@@ -474,8 +479,9 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
         );
     }
 
-    // Register automatic work before the UI opens the completed meeting.
-    if stopped.audio_path.is_ok() {
+    // Register automatic work before the UI opens the completed meeting; the final
+    // transcript waits for the encode itself.
+    if stopped.journal.is_ok() {
         crate::final_transcript::on_recording_stopped(&app, &target.meeting_id).await;
     }
     let folder_path = target.folder.to_string_lossy().to_string();
@@ -490,14 +496,18 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
     );
     crate::tray::update_tray_menu(&app);
 
-    let audio_path = match stopped.audio_path {
-        Ok(audio_path) => {
+    match stopped.journal {
+        Ok(()) => {
             info!(
-                "Recording {} saved to {}",
+                "Recording {} stopped; encoding {} in the background",
                 target.meeting_id,
-                audio_path.display()
+                target.folder.display()
             );
-            Some(audio_path.to_string_lossy().to_string())
+            let encoded_app = app.clone();
+            let meeting_id = target.meeting_id.clone();
+            super::audio_save::queue(&target.meeting_id, target.folder.clone(), move |result| {
+                super::audio_save::report(&encoded_app, &meeting_id, result);
+            });
         }
         Err(e) => {
             let message = format!(
@@ -506,17 +516,15 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
             );
             error!("{}", message);
             let _ = app.emit("recording-error", serde_json::json!({ "message": message }));
-            None
         }
-    };
+    }
     Ok(RecordingStopped {
         meeting_id: target.meeting_id,
         folder_path,
-        audio_path,
     })
 }
 
-/// The stop tail is running (capture ended, audio and live transcript being finished).
+/// The stop tail is running (capture ended, live transcript and audio journal being finished).
 pub fn is_recording_stopping() -> bool {
     IS_RECORDING_STOPPING.load(Ordering::SeqCst)
 }

@@ -1,5 +1,6 @@
 // src/audio/mod.rs
 pub mod audio_processing;
+pub mod audio_save;
 pub mod capture;
 pub mod constants;
 pub mod device_monitor;
@@ -7,7 +8,7 @@ pub mod devices;
 pub mod encode;
 pub mod ffmpeg;
 pub mod import;
-pub mod incremental_saver;
+pub mod journal;
 pub mod level_monitor;
 pub mod levels;
 pub mod pipeline;

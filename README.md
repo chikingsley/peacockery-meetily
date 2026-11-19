@@ -13,7 +13,7 @@ Fork of [Meetily](https://github.com/Zackriya-Solutions/meeting-minutes) (MIT, s
    - **Google Chrome app audio (Google Voice)**: only Chrome's sound, so other apps stay out of the recording. Chrome must be running. This captures every Chrome tab, not only Google Voice.
 1. Choose **In person**, **Online meeting** or **Phone call** before recording. In person captures the microphone only and separates voices in the room. Online and phone capture the microphone and PC audio, with speaker separation on both channels. For a separate phone on speaker beside the microphone, choose In person.
 1. Choose an event from **Today’s calendar**, or leave **Unscheduled meeting** and optionally enter a title. A physical room suggests In person even if the invitation contains a Teams link. You can override the suggestion. Start recording; pause and resume as needed.
-1. Press **Stop**. The app finishes the live transcript, saves `audio.mp4`, then uploads it for the final transcript. When that is done the meeting page shows it in place of the live one.
+1. Press **Stop**. The app finishes the live transcript and opens the meeting; `audio.mp4` is written in the background (the meeting page shows **Saving audio…** until it is ready), then uploaded for the final transcript. When that is done the meeting page shows it in place of the live one.
 1. On the meeting page: play the audio, click a line to jump to it, rename speakers, generate a summary, or run the final transcript again with another model.
 
 Existing audio files can be imported from the sidebar; they get a final transcript the same way.

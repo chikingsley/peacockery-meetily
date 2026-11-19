@@ -339,6 +339,20 @@ async fn upload(pool: &SqlitePool, row: &Publication, site: &str) -> Result<(), 
 pub async fn tick(pool: &SqlitePool) -> Result<(), String> {
     tick_at(pool, SITE).await
 }
+#[derive(sqlx::FromRow)]
+struct Due {
+    #[sqlx(flatten)]
+    publication: Publication,
+    folder_path: Option<String>,
+}
+/// The meeting's audio is still being encoded (or waits for the next start): not a failure.
+fn audio_pending(due: &Due) -> bool {
+    crate::audio::audio_save::is_saving(&due.publication.meeting_id)
+        || due
+            .folder_path
+            .as_deref()
+            .is_some_and(|folder| crate::audio::journal::has_journal(Path::new(folder)))
+}
 async fn tick_at(pool: &SqlitePool, site: &str) -> Result<(), String> {
     if BUSY
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -347,9 +361,13 @@ async fn tick_at(pool: &SqlitePool, site: &str) -> Result<(), String> {
         return Ok(());
     }
     let _guard = Guard;
-    let rows: Vec<Publication> = sqlx::query_as("SELECT p.meeting_id,p.state,p.upload_id,p.bytes_sent,p.total_bytes,p.error FROM meeting_publications p JOIN meetings m ON m.id=p.meeting_id WHERE m.status IN ('stopped','interrupted') AND p.state IN ('queued','uploading','processing') AND p.retry_at <= ? ORDER BY (p.state='processing'),m.created_at LIMIT 10")
+    let rows: Vec<Due> = sqlx::query_as("SELECT p.meeting_id,p.state,p.upload_id,p.bytes_sent,p.total_bytes,p.error,m.folder_path FROM meeting_publications p JOIN meetings m ON m.id=p.meeting_id WHERE m.status IN ('stopped','interrupted') AND p.state IN ('queued','uploading','processing') AND p.retry_at <= ? ORDER BY (p.state='processing'),m.created_at LIMIT 10")
         .bind(chrono::Utc::now().timestamp()).fetch_all(pool).await.map_err(|e| e.to_string())?;
-    for row in rows {
+    for due in rows {
+        if audio_pending(&due) {
+            continue;
+        }
+        let row = due.publication;
         if let Err(error) = upload(pool, &row, site).await {
             sqlx::query("UPDATE meeting_publications SET attempts=attempts+1, state=CASE WHEN state='processing' THEN 'processing' WHEN attempts>=4 THEN 'failed' ELSE 'queued' END,error=?,retry_at=? WHERE meeting_id=?")
                 .bind(error).bind(chrono::Utc::now().timestamp() + 60).bind(&row.meeting_id).execute(pool).await.map_err(|e| e.to_string())?;
@@ -378,6 +396,8 @@ mod tests {
 
     #[tokio::test]
     async fn consent_checkpoint_resume_and_lost_completion_preserve_one_upload() {
+        // As `setup` does; without it the test depends on another test building a client first.
+        let _ = rustls::crypto::ring::default_provider().install_default();
         let pool = crate::database::test_pool().await;
         let dir = tempfile::tempdir().unwrap();
         let audio = vec![0x42u8; PART_SIZE + 5];
@@ -490,6 +510,29 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
+        // Stopped with the audio still in its journal, then still encoding: the row waits
+        // without a request, an attempt or an error.
+        let mut journal = crate::audio::journal::AudioJournal::create(dir.path(), 48000).unwrap();
+        journal
+            .add_chunk(crate::audio::AudioChunk {
+                data: vec![0.1; 480],
+                device_type: crate::audio::recording_state::DeviceType::Microphone,
+            })
+            .unwrap();
+        journal.close().unwrap();
+        tick_at(&pool, &site).await.unwrap();
+        std::fs::remove_dir_all(dir.path().join(crate::audio::journal::CHECKPOINTS_DIR)).unwrap();
+        crate::audio::audio_save::register("meeting");
+        tick_at(&pool, &site).await.unwrap();
+        assert!(requests.lock().unwrap().is_empty());
+        let waiting: (i64, Option<String>, String) = sqlx::query_as(
+            "SELECT attempts,error,state FROM meeting_publications WHERE meeting_id='meeting'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(waiting, (0, None, "queued".to_string()));
+        crate::audio::audio_save::finish("meeting", Ok(dir.path().join("audio.mp4")));
         tick_at(&pool, &site).await.unwrap();
         assert_eq!(
             get(&pool, "meeting").await.unwrap().unwrap().bytes_sent,

@@ -1,31 +1,41 @@
 //! Startup recovery of recordings whose audio is still in the journal: interrupted by a
-//! crash or power loss, or stopped while encoding was unavailable.
+//! crash or power loss, stopped while encoding was unavailable, or quit before the
+//! background encode finished.
 
+use super::audio_save;
 use super::constants::find_meeting_audio;
-use super::incremental_saver::{encode_journal, has_journal};
-use super::pipeline::PIPELINE_SAMPLE_RATE;
+use super::journal::has_journal;
 use crate::database::repositories::meeting::MeetingsRepository;
 use log::{error, info, warn};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-/// Mark meetings still `recording` as `interrupted`, then encode every meeting's
-/// remaining audio journal into `audio.mp4` and hand it to the final transcript. An
-/// interrupted meeting whose audio was already encoded (the app died between the encode
-/// and the status update) goes straight to the final transcript.
-pub async fn recover_interrupted_meetings(app: &tauri::AppHandle, pool: &sqlx::SqlitePool) {
+/// Meetings found at startup, between [`register_journals`] and [`resume`].
+#[derive(Default)]
+pub struct Recovery {
+    /// Interrupted meetings whose audio was already encoded before the crash.
+    encoded: Vec<String>,
+    /// Meetings with a journal, registered as saving: (id, folder, interrupted now).
+    journals: Vec<(String, PathBuf, bool)>,
+}
+
+/// Mark meetings still `recording` as `interrupted` and register every meeting that still
+/// has an audio journal as saving. Runs before `final_transcript::resume_unfinished`, so a
+/// resumed final transcript waits for the encode.
+pub async fn register_journals(pool: &sqlx::SqlitePool) -> Recovery {
+    let mut recovery = Recovery::default();
     let interrupted: HashSet<String> = match MeetingsRepository::interrupt_unfinished(pool).await {
         Ok(meetings) => meetings.into_iter().map(|meeting| meeting.id).collect(),
         Err(e) => {
             error!("Failed to look up interrupted meetings: {}", e);
-            return;
+            return recovery;
         }
     };
     let meetings = match MeetingsRepository::list(pool).await {
         Ok(meetings) => meetings,
         Err(e) => {
             error!("Failed to list meetings for recovery: {}", e);
-            return;
+            return recovery;
         }
     };
     for meeting in meetings {
@@ -36,36 +46,48 @@ pub async fn recover_interrupted_meetings(app: &tauri::AppHandle, pool: &sqlx::S
             }
             continue;
         };
-        if !has_journal(&folder) {
-            if was_interrupted {
-                match find_meeting_audio(&folder) {
-                    Some(path) => {
-                        info!(
-                            "Interrupted meeting {} already has {}",
-                            meeting.id,
-                            path.display()
-                        );
-                        crate::final_transcript::on_meeting_recovered(app, &meeting.id);
-                    }
-                    None => warn!("Interrupted meeting {} has no audio", meeting.id),
+        if has_journal(&folder) {
+            info!(
+                "Recovering audio of meeting {} ({})",
+                meeting.id, meeting.title
+            );
+            audio_save::register(&meeting.id);
+            recovery
+                .journals
+                .push((meeting.id, folder, was_interrupted));
+        } else if was_interrupted {
+            match find_meeting_audio(&folder) {
+                Some(path) => {
+                    info!(
+                        "Interrupted meeting {} already has {}",
+                        meeting.id,
+                        path.display()
+                    );
+                    recovery.encoded.push(meeting.id);
                 }
+                None => warn!("Interrupted meeting {} has no audio", meeting.id),
             }
-            continue;
         }
-        info!(
-            "Recovering audio of meeting {} ({})",
-            meeting.id, meeting.title
-        );
-        let encode =
-            tokio::task::spawn_blocking(move || encode_journal(&folder, PIPELINE_SAMPLE_RATE))
-                .await;
-        match encode {
-            Ok(Ok(path)) => {
-                info!("Recovered audio for {}: {}", meeting.id, path.display());
-                crate::final_transcript::on_meeting_recovered(app, &meeting.id);
+    }
+    recovery
+}
+
+/// Start the automatic work of interrupted meetings and queue the registered encodes.
+/// Only meetings interrupted by a crash start their automatic work, after their audio is
+/// saved; a meeting that was already stopped had its work started at stop, and its queued
+/// final transcript resumes through `resume_unfinished`.
+pub fn resume(app: &tauri::AppHandle, recovery: Recovery) {
+    for meeting_id in recovery.encoded {
+        crate::final_transcript::on_meeting_recovered(app, &meeting_id);
+    }
+    for (meeting_id, folder, was_interrupted) in recovery.journals {
+        let app = app.clone();
+        let id = meeting_id.clone();
+        audio_save::queue(&meeting_id, folder, move |result| {
+            audio_save::report(&app, &id, result);
+            if result.is_ok() && was_interrupted {
+                crate::final_transcript::on_meeting_recovered(&app, &id);
             }
-            Ok(Err(e)) => error!("Failed to recover audio for {}: {:#}", meeting.id, e),
-            Err(e) => error!("Recovery task for {} failed: {}", meeting.id, e),
-        }
+        });
     }
 }

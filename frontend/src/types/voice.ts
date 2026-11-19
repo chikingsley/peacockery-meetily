@@ -82,8 +82,6 @@ export interface StartRecordingResult {
 export interface StopRecordingResult {
   meeting_id: string;
   folder_path: string;
-  /** Null when the audio could not be saved (the reason arrives as `recording-error`). */
-  audio_path: string | null;
 }
 
 export interface RecordingState {
@@ -134,6 +132,8 @@ export interface MeetingMetadata {
   folder_path: string | null;
   /** Absolute path of the meeting's audio file, null when there is none. */
   audio_path: string | null;
+  /** True while `audio.mp4` is still being encoded from the recording's journal. */
+  audio_saving: boolean;
   status: MeetingStatus;
   duration_seconds: number | null;
   live_model: string | null;
@@ -247,6 +247,13 @@ export interface RecordingStoppedEvent {
   meeting_id: string;
   folder_path: string;
   meeting_name: string;
+}
+
+/** `recording-audio`: the background encode of a stopped recording finished. */
+export interface RecordingAudioEvent {
+  meeting_id: string;
+  state: "saved" | "failed";
+  message: string | null;
 }
 
 /** `transcript-update`: one finalized live line. Also the shape of `get_transcript_history` rows. */

@@ -1,6 +1,6 @@
 //! AAC encoding of the PCM audio journal through the ffmpeg sidecar.
 
-use super::ffmpeg::ffmpeg_command;
+use super::ffmpeg::{ffmpeg_command, spawn};
 use anyhow::{anyhow, Context, Result};
 use std::path::Path;
 use std::process::Stdio;
@@ -11,7 +11,8 @@ pub const AAC_BITRATE: &str = "96k";
 /// Encode a mono signed 16-bit little-endian PCM file to an AAC-LC `.mp4` at
 /// `output_path`. ffmpeg reads the file itself, so nothing is held in memory.
 pub fn encode_pcm_file(input_path: &Path, sample_rate: u32, output_path: &Path) -> Result<()> {
-    let output = ffmpeg_command()?
+    let mut command = ffmpeg_command()?;
+    command
         .args(["-f", "s16le", "-ar", &sample_rate.to_string(), "-ac", "1"])
         .arg("-i")
         .arg(input_path)
@@ -20,9 +21,11 @@ pub fn encode_pcm_file(input_path: &Path, sample_rate: u32, output_path: &Path) 
         .arg(output_path)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .output()
-        .context("Failed to start ffmpeg")?;
+        .stderr(Stdio::piped());
+    let output = spawn(&mut command)
+        .context("Failed to start ffmpeg")?
+        .wait_with_output()
+        .context("Failed to run ffmpeg")?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         log::error!("ffmpeg encode failed ({}): {}", output.status, stderr);

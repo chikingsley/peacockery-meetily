@@ -4,7 +4,6 @@
 
 use anyhow::Result;
 use log::{error, info, warn};
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -31,7 +30,8 @@ pub struct LiveSetup {
 /// Result of a finished recording.
 #[derive(Debug)]
 pub struct StoppedRecording {
-    pub audio_path: Result<PathBuf>,
+    /// The audio journal is complete and closed; `audio_save` encodes it afterwards.
+    pub journal: Result<()>,
     /// Active (pause-excluded) duration in seconds.
     pub duration_seconds: Option<f64>,
     pub live: Option<LiveSummary>,
@@ -143,7 +143,7 @@ impl RecordingManager {
     }
 
     /// Stop capture and drain the pipeline (which closes the live inputs and writes the
-    /// energy track), then write `audio.mp4` while the live sessions finish.
+    /// energy track), then close the audio journal while the live sessions finish.
     pub async fn stop_and_save(&mut self) -> StoppedRecording {
         self.device_monitor.stop_monitoring().await;
         let duration_seconds = self.state.get_active_recording_duration();
@@ -163,7 +163,7 @@ impl RecordingManager {
             }
         }
         let live = self.live.take();
-        let (audio_path, live) = tokio::join!(self.recording_saver.finish(), async move {
+        let (journal, live) = tokio::join!(self.recording_saver.close_journal(), async move {
             match live {
                 Some(live) => Some(live.finish().await),
                 None => None,
@@ -171,7 +171,7 @@ impl RecordingManager {
         });
         self.state.cleanup();
         StoppedRecording {
-            audio_path,
+            journal,
             duration_seconds,
             live,
             stats,

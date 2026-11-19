@@ -9,6 +9,7 @@ export const meetingMetadata = (
   overrides: Partial<MeetingMetadata> = {}
 ): MeetingMetadata => ({
   audio_path: null,
+  audio_saving: false,
   created_at: "2026-11-01T10:00:00Z",
   duration_seconds: 1800,
   final_error: null,

@@ -31,6 +31,7 @@ import type {
   MicRecoveryExhaustedEvent,
   MicSwapFailedEvent,
   ProcessTranscriptResult,
+  RecordingAudioEvent,
   RecordingErrorEvent,
   RecordingPreferences,
   RecordingStartedEvent,
@@ -223,6 +224,8 @@ export const voiceService = {
     on("recording-stopping", cb),
   onRecordingStopped: (cb: (p: RecordingStoppedEvent) => void) =>
     on("recording-stopped", cb),
+  onRecordingAudio: (cb: (p: RecordingAudioEvent) => void) =>
+    on("recording-audio", cb),
   onRecordingError: (cb: (p: RecordingErrorEvent) => void) =>
     on("recording-error", cb),
   onTranscriptUpdate: (cb: (p: TranscriptUpdate) => void) =>

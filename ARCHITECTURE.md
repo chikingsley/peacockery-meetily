@@ -91,14 +91,15 @@ Model allow-lists (labels shown in the UI; availability = present in `GET /v1/mo
 - Capture (cpal WASAPI): mic = selected capture device; system = selected render endpoint loopback, or the pseudo-device **`app:chrome`** = process-tree loopback of the Chrome browser process (Google Voice is a Chrome PWA on CICA) via `crates/app-loopback`. Each source → mono → 48 kHz → `AudioChunk{device_type}`.
 - `AudioPipeline::run` aligns mic and system into equal windows (mic is the master clock; system is zero-filled only while its stream is idle; system drift beyond 1.2 s is trimmed).
 - From each aligned window (`mic_window`, `sys_window`, `mixed`):
-  1. recording path: the mix → raw PCM journal `.checkpoints/audio.s16le`, synced to disk every 2 s with no process started → encoded to `audio.mp4` (96 kbps mono) at stop, about 25 s per recorded hour;
+  1. recording path: the mix → raw PCM journal `.checkpoints/audio.s16le`, synced to disk every 2 s with no process started → closed at stop → encoded to `audio.mp4` (96 kbps mono) in the background after stop returns, about 25 s per recorded hour;
   1. live path: resample 48 kHz → 16 kHz, f32 → i16, push to the live sessions (`split`: mic → "Me" session, system → "Them" session; `mixed`: the mix → one session);
   1. energy track: per 100 ms frame RMS dBFS of mic and system → `channel-energy.json` in the meeting folder;
   1. levels: `audio-levels` event at ~10 Hz.
 - Pause keeps live sessions alive by sending silence frames that do not advance the recording clock.
 - Recording time 0 is the moment the pipeline starts, after both streams are open (an endpoint loopback takes about 3 s to open on CICA; audio before that is not recorded). The recording clock (`duration_seconds`) and the live line wall-clock timestamps count from there.
 - The pipeline returns `PipelineStats` (per-source chunks, samples, peak, RMS; aligned, dropped and zero-filled samples) in `StoppedRecording.stats`.
-- `frontend/src-tauri/examples/capture_smoke.rs` runs capture → pipeline → `audio.mp4` → live sessions → final transcript headless with the app's own code and writes a JSON report (`capture_smoke <report.json> [seconds] [default|app:chrome]`, from the desktop session, ffmpeg on `PATH`).
+- Background audio save (`audio/audio_save.rs`): stop registers the meeting as saving before it reads as stopped, then one worker encodes the queued journals one at a time (three attempts each). Every ffmpeg the app starts runs at below-normal priority inside a Windows job object that ends it with the app, so a new recording keeps priority and no encode outlives the app. The final transcript, publication, quit and updates wait for pending saves; quit waits at most five minutes, and an unfinished journal is encoded at the next start.
+- `frontend/src-tauri/examples/capture_smoke.rs` runs capture → pipeline → journal → live sessions → the background encode into `audio.mp4` → final transcript headless with the app's own code and writes a JSON report with `stop_seconds` and `encode_seconds` (`capture_smoke <report.json> [seconds] [default|app:chrome]`, from the desktop session, ffmpeg on `PATH`).
 
 ## 5. Live transcript (crate `peacockery_voice::live`)
 
@@ -113,6 +114,7 @@ Model allow-lists (labels shown in the UI; availability = present in `GET /v1/mo
 
 Rust owns it (`final_transcript.rs`), keyed by meeting id:
 
+1. A run first waits for the meeting's background audio save (state `queued`, message "Saving audio…"); a failed encode fails the run with its error.
 1. Sources over 20 MiB are temporarily encoded as one complete mono 16 kHz AAC file at 32 kbit/s, with the original file and timeline preserved. The temporary file is removed on completion, failure or cancellation. `audio.mp4` (or its complete encoded copy) → upload → job (`final_model`, `final_diarize`, `language`, keyterms) → poll.
 1. Turns: use `speaker_turns` when non-empty, else group `words` (same speaker, gap < 1.5 s, split at sentence end after 30 s), else `segments`, else one segment with the full text.
 1. New recordings with `recording-context.json` use generic `Speaker 1/2/…` labels. Calendar invitees do not identify voices. For historical recordings without context, speaker naming from `channel-energy.json`: for each provider speaker, fraction of its speech time where the system channel is active (sys ≥ −50 dBFS and sys ≥ mic − 6 dB). Lowest fraction and < 0.35 → `me_label`. Remaining speakers → `them_label` if exactly one, else `them_label 1`, `them_label 2`… in order of first appearance. No energy file or no system audio at all → `Speaker 1`, `Speaker 2`….
@@ -137,7 +139,7 @@ summary_processes(meeting_id TEXT PK REFERENCES meetings(id) ON DELETE CASCADE, 
                   processing_time REAL, metadata TEXT, result_backup TEXT, result_backup_timestamp TEXT)
 ```
 
-"Best" transcript of a meeting = `final` rows if any exist, else `live` rows. On startup, meetings still `recording` become `interrupted`; their audio journal is encoded into `audio.mp4` (as is the journal of any meeting whose encode failed at stop) and, if `auto_final`, the final transcript runs for every interrupted meeting that has an `audio.*` file (including one whose `audio.mp4` was already written before the crash, with no journal left).
+"Best" transcript of a meeting = `final` rows if any exist, else `live` rows. On startup, meetings still `recording` become `interrupted`, and every meeting whose folder still holds an audio journal (interrupted, failed encode, or quit before the background encode finished) is registered as saving before unfinished final transcripts resume, then encoded on the background worker. If `auto_final`, the final transcript runs for every interrupted meeting once it has an `audio.*` file (including one whose `audio.mp4` was already written before the crash, with no journal left); a meeting that was already stopped only gets its audio encoded, and its queued final transcript resumes and waits for it.
 
 ## 8. Tauri commands (frontend → Rust)
 
@@ -148,7 +150,7 @@ Recording:
 - `get_recording_calendar() -> CalendarSnapshot|null` reads the selected account's Outlook REST calendar, with pagination and UTC times. `outlook_connect`, `outlook_status`, `outlook_select` and `outlook_disconnect` manage a dedicated Edge session. `outlook-session.bin` uses Windows DPAPI with app-specific entropy; expired tokens trigger headless session capture, with a five-minute backoff after failure. Background browser throttling is disabled so sign-in progresses while another app has focus. Without a connected account there is no calendar. The UI shows Arizona-today events and marks copies older than 15 minutes. Recording remains available independently.
 - `get_audio_devices() -> AudioDevice[]` – includes the pseudo system device `{name:"app:chrome", device_type:"Output", label:"Google Chrome app audio (Google Voice)"}` on Windows.
 - `start_recording_with_devices_and_meeting(mic_device_name?, system_device_name?, meeting_name?, recording_mode?, calendar_event?) -> {meeting_id, folder_path}`
-- `stop_recording() -> {meeting_id, folder_path, audio_path: string|null}` – always resolves once the stop has run; a failed save is reported by one `recording-error` event and `audio_path: null` (the command does not also reject)
+- `stop_recording() -> {meeting_id, folder_path}` – resolves once the live transcript is drained and the audio journal is closed; `audio.mp4` is encoded afterwards and reported by `recording-audio`. A journal that cannot be closed (no audio, disk error) is reported by one `recording-error` event (the command does not also reject)
 - `pause_recording()`, `resume_recording()`, `is_recording() -> bool`, `get_recording_state() -> {is_recording, is_stopping, is_paused, is_active, meeting_id|null, …durations}`, `get_recording_meeting_name()`, `get_transcript_history() -> LiveLine[]` (current session)
 - `get_recording_preferences()`, `set_recording_preferences(prefs)`, `get_default_recordings_folder_path()`, `open_recordings_folder()` (no `auto_save` toggle – audio is always saved)
 - `start_audio_level_monitoring(device_names)`, `stop_audio_level_monitoring()` – real RMS (settings device test)
@@ -163,7 +165,7 @@ Voice settings:
 Meetings / transcripts:
 
 - `api_get_meetings() -> {id, title, created_at, final_status}[]`, `api_search_transcripts(query)`
-- `api_get_meeting_metadata(meeting_id) -> MeetingMetadata` (all meeting columns + `audio_path: string|null` – the folder's `audio.*` file – + `has_live`, `has_final`, optional `recording_context`)
+- `api_get_meeting_metadata(meeting_id) -> MeetingMetadata` (all meeting columns + `audio_path: string|null` – the folder's `audio.*` file – + `audio_saving: bool` – the audio is still being encoded from the journal – + `has_live`, `has_final`, optional `recording_context`)
 - `api_get_meeting_transcripts(meeting_id, limit, offset, source?: "best"|"live"|"final") ->  {transcripts: Transcript[], total_count, has_more, source: "live"|"final"}` where `Transcript = {id, text, timestamp, speaker|null, source, audio_start_time, audio_end_time, duration}`
 - `api_save_meeting_title(meeting_id, title)`, `api_delete_meeting(meeting_id)`, `open_meeting_folder(meeting_id)`
 - `rename_speaker(meeting_id, from, to) -> number` – renames on `final` rows (and `live` rows) of that meeting; returns rows changed
@@ -181,6 +183,7 @@ Summaries:
 - `recording-starting`, `recording-started {meeting_id, folder_path}`, `recording-paused`, `recording-resumed`
 - `recording-stopping {meeting_id}` – a stop began (button, tray or quit); the UI shows "Stopping… finishing live transcript" until `recording-stopped` or `recording-error`
 - `recording-stopped {meeting_id, folder_path, meeting_name}`
+- `recording-audio {meeting_id, state:"saved"|"failed", message|null}` – the background encode into `audio.mp4` finished (after a stop or startup recovery); a failure also emits `recording-error` saying the recording is safe on disk and will be encoded at the next start. The meeting page re-reads its metadata.
 - `request-recording-toggle` – the tray asks the frontend to start a recording (the frontend owns device checks and naming)
 - `transcript-update` – one finalized live line: `{meeting_id, sequence_id, text, speaker|null, channel:"mic"|"system"|"mixed", timestamp:"HH:MM:SS" (local),   audio_start_time, audio_end_time, duration, is_partial:false, source:"live", confidence:null}` (`sequence_id` restarts at 0 per recording and is unique within it)
 - `transcript-interim {meeting_id, channel, speaker|null, text}` – replaces that channel's preview line; `text:""` clears it
@@ -193,7 +196,7 @@ Summaries:
 
 ## Automatic publication
 
-`publication.rs` owns a persistent `meeting_publications` queue. `publication-settings.json` stores the default for future recordings (true when absent). Recording setup visibly sends `publish_to_cica`; an omitted argument defaults to false for headless callers. A true choice creates a queue row with the new meeting. Existing meetings receive zero queue rows during migration. The worker waits for saved audio and the stopped/interrupted meeting state, then sends the original audio through the existing CICA multipart upload API. The website generates its own notes and transcript; local edits retain their local scope.
+`publication.rs` owns a persistent `meeting_publications` queue. `publication-settings.json` stores the default for future recordings (true when absent). Recording setup visibly sends `publish_to_cica`; an omitted argument defaults to false for headless callers. A true choice creates a queue row with the new meeting. Existing meetings receive zero queue rows during migration. The worker waits for the stopped/interrupted meeting state and skips meetings whose audio is still saving or still in its journal, without spending an attempt, then sends the original audio through the existing CICA multipart upload API. The website generates its own notes and transcript; local edits retain their local scope.
 
 Commands: `publication_default`, `publication_set_default(enabled)`, `publication_status(meeting_id)`, `publication_retry(meeting_id)` and `publication_open(meeting_id)`. States: queued, uploading, processing, published, failed. Status includes bytes sent, total bytes, error and website URL. The database persists upload ID and part receipts; retry first reconciles the remote ID to avoid duplicate publication after a lost completion response. The UI polls every three seconds; the worker checks every twenty seconds with a one-minute failure backoff and five-attempt limit for uploads. Processing state continues polling the website. Data preservation covers the original recording, local transcripts, settings and all historical meetings.
 
@@ -217,7 +220,7 @@ Ultracite's core, React, Next.js, anti-slop, and shadcn presets run through Oxli
 
 Scribe v3 waits for the diarized commit before saving each passage. The API preserves word times and speaker turns, and the app splits multi-speaker commits into separate lines. On a provider rejection or two transient failures, each Scribe channel switches to Nova while local audio capture continues. Nova uses the configured channel labels. Authentication failures remain actionable errors. The API allows eight seconds for delayed labels after stop. Existing settings remain preserved; the November 13 installation explicitly selects Scribe v3, enables live labels, and turns automatic final transcription off.
 
-Automatic summaries use the saved live transcript when automatic final transcription is off. Summary registration happens before the recording-stopped event so the meeting page can attach to the active summary. An optional batch pass takes precedence when it exists.
+Automatic summaries use the saved live transcript when automatic final transcription is off. Summary registration happens before the recording-stopped event so the meeting page can attach to the active summary. An optional batch pass takes precedence when it exists; it is queued at the same point and waits for the background audio encode.
 
 #### 0.6.1 acceptance (November 13, 2026)
 

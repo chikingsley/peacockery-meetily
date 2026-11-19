@@ -1,5 +1,6 @@
 //! Headless smoke test of the Windows runtime paths, using the app's own code: credential
-//! read, device list, capture → pipeline → `audio.mp4`, live sessions, final transcript.
+//! read, device list, capture → pipeline → audio journal, live sessions, the stop's
+//! background encode into `audio.mp4`, final transcript.
 //!
 //! `capture_smoke <report.json> [seconds=25] [default|app:chrome]`
 //!
@@ -14,7 +15,9 @@ use std::time::{Duration, Instant};
 use app_lib::audio::audio_processing::create_meeting_folder;
 use app_lib::audio::devices::default_input_device;
 use app_lib::audio::import::validate_audio_file;
+use app_lib::audio::journal::encode_journal;
 use app_lib::audio::levels::AudioLevels;
+use app_lib::audio::pipeline::PIPELINE_SAMPLE_RATE;
 use app_lib::audio::recording_commands::{get_audio_devices, resolve_system_or_default};
 use app_lib::audio::recording_manager::{LiveSetup, RecordingManager};
 use app_lib::audio::recording_saver::MeetingTarget;
@@ -215,11 +218,27 @@ async fn run(
     let stopped = manager.stop_and_save().await;
     let stop_seconds = recording_started.elapsed().as_secs_f64() - wall_seconds;
     drop(manager);
+    // The encode the app runs in the background after stop.
+    let encode_started = Instant::now();
+    let encoded = match stopped.journal {
+        Ok(()) => {
+            let journal_folder = folder.clone();
+            tokio::task::spawn_blocking(move || {
+                encode_journal(&journal_folder, PIPELINE_SAMPLE_RATE)
+            })
+            .await
+            .map_err(|e| format!("encode task failed: {e}"))
+            .and_then(|result| result.map_err(|e| format!("{e:#}")))
+        }
+        Err(e) => Err(format!("journal not closed: {e:#}")),
+    };
+    let encode_seconds = encode_started.elapsed().as_secs_f64();
 
     let summary = *levels.lock().unwrap();
     let mut recording = json!({
         "wall_seconds": wall_seconds,
-        "stop_and_save_seconds": stop_seconds,
+        "stop_seconds": stop_seconds,
+        "encode_seconds": encode_seconds,
         "active_seconds": stopped.duration_seconds,
         "pipeline": stopped.stats,
         "aligned_seconds": stopped.stats.map(|s| s.aligned_samples as f64 / 48000.0),
@@ -244,7 +263,7 @@ async fn run(
     {
         problem(format!("mark_stopped: {e}"));
     }
-    let audio = match stopped.audio_path {
+    let audio = match encoded {
         Ok(path) => {
             recording["audio_path"] = json!(path);
             match validate_audio_file(&path) {
@@ -257,7 +276,7 @@ async fn run(
             Some(path)
         }
         Err(e) => {
-            problem(format!("audio could not be saved: {e:#}"));
+            problem(format!("audio could not be saved: {e}"));
             None
         }
     };

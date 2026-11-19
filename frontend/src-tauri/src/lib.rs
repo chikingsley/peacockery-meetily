@@ -61,9 +61,11 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     let handle = app.handle().clone();
     tauri::async_runtime::spawn(async move {
-        // Before recovery, so meetings recovered now are not restarted twice.
+        // Journals are registered first, so a resumed final transcript waits for its audio;
+        // the recovered meetings start their work after the resume, so none runs twice.
+        let recovery = audio::recovery::register_journals(&pool).await;
         final_transcript::resume_unfinished(&handle, &pool).await;
-        audio::recovery::recover_interrupted_meetings(&handle, &pool).await;
+        audio::recovery::resume(&handle, recovery);
     });
 
     if let Err(e) = tray::create_tray(app.handle()) {
@@ -159,9 +161,12 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| match event {
-            // Never exit over a running recording: stop and save it, then exit.
+            // Never exit over a running recording or an audio save: quit stops the recording
+            // and waits for the saves, then exits.
             tauri::RunEvent::ExitRequested { api, .. }
-                if audio::recording_commands::is_recording_active() =>
+                if !tray::exit_ready()
+                    && (audio::recording_commands::is_recording_active()
+                        || audio::audio_save::pending() > 0) =>
             {
                 api.prevent_exit();
                 tray::quit(app_handle);

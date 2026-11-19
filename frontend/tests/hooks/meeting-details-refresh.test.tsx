@@ -96,10 +96,19 @@ const invoke = mock(
 
 mock.module("@tauri-apps/api/core", () => ({ ...originalCore, invoke }));
 
-// No Tauri webview here: event listeners attach to nothing.
+// Listeners attach only when a test marks the webview as Tauri; they are kept by event name.
+const listeners = new Map<string, (event: { payload: unknown }) => void>();
+
 mock.module("@tauri-apps/api/event", () => ({
   ...originalEvent,
-  listen: async () => () => {},
+  listen: async (
+    event: string,
+    handler: (event: { payload: unknown }) => void
+  ) => {
+    listeners.set(event, handler);
+
+    return () => listeners.delete(event);
+  },
 }));
 
 const { SidebarProvider } =
@@ -185,6 +194,9 @@ afterEach(async () => {
     await act(async () => renderer!.unmount());
   }
 
+  delete (globalThis as { isTauri?: boolean }).isTauri;
+  listeners.clear();
+
   renderer = undefined;
   globalThis.setInterval = realSetInterval;
   globalThis.clearInterval = realClearInterval;
@@ -241,6 +253,34 @@ function deferMetadata() {
 }
 
 describe("meeting route transcript refresh", () => {
+  test("a finished audio save re-reads the shown meeting's metadata", async () => {
+    (globalThis as { isTauri?: boolean }).isTauri = true;
+    readMetadata = async (id) => meetingMetadata(id, { audio_saving: true });
+    await show();
+
+    const reads = () =>
+      invoke.mock.calls.filter(
+        ([command]) => command === "api_get_meeting_metadata"
+      ).length;
+
+    const before = reads();
+
+    const audioSaved = (meetingId: string) =>
+      act(async () => {
+        listeners.get("recording-audio")!({
+          payload: { meeting_id: meetingId, message: null, state: "saved" },
+        });
+      });
+
+    readMetadata = async (id) =>
+      meetingMetadata(id, { audio_path: "/Call/audio.mp4" });
+    await audioSaved("meeting-b");
+    expect(reads()).toBe(before);
+    await audioSaved("meeting-a");
+    expect(reads()).toBe(before + 1);
+    expect(text()).toContain("meeting-a");
+  });
+
   test("navigation waits for the new meeting first transcript page before mounting its view", async () => {
     await show();
     await complete("Summary A", "attempt-a");

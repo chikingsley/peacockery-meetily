@@ -73,7 +73,10 @@ export function TranscriptPanel({
     [transcripts, playhead]
   );
 
-  const audioPath = meeting.status === "recording" ? null : meeting.audio_path;
+  const audioSaving = meeting.status !== "recording" && meeting.audio_saving;
+
+  const audioPath =
+    meeting.status === "recording" || audioSaving ? null : meeting.audio_path;
 
   const awaitingAutoFinal =
     justRecorded &&
@@ -154,6 +157,11 @@ export function TranscriptPanel({
           hasFinal={meeting.has_final}
           onRetry={() => onStartFinalTranscript(finalTranscript.model)}
         />
+        {audioSaving && (
+          <p className="text-center text-xs text-muted-foreground">
+            Saving audio…
+          </p>
+        )}
         {audioPath && (
           <MeetingAudioPlayer
             key={audioPath}

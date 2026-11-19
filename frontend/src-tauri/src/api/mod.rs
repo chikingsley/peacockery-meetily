@@ -27,6 +27,8 @@ pub struct MeetingMetadata {
     /// The meeting's `audio.<ext>` (recordings are `audio.mp4`, imports keep their
     /// extension); `None` when the folder has no audio file.
     pub audio_path: Option<String>,
+    /// `audio.mp4` is still being encoded from the recording's journal.
+    pub audio_saving: bool,
     pub has_live: bool,
     pub has_final: bool,
     pub recording_context: Option<crate::recording_context::RecordingContext>,
@@ -130,6 +132,12 @@ pub async fn api_get_meeting_metadata(
             );
         }
     }
+    let audio_saving = match meeting.folder_path.as_deref() {
+        Some(folder) => {
+            crate::audio::audio_save::is_pending(&meeting_id, std::path::Path::new(folder))
+        }
+        None => crate::audio::audio_save::is_saving(&meeting_id),
+    };
     let recording_context = meeting
         .folder_path
         .as_deref()
@@ -138,6 +146,7 @@ pub async fn api_get_meeting_metadata(
         recording_context,
         meeting,
         audio_path: audio.map(|path| path.to_string_lossy().to_string()),
+        audio_saving,
         has_live: live > 0,
         has_final: final_count > 0,
     })
@@ -268,11 +277,13 @@ mod tests {
             recording_context: None,
             meeting,
             audio_path: Some("C:/Music/Call/audio.m4a".into()),
+            audio_saving: false,
             has_live: true,
             has_final: false,
         })
         .unwrap();
         assert_eq!(value["audio_path"], "C:/Music/Call/audio.m4a");
+        assert_eq!(value["audio_saving"], false);
         assert_eq!(value["id"], "m1");
         assert_eq!(value["status"], "stopped");
         assert_eq!(value["final_status"], "done");

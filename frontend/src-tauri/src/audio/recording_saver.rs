@@ -1,6 +1,6 @@
-//! Writes the mixed recording of one meeting to `<meeting>/audio.mp4` and keeps the live
-//! lines of the current session (memory for `get_transcript_history`, `transcripts.json`
-//! in the meeting folder).
+//! Writes the mixed recording of one meeting to its audio journal and keeps the live lines
+//! of the current session (memory for `get_transcript_history`, `transcripts.json` in the
+//! meeting folder).
 
 use anyhow::{anyhow, Result};
 use log::{error, info, warn};
@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 
-use super::incremental_saver::IncrementalAudioSaver;
+use super::journal::AudioJournal;
 use super::pipeline::PIPELINE_SAMPLE_RATE;
 use super::recording_state::AudioChunk;
 use crate::live::LiveLine;
@@ -120,7 +120,7 @@ use std::sync::atomic::Ordering::Relaxed;
 pub struct RecordingSaver {
     progress: Arc<DiskProgress>,
     target: MeetingTarget,
-    accumulation: Option<JoinHandle<Result<IncrementalAudioSaver>>>,
+    journal_writer: Option<JoinHandle<AudioJournal>>,
     live_lines: LiveLineStore,
 }
 
@@ -131,30 +131,30 @@ impl RecordingSaver {
         target: MeetingTarget,
         mut receiver: mpsc::UnboundedReceiver<AudioChunk>,
     ) -> Result<Self> {
-        let mut saver = IncrementalAudioSaver::new(target.folder.clone(), PIPELINE_SAMPLE_RATE)?;
+        let mut journal = AudioJournal::create(&target.folder, PIPELINE_SAMPLE_RATE)?;
         let progress = Arc::<DiskProgress>::default();
         let writer = progress.clone();
-        let accumulation = tokio::task::spawn_blocking(move || {
+        let journal_writer = tokio::task::spawn_blocking(move || {
             while let Some(chunk) = receiver.blocking_recv() {
                 writer.received.fetch_add(chunk.data.len() as u64, Relaxed);
-                if let Err(e) = saver.add_chunk(chunk) {
+                if let Err(e) = journal.add_chunk(chunk) {
                     // The audio stays pending and the next chunk retries the write.
                     if !writer.write_failed.swap(true, Relaxed) {
                         error!("Failed to write the audio journal: {}", e);
                     }
                 } else {
-                    writer.saved.store(saver.saved_samples(), Relaxed);
+                    writer.saved.store(journal.saved_samples(), Relaxed);
                     writer.write_failed.store(false, Relaxed);
                 }
             }
-            Ok(saver)
+            journal
         });
         info!("Recording saver started for meeting {}", target.meeting_id);
         let live_lines = LiveLineStore::new(&target.folder);
         Ok(Self {
             target,
             progress,
-            accumulation: Some(accumulation),
+            journal_writer: Some(journal_writer),
             live_lines,
         })
     }
@@ -173,19 +173,19 @@ impl RecordingSaver {
     }
 
     /// Wait until the pipeline has closed the audio channel and every chunk is in the
-    /// journal, then encode the journal into `audio.mp4`.
-    pub async fn finish(&mut self) -> Result<PathBuf> {
-        let accumulation = self
-            .accumulation
+    /// journal, then sync and close it. The journal is encoded afterwards (`audio_save`).
+    pub async fn close_journal(&mut self) -> Result<()> {
+        let journal_writer = self
+            .journal_writer
             .take()
-            .ok_or_else(|| anyhow!("Recording saver already finished"))?;
-        let mut saver = accumulation
+            .ok_or_else(|| anyhow!("The audio journal is already closed"))?;
+        let journal = journal_writer
             .await
-            .map_err(|e| anyhow!("Accumulation task failed: {}", e))??;
-        let path = tokio::task::spawn_blocking(move || saver.finalize())
+            .map_err(|e| anyhow!("The audio journal writer failed: {}", e))?;
+        tokio::task::spawn_blocking(move || journal.close())
             .await
-            .map_err(|e| anyhow!("Finalize task failed: {}", e))??;
-        info!("Recording saved: {}", path.display());
-        Ok(path)
+            .map_err(|e| anyhow!("Closing the audio journal failed: {}", e))??;
+        info!("Audio journal closed: {}", self.target.folder.display());
+        Ok(())
     }
 }

@@ -19,7 +19,7 @@ use serde::Serialize;
 use sqlx::SqlitePool;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::audio::constants::find_meeting_audio;
+use crate::audio::audio_save;
 use crate::database::models::{meeting_status, transcript_source, Meeting, NewTranscript};
 use crate::database::repositories::meeting::{FinalState, MeetingsRepository};
 use crate::database::repositories::transcript::TranscriptsRepository;
@@ -264,10 +264,15 @@ async fn prepare_audio(
             "+faststart",
         ])
         .arg(&temp)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
         .kill_on_drop(true);
+    let child = crate::audio::ffmpeg::spawn_async(&mut command)
+        .map_err(|e| FinalError::Failed(format!("Failed to start ffmpeg: {e}")))?;
     let output = tokio::select! {
         _ = cancel.cancelled() => return Err(FinalError::Cancelled),
-        result = command.output() => result.map_err(|e| FinalError::Failed(e.to_string()))?,
+        result = child.wait_with_output() => result.map_err(|e| FinalError::Failed(e.to_string()))?,
     };
     if !output.status.success() {
         return Err(FinalError::Failed(format!(
@@ -549,8 +554,22 @@ async fn execute(reporter: &Reporter) {
     let Some(folder) = meeting.folder_path.as_deref().map(PathBuf::from) else {
         return fail("This meeting has no folder".to_string()).await;
     };
-    let Some(audio) = find_meeting_audio(&folder) else {
-        return fail(format!("No audio file in {}", folder.display())).await;
+    if audio_save::is_pending(&reporter.meeting_id, &folder) {
+        reporter
+            .report(
+                final_state::QUEUED,
+                Some("Saving audio…".to_string()),
+                None,
+                false,
+            )
+            .await;
+    }
+    let audio = tokio::select! {
+        _ = reporter.token.cancelled() => return,
+        audio = audio_save::wait_for_audio(&reporter.meeting_id, &folder) => match audio {
+            Ok(audio) => audio,
+            Err(message) => return fail(message).await,
+        },
     };
     let job = FinalJob::new(&meeting, folder, audio, &reporter.model, &settings);
 
@@ -646,12 +665,13 @@ async fn start_if_auto(app: &AppHandle, meeting_id: &str) {
     }
 }
 
-/// `stop_recording` wrote `audio.mp4` and marked the meeting stopped.
+/// `stop_recording` closed the audio journal and marked the meeting stopped; a final
+/// transcript started here waits for the background encode.
 pub async fn on_recording_stopped(app: &AppHandle, meeting_id: &str) {
     start_if_auto(app, meeting_id).await;
 }
 
-/// Startup recovery merged an interrupted meeting's checkpoints into `audio.mp4`.
+/// Startup recovery saved the audio of a meeting that a crash interrupted.
 pub fn on_meeting_recovered(app: &AppHandle, meeting_id: &str) {
     let app = app.clone();
     let meeting_id = meeting_id.to_string();

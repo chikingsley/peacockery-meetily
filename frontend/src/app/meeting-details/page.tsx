@@ -75,6 +75,48 @@ function MeetingDetailsContent() {
     }
   }, [transcriptError]);
 
+  const audioSavingRef = useRef(false);
+  audioSavingRef.current = !!metadata?.audio_saving;
+
+  // A finished background encode fills `audio_path`; re-reading the metadata also grants the
+  // player access to the new file.
+  useEffect(() => {
+    if (!meetingId) {
+      return;
+    }
+
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+    voiceService
+      .onRecordingAudio(({ meeting_id }) => {
+        if (meeting_id === meetingId) {
+          void refetch();
+        }
+      })
+      .then((fn) => {
+        if (cancelled) {
+          fn();
+
+          return;
+        }
+
+        unlisten = fn;
+
+        // The save may have finished before the listener was attached.
+        if (audioSavingRef.current) {
+          void refetch();
+        }
+      })
+      .catch((error_) =>
+        console.error("Native event synchronization failed", error_)
+      );
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [meetingId, refetch]);
+
   const fetchSummary = useCallback(
     async (id: string, isCancelled: () => boolean = () => false) => {
       try {
