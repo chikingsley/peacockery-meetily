@@ -4,7 +4,7 @@
 
 use super::audio_save;
 use super::constants::find_meeting_audio;
-use super::journal::has_journal;
+use super::journal::{has_journal, CHECKPOINTS_DIR};
 use crate::database::models::meeting_status;
 use crate::database::repositories::meeting::MeetingsRepository;
 use log::{error, info, warn};
@@ -47,7 +47,20 @@ pub async fn register_journals(pool: &sqlx::SqlitePool) -> Recovery {
             }
             continue;
         };
-        if has_journal(&folder) {
+        let audio = find_meeting_audio(&folder);
+        if has_journal(&folder) && audio.is_some() {
+            // `audio.*` is renamed in only once complete, so this encode finished and only
+            // the journal removal did not (crash right after the rename, or a locked file).
+            // The audio is not encoded again and its automatic work does not run twice.
+            let checkpoints = folder.join(CHECKPOINTS_DIR);
+            match std::fs::remove_dir_all(&checkpoints) {
+                Ok(()) => info!("Removed the leftover journal of meeting {}", meeting.id),
+                Err(e) => warn!("Failed to remove {}: {}", checkpoints.display(), e),
+            }
+            if was_interrupted {
+                recovery.encoded.push(meeting.id);
+            }
+        } else if has_journal(&folder) {
             info!(
                 "Recovering audio of meeting {} ({})",
                 meeting.id, meeting.title
@@ -61,7 +74,7 @@ pub async fn register_journals(pool: &sqlx::SqlitePool) -> Recovery {
                 .journals
                 .push((meeting.id, folder, automatic_work_pending));
         } else if was_interrupted {
-            match find_meeting_audio(&folder) {
+            match audio {
                 Some(path) => {
                     info!(
                         "Interrupted meeting {} already has {}",
@@ -99,5 +112,94 @@ pub fn resume(app: &tauri::AppHandle, recovery: Recovery) {
                 }
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::repositories::meeting::NewMeeting;
+    use std::path::Path;
+
+    fn journal_in(folder: &Path) {
+        let checkpoints = folder.join(CHECKPOINTS_DIR);
+        std::fs::create_dir_all(&checkpoints).unwrap();
+        std::fs::write(checkpoints.join("audio.s16le"), [0u8; 64]).unwrap();
+    }
+
+    async fn seed(pool: &sqlx::SqlitePool, id: &str, folder: &Path, status: &str) {
+        MeetingsRepository::create(
+            pool,
+            &NewMeeting {
+                id,
+                title: "Meeting",
+                folder_path: &folder.to_string_lossy(),
+                status,
+            },
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn journals_are_routed_by_status_and_finished_encodes_are_not_repeated() {
+        let pool = crate::database::test_pool().await;
+        let root = tempfile::tempdir().unwrap();
+        let folder = |name: &str| {
+            let path = root.path().join(name);
+            std::fs::create_dir_all(&path).unwrap();
+            path
+        };
+
+        // Crashed while recording: the journal is encoded, then its automatic work runs.
+        let crashed = folder("crashed");
+        journal_in(&crashed);
+        seed(&pool, "rec-crashed", &crashed, meeting_status::RECORDING).await;
+        // Interrupted at an earlier start whose encode did not finish.
+        let earlier = folder("earlier");
+        journal_in(&earlier);
+        seed(&pool, "rec-earlier", &earlier, meeting_status::INTERRUPTED).await;
+        // Stopped: its automatic work ran at stop.
+        let stopped = folder("stopped");
+        journal_in(&stopped);
+        seed(&pool, "rec-stopped", &stopped, meeting_status::STOPPED).await;
+        // Encoded earlier, but the journal could not be removed.
+        let leftover = folder("leftover");
+        journal_in(&leftover);
+        std::fs::write(leftover.join("audio.mp4"), b"mp4").unwrap();
+        seed(
+            &pool,
+            "rec-leftover",
+            &leftover,
+            meeting_status::INTERRUPTED,
+        )
+        .await;
+        // Crashed right after the encode renamed audio.mp4 in.
+        let renamed = folder("renamed");
+        journal_in(&renamed);
+        std::fs::write(renamed.join("audio.mp4"), b"mp4").unwrap();
+        seed(&pool, "rec-renamed", &renamed, meeting_status::RECORDING).await;
+
+        let recovery = register_journals(&pool).await;
+        let mut journals: Vec<(String, bool)> = recovery
+            .journals
+            .iter()
+            .map(|(id, _, pending)| (id.clone(), *pending))
+            .collect();
+        journals.sort();
+        assert_eq!(
+            journals,
+            vec![
+                ("rec-crashed".to_string(), true),
+                ("rec-earlier".to_string(), true),
+                ("rec-stopped".to_string(), false),
+            ]
+        );
+        assert_eq!(recovery.encoded, vec!["rec-renamed".to_string()]);
+        assert!(!has_journal(&leftover));
+        assert!(!has_journal(&renamed));
+        for id in ["rec-crashed", "rec-earlier", "rec-stopped"] {
+            audio_save::finish(id, Err("test".into()));
+        }
     }
 }
