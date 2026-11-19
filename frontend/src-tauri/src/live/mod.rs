@@ -324,10 +324,12 @@ impl LiveManager {
         pool: Option<SqlitePool>,
         channels: &[Channel],
     ) -> (Self, LiveTaps) {
+        let incomplete: Arc<AtomicBool> = Arc::default();
         let (db, writer) = match pool {
             Some(pool) => {
                 let (tx, mut rx) = mpsc::unbounded_channel::<NewTranscript>();
                 let meeting_id = config.meeting_id.clone();
+                let row_lost = incomplete.clone();
                 let writer = tokio::spawn(async move {
                     while let Some(row) = rx.recv().await {
                         if let Err(e) = TranscriptsRepository::insert(
@@ -338,7 +340,11 @@ impl LiveManager {
                         )
                         .await
                         {
-                            warn!("Failed to store live line {:?}: {}", row.sequence, e);
+                            warn!(
+                                "Live transcript incomplete: failed to store live line {:?}: {}",
+                                row.sequence, e
+                            );
+                            row_lost.store(true, Ordering::SeqCst);
                         }
                     }
                 });
@@ -360,7 +366,7 @@ impl LiveManager {
             sequence: AtomicU64::new(0),
             session_ids: Mutex::new(Vec::new()),
             db: Mutex::new(db),
-            incomplete: Arc::default(),
+            incomplete,
         });
         let mut tasks = JoinSet::new();
         let mut senders = Vec::new();

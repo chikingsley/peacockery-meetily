@@ -146,9 +146,22 @@ fn encode_once(meeting_folder: &Path, sample_rate: u32) -> Result<PathBuf> {
     }
     std::fs::rename(&partial, &output)?;
     info!("Encoded audio journal into {}", output.display());
+    // The audio is final; the journal is only removed. Another process (a scanner or sync
+    // client) may hold it for a moment; startup recovery removes whatever is left.
     let checkpoints_dir = meeting_folder.join(CHECKPOINTS_DIR);
-    if let Err(e) = std::fs::remove_dir_all(&checkpoints_dir) {
-        warn!("Failed to remove {}: {}", checkpoints_dir.display(), e);
+    for attempt in 1..=3 {
+        match std::fs::remove_dir_all(&checkpoints_dir) {
+            Ok(()) => break,
+            Err(e) if attempt < 3 => {
+                warn!(
+                    "Failed to remove {} (retrying): {}",
+                    checkpoints_dir.display(),
+                    e
+                );
+                std::thread::sleep(Duration::from_millis(500));
+            }
+            Err(e) => warn!("Failed to remove {}: {}", checkpoints_dir.display(), e),
+        }
     }
     Ok(output)
 }

@@ -66,17 +66,12 @@ export const AUTO_FINAL_CHOICES: { label: string; value: AutoFinal }[] = [
   { label: "Never (run it from the meeting page)", value: "never" },
 ];
 
-/** Pill for a meeting with only live rows: complete on the final model, or not. */
+/** Pill for a meeting with only live rows, from what the meeting recorded at stop. */
 export function liveTranscriptLabel(
   meeting: Pick<MeetingMetadata, "live_complete" | "live_model">,
-  finalModel: string | null | undefined,
   finalOptions: ModelOption[] | undefined
 ): string {
-  if (
-    meeting.live_complete === true &&
-    !!meeting.live_model &&
-    meeting.live_model === finalModel
-  ) {
+  if (meeting.live_complete === true && !!meeting.live_model) {
     return `Live · ${modelLabel(finalOptions, meeting.live_model)} · complete`;
   }
 

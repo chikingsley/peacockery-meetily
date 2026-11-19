@@ -346,12 +346,14 @@ struct Due {
     folder_path: Option<String>,
 }
 /// The meeting's audio is still being encoded (or waits for the next start): not a failure.
+/// A save registered in this process decides; a journal counts only for meetings it has not
+/// registered, so a journal left beside finished audio does not hold the upload.
 fn audio_pending(due: &Due) -> bool {
-    crate::audio::audio_save::is_saving(&due.publication.meeting_id)
-        || due
-            .folder_path
-            .as_deref()
-            .is_some_and(|folder| crate::audio::journal::has_journal(Path::new(folder)))
+    let meeting_id = &due.publication.meeting_id;
+    match due.folder_path.as_deref() {
+        Some(folder) => crate::audio::audio_save::is_pending(meeting_id, Path::new(folder)),
+        None => crate::audio::audio_save::is_saving(meeting_id),
+    }
 }
 async fn tick_at(pool: &SqlitePool, site: &str) -> Result<(), String> {
     if BUSY

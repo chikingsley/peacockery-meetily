@@ -81,11 +81,7 @@ export function TranscriptPanel({
 
   const liveLabel = meeting.has_final
     ? "Live transcript"
-    : liveTranscriptLabel(
-        meeting,
-        voiceSettings?.final_model,
-        voiceModels?.final
-      );
+    : liveTranscriptLabel(meeting, voiceModels?.final);
 
   const speakerSuggestions = useMemo(() => {
     const names = [

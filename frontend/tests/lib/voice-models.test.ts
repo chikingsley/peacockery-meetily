@@ -74,22 +74,23 @@ describe("final transcript rule", () => {
   const scribe = "elevenlabs-scribe_v3";
   const final = [option(scribe, { label: "Scribe v3" })];
 
-  test("a live transcript is complete only when it finished on the final model", () => {
+  test("the live pill follows what the meeting recorded, not the current settings", () => {
+    expect(
+      liveTranscriptLabel({ live_complete: true, live_model: scribe }, final)
+    ).toBe("Live · Scribe v3 · complete");
     expect(
       liveTranscriptLabel(
-        { live_complete: true, live_model: scribe },
-        scribe,
+        { live_complete: true, live_model: "deepgram-nova-3" },
         final
       )
-    ).toBe("Live · Scribe v3 · complete");
+    ).toBe("Live · deepgram-nova-3 · complete");
 
     for (const meeting of [
       { live_complete: false, live_model: scribe },
       { live_complete: null, live_model: scribe },
-      { live_complete: true, live_model: "deepgram-nova-3" },
       { live_complete: null, live_model: null },
     ]) {
-      expect(liveTranscriptLabel(meeting, scribe, final)).toBe(
+      expect(liveTranscriptLabel(meeting, final)).toBe(
         "Live transcript (incomplete)"
       );
     }
