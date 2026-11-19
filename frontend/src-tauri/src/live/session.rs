@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use log::{info, warn};
 use peacockery_voice::{
     Channel, Error, LineBuilder, LineBuilderConfig, RealtimeEvent, RealtimeOptions, RealtimeSender,
-    RealtimeSession, SpeakerLabels, FRAME_SAMPLES,
+    RealtimeSession, RealtimeTerminal, SpeakerLabels, FRAME_SAMPLES,
 };
 use tokio::sync::mpsc;
 
@@ -388,9 +388,21 @@ async fn finish(
         shared.apply(builder.on_event(&event, sent));
     }
     match &outcome {
-        Ok(terminal) => {
-            shared.add_session_id(terminal.session_id());
-            info!("Live session {} finished", terminal.session_id());
+        Ok(RealtimeTerminal::Completed { session_id, .. }) => {
+            shared.add_session_id(session_id);
+            info!("Live session {} finished", session_id);
+        }
+        Ok(RealtimeTerminal::Failed {
+            session_id, error, ..
+        }) => {
+            shared.add_session_id(session_id);
+            shared.mark_incomplete(
+                Some(channel),
+                &format!(
+                    "session {} failed at stop: {} ({})",
+                    session_id, error.message, error.code
+                ),
+            );
         }
         Err(e) => shared.mark_incomplete(
             Some(channel),

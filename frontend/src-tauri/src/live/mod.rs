@@ -190,8 +190,9 @@ pub(crate) struct Shared {
     sequence: AtomicU64,
     session_ids: Mutex<Vec<String>>,
     db: Mutex<Option<mpsc::UnboundedSender<NewTranscript>>>,
-    /// Set when some audio was not transcribed on the configured model.
-    incomplete: AtomicBool,
+    /// Set when some audio was not transcribed on the configured model; shared with the
+    /// taps, which set it when a session falls behind and live audio is dropped.
+    incomplete: Arc<AtomicBool>,
 }
 
 impl Shared {
@@ -359,7 +360,7 @@ impl LiveManager {
             sequence: AtomicU64::new(0),
             session_ids: Mutex::new(Vec::new()),
             db: Mutex::new(db),
-            incomplete: AtomicBool::new(false),
+            incomplete: Arc::default(),
         });
         let mut tasks = JoinSet::new();
         let mut senders = Vec::new();
@@ -368,13 +369,14 @@ impl LiveManager {
             senders.push((channel, tx));
             tasks.spawn(session::run(shared.clone(), channel, rx));
         }
+        let taps = LiveTaps::new(senders, shared.incomplete.clone());
         (
             Self {
                 shared,
                 tasks,
                 writer,
             },
-            LiveTaps::new(senders),
+            taps,
         )
     }
 

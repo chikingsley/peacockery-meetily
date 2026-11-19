@@ -1,6 +1,9 @@
 //! From aligned 48 kHz windows to 100 ms s16le 16 kHz frames, one bounded channel per live
 //! session. Runs on the pipeline task: it never blocks; a full channel drops the frame.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
 use log::{info, warn};
 use peacockery_voice::{Channel, FRAME_SAMPLES};
 use rubato::{FftFixedInOut, Resampler};
@@ -35,6 +38,8 @@ struct Tap {
     sender: mpsc::Sender<LiveFrame>,
     dropped: u64,
     last_end: f64,
+    /// Shared with the live manager: a dropped frame leaves a gap in the live transcript.
+    incomplete: Arc<AtomicBool>,
 }
 
 impl Tap {
@@ -81,6 +86,13 @@ impl Tap {
             Ok(()) => {}
             Err(mpsc::error::TrySendError::Full(_)) => {
                 self.dropped += 1;
+                if self.dropped == 1 {
+                    self.incomplete.store(true, Ordering::SeqCst);
+                    warn!(
+                        "Live transcript incomplete ({:?}): the session fell behind and live audio was dropped",
+                        self.channel
+                    );
+                }
                 if self.dropped == 1 || self.dropped % 50 == 0 {
                     warn!(
                         "Live {:?} session is behind: {} frames dropped so far",
@@ -103,7 +115,10 @@ pub struct LiveTaps {
 }
 
 impl LiveTaps {
-    pub(crate) fn new(senders: Vec<(Channel, mpsc::Sender<LiveFrame>)>) -> Self {
+    pub(crate) fn new(
+        senders: Vec<(Channel, mpsc::Sender<LiveFrame>)>,
+        incomplete: Arc<AtomicBool>,
+    ) -> Self {
         let taps = senders
             .into_iter()
             .map(|(channel, sender)| {
@@ -123,6 +138,7 @@ impl LiveTaps {
                     sender,
                     dropped: 0,
                     last_end: 0.0,
+                    incomplete: incomplete.clone(),
                 }
             })
             .collect();
@@ -170,7 +186,7 @@ mod tests {
     #[test]
     fn windows_become_100_ms_16k_frames() {
         let (tx, mut rx) = mpsc::channel(TAP_CHANNEL_FRAMES);
-        let mut taps = LiveTaps::new(vec![(Channel::Mic, tx)]);
+        let mut taps = LiveTaps::new(vec![(Channel::Mic, tx)], Arc::default());
         let tone: Vec<f32> = (0..4800)
             .map(|i| (i as f32 * 440.0 * std::f32::consts::TAU / 48000.0).sin() * 0.5)
             .collect();
@@ -202,10 +218,22 @@ mod tests {
     #[test]
     fn a_full_channel_drops_instead_of_blocking() {
         let (tx, _rx) = mpsc::channel(2);
-        let mut taps = LiveTaps::new(vec![(Channel::System, tx)]);
-        for i in 0..20 {
+        let incomplete = Arc::new(AtomicBool::new(false));
+        let mut taps = LiveTaps::new(vec![(Channel::System, tx)], incomplete.clone());
+        for i in 0..2 {
+            taps.push(&[0.0; 4800], &[0.1; 4800], &[0.1; 4800], i as f64 * 0.1);
+        }
+        assert!(
+            !incomplete.load(Ordering::SeqCst),
+            "frames that fit are not a gap"
+        );
+        for i in 2..20 {
             taps.push(&[0.0; 4800], &[0.1; 4800], &[0.1; 4800], i as f64 * 0.1);
         }
         assert!(taps.taps[0].dropped >= 15);
+        assert!(
+            incomplete.load(Ordering::SeqCst),
+            "a dropped frame marks the live transcript incomplete"
+        );
     }
 }

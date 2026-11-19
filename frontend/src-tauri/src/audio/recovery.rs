@@ -5,6 +5,7 @@
 use super::audio_save;
 use super::constants::find_meeting_audio;
 use super::journal::has_journal;
+use crate::database::models::meeting_status;
 use crate::database::repositories::meeting::MeetingsRepository;
 use log::{error, info, warn};
 use std::collections::HashSet;
@@ -15,7 +16,7 @@ use std::path::PathBuf;
 pub struct Recovery {
     /// Interrupted meetings whose audio was already encoded before the crash.
     encoded: Vec<String>,
-    /// Meetings with a journal, registered as saving: (id, folder, interrupted now).
+    /// Meetings with a journal, registered as saving: (id, folder, automatic work pending).
     journals: Vec<(String, PathBuf, bool)>,
 }
 
@@ -52,9 +53,13 @@ pub async fn register_journals(pool: &sqlx::SqlitePool) -> Recovery {
                 meeting.id, meeting.title
             );
             audio_save::register(&meeting.id);
+            // An interrupted meeting with a journal never ran its automatic work (that runs
+            // after its audio is saved), whether it was interrupted now or at an earlier start
+            // whose encode did not finish. A stopped one ran it at stop.
+            let automatic_work_pending = meeting.status == meeting_status::INTERRUPTED;
             recovery
                 .journals
-                .push((meeting.id, folder, was_interrupted));
+                .push((meeting.id, folder, automatic_work_pending));
         } else if was_interrupted {
             match find_meeting_audio(&folder) {
                 Some(path) => {
@@ -81,13 +86,13 @@ pub fn resume(app: &tauri::AppHandle, recovery: Recovery) {
     for meeting_id in recovery.encoded {
         crate::final_transcript::on_meeting_recovered(app, &meeting_id);
     }
-    for (meeting_id, folder, was_interrupted) in recovery.journals {
+    for (meeting_id, folder, automatic_work_pending) in recovery.journals {
         let app = app.clone();
         let id = meeting_id.clone();
         audio_save::queue(&meeting_id, folder, move |result| {
             audio_save::report(&app, &id, result);
             if result.is_ok() {
-                if was_interrupted {
+                if automatic_work_pending {
                     crate::final_transcript::on_meeting_recovered(&app, &id);
                 } else {
                     crate::final_transcript::on_stopped_audio_saved(&app, &id);

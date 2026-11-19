@@ -433,9 +433,12 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
     let stopped = manager.stop_and_save().await;
     let target = manager.target().clone();
     drop(manager);
+    // A journal that failed to close (disk full, I/O error) still holds every second synced
+    // before the failure; it is saved like a closed one.
+    let saving = stopped.journal.is_ok() || super::journal::has_journal(&target.folder);
     // Registered before the meeting reads as stopped and before the recording flag and the
     // lifecycle lock are released, so every reader sees either the recording or the save.
-    if stopped.journal.is_ok() {
+    if saving {
         super::audio_save::register(&target.meeting_id);
     }
     IS_RECORDING.store(false, Ordering::SeqCst);
@@ -470,7 +473,7 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
 
     // Register automatic work before the UI opens the completed meeting; the final
     // transcript waits for the encode itself.
-    if stopped.journal.is_ok() {
+    if saving {
         crate::final_transcript::on_recording_stopped(&app, &target.meeting_id).await;
     }
     let folder_path = target.folder.to_string_lossy().to_string();
@@ -485,27 +488,32 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
     );
     crate::tray::update_tray_menu(&app);
 
-    match stopped.journal {
-        Ok(()) => {
-            info!(
-                "Recording {} stopped; encoding {} in the background",
-                target.meeting_id,
-                target.folder.display()
-            );
-            let encoded_app = app.clone();
-            let meeting_id = target.meeting_id.clone();
-            super::audio_save::queue(&target.meeting_id, target.folder.clone(), move |result| {
-                super::audio_save::report(&encoded_app, &meeting_id, result);
-            });
-        }
-        Err(e) => {
-            let message = format!(
+    if let Err(e) = &stopped.journal {
+        let message = if saving {
+            format!(
+                "The last seconds of the recording could not be written to disk ({:#}); the rest is being saved.",
+                e
+            )
+        } else {
+            format!(
                 "Recording stopped but the audio could not be saved: {:#}",
                 e
-            );
-            error!("{}", message);
-            let _ = app.emit("recording-error", serde_json::json!({ "message": message }));
-        }
+            )
+        };
+        error!("{}", message);
+        let _ = app.emit("recording-error", serde_json::json!({ "message": message }));
+    }
+    if saving {
+        info!(
+            "Recording {} stopped; encoding {} in the background",
+            target.meeting_id,
+            target.folder.display()
+        );
+        let encoded_app = app.clone();
+        let meeting_id = target.meeting_id.clone();
+        super::audio_save::queue(&target.meeting_id, target.folder.clone(), move |result| {
+            super::audio_save::report(&encoded_app, &meeting_id, result);
+        });
     }
     Ok(RecordingStopped {
         meeting_id: target.meeting_id,
