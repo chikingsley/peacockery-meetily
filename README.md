@@ -13,7 +13,7 @@ Fork of [Meetily](https://github.com/Zackriya-Solutions/meeting-minutes) (MIT, s
    - **Google Chrome app audio (Google Voice)**: only Chrome's sound, so other apps stay out of the recording. Chrome must be running. This captures every Chrome tab, not only Google Voice.
 1. Choose **In person**, **Online meeting** or **Phone call** before recording. In person captures the microphone only and separates voices in the room. Online and phone capture the microphone and PC audio, with speaker separation on both channels. For a separate phone on speaker beside the microphone, choose In person.
 1. Choose an event from **Today’s calendar**, or leave **Unscheduled meeting** and optionally enter a title. A physical room suggests In person even if the invitation contains a Teams link. You can override the suggestion. Start recording; pause and resume as needed.
-1. Press **Stop**. The app finishes the live transcript and opens the meeting; `audio.mp4` is written in the background (the meeting page shows **Saving audio…** until it is ready), then uploaded for the final transcript. When that is done the meeting page shows it in place of the live one.
+1. Press **Stop**. The app finishes the live transcript and opens the meeting; `audio.mp4` is written in the background (the meeting page shows **Saving audio…** until it is ready). A live transcript that ran completely on Scribe v3 is the result (**Live · Scribe v3 · complete**). Otherwise the audio is uploaded for the Scribe v3 final transcript, which then replaces the live one on the meeting page.
 1. On the meeting page: play the audio, click a line to jump to it, rename speakers, generate a summary, or run the final transcript again with another model.
 
 Existing audio files can be imported from the sidebar; they get a final transcript the same way.
@@ -24,11 +24,11 @@ Chosen in **Settings → Voice**. A model is greyed out when the API does not li
 
 | Use              | Default                                | Others                                                                                          |
 | ---------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Live transcript  | Scribe v3                              | Nova-3 fallback; Voxtral Mini Realtime 3, Scribe v2 Realtime, Cohere Transcribe (GMK)           |
+| Live transcript  | Scribe v3                              | Nova-3 fallback; Voxtral Mini Realtime 3, Cohere Transcribe (GMK)                               |
 | Final transcript | ElevenLabs Scribe v3, with diarization | Voxtral Small Transcribe 3, Voxtral Mini Transcribe 3, Deepgram Nova-3, Cohere Transcribe (GMK) |
 | Summary          | Gemini 3.8 Flash                       | Claude Sonnet 5.5, DeepSeek V4 Flash, Gemini 3.1 Flash Lite, GPT-5.4 mini                       |
 
-Other settings: live transcript on or off, language, key terms, final speaker labels, automatic final transcript (on by default), and automatic summary. Live labels are provisional. A microphone is not a person, and invitations do not establish speaker identity.
+Other settings: live transcript on or off, language, key terms, final speaker labels, when the final transcript runs after stop (by default only when the live transcript was incomplete or not on Scribe v3; or always, or never), and automatic summary. Live labels number the voices on each channel. A microphone is not a person, and invitations do not establish speaker identity.
 
 ## Where things are
 

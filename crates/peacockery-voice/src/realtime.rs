@@ -37,7 +37,7 @@ pub struct RealtimeOptions {
     pub sample_rate: u32,
     /// ISO-639-1 code; `None` or `"auto"` lets the provider detect.
     pub language: Option<String>,
-    /// Speaker labels on the stream (Voxtral realtime 3, Deepgram). Rejected for Scribe, which fails the session.
+    /// Speaker labels on the stream (Scribe v3, Voxtral realtime 3, Deepgram). Rejected for Cohere.
     pub diarize: bool,
     /// Voxtral realtime 3 only: 80–1200 or 2400 ms.
     pub target_streaming_delay_ms: Option<u32>,
@@ -88,9 +88,7 @@ impl RealtimeOptions {
             pairs.push(("language", lang.to_string()));
         }
         if self.diarize {
-            if family == ModelFamily::Cohere
-                || (family == ModelFamily::Scribe && !self.model.ends_with("scribe_v3"))
-            {
+            if family == ModelFamily::Cohere {
                 return Err(Error::Config(format!(
                     "{} does not support live speaker labels",
                     self.model
@@ -643,7 +641,7 @@ mod tests {
 
     #[test]
     fn other_families_drop_voxtral_options() {
-        for model in ["deepgram-nova-3", "elevenlabs-scribe_v2"] {
+        for model in ["deepgram-nova-3", "elevenlabs-scribe_v3"] {
             let mut o = RealtimeOptions::new(model);
             o.target_streaming_delay_ms = Some(480);
             o.context_bias = vec!["X".into()];
@@ -677,7 +675,7 @@ mod tests {
         let mut v3 = RealtimeOptions::new("elevenlabs-scribe_v3");
         v3.diarize = true;
         assert!(keys(&v3).contains(&"diarize=true".to_string()));
-        let mut o = RealtimeOptions::new("elevenlabs-scribe_v2");
+        let mut o = RealtimeOptions::new("cohere-transcribe");
         o.diarize = true;
         assert!(matches!(o.query_pairs(), Err(Error::Config(_))));
         let mut o = RealtimeOptions::new("deepgram-nova-3");
@@ -701,7 +699,6 @@ mod tests {
             "vox-turn.json",
             "vox-diar.json",
             "nova.json",
-            "scribe-rt.json",
         ] {
             let events: Vec<_> = fixture(name)
                 .into_iter()

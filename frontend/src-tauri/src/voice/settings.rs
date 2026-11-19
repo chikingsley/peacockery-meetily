@@ -14,6 +14,16 @@ const INSTALLATION_ID_KEY: &str = "installation_id";
 /// `/v1/text` accepts at most three fallback models.
 const MAX_FALLBACK_MODELS: usize = 3;
 
+/// When the final transcript runs after a recording stops.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AutoFinal {
+    Always,
+    /// Unless the live transcript completed on the final model.
+    WhenLiveIncomplete,
+    Never,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VoiceSettings {
     pub base_url: String,
@@ -23,7 +33,7 @@ pub struct VoiceSettings {
     pub live_diarize: bool,
     pub final_model: String,
     pub final_diarize: bool,
-    pub auto_final: bool,
+    pub auto_final: AutoFinal,
     /// ISO-639-1, or `auto`.
     pub language: String,
     pub keyterms: Vec<String>,
@@ -46,7 +56,7 @@ impl Default for VoiceSettings {
             live_diarize: true,
             final_model: "elevenlabs-scribe_v3".to_string(),
             final_diarize: true,
-            auto_final: true,
+            auto_final: AutoFinal::WhenLiveIncomplete,
             language: "en".to_string(),
             keyterms: Vec::new(),
             transcript_corrections: Vec::new(),
@@ -259,6 +269,7 @@ mod tests {
         assert_eq!(defaults.clone().normalized().unwrap(), defaults);
         let value = serde_json::to_value(&defaults).unwrap();
         assert_eq!(value["live_mode"], "split");
+        assert_eq!(value["auto_final"], "when_live_incomplete");
         assert_eq!(value["base_url"], "https://voice-lab.peacockery.studio");
         assert_eq!(
             value["summary_fallback_models"],
@@ -300,6 +311,35 @@ mod tests {
     }
 
     #[test]
+    fn auto_final_loads_by_name_and_a_stored_boolean_keeps_the_default() {
+        for (stored, expected) in [
+            (json!("always"), AutoFinal::Always),
+            (json!("never"), AutoFinal::Never),
+            (json!(true), AutoFinal::WhenLiveIncomplete),
+            (json!(false), AutoFinal::WhenLiveIncomplete),
+        ] {
+            let settings = VoiceSettings::from_stored(Some(&json!({
+                "auto_final": stored,
+                "auto_summary": true
+            })));
+            assert_eq!(settings.auto_final, expected, "{stored}");
+            assert!(settings.auto_summary);
+        }
+    }
+
+    #[test]
+    fn removed_scribe_v2_loads_as_the_default_model() {
+        let settings = VoiceSettings::from_stored(Some(&json!({
+            "live_model": "elevenlabs-scribe_v2",
+            "final_model": "elevenlabs-scribe_v2"
+        })));
+        assert_eq!(settings.live_model, "elevenlabs-scribe_v3");
+        assert_eq!(settings.final_model, "elevenlabs-scribe_v3");
+        assert!(!is_live_model("elevenlabs-scribe_v2"));
+        assert!(!is_final_model("elevenlabs-scribe_v2"));
+    }
+
+    #[test]
     fn normalization_cleans_and_validates() {
         let mut s = VoiceSettings {
             base_url: " https://voice-lab.peacockery.studio/ ".into(),
@@ -333,7 +373,7 @@ mod tests {
         assert!(reject(
             |s| s.final_model = "mistral-voxtral-mini-transcribe-realtime-3".into()
         ));
-        assert!(reject(|s| s.summary_model = "elevenlabs-scribe_v2".into()));
+        assert!(reject(|s| s.summary_model = "elevenlabs-scribe_v3".into()));
         assert!(reject(|s| s.summary_fallback_models = vec!["nope".into()]));
         assert!(reject(|s| {
             s.summary_fallback_models = vec![

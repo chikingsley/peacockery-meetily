@@ -24,7 +24,7 @@ use crate::database::models::{meeting_status, transcript_source, Meeting, NewTra
 use crate::database::repositories::meeting::{FinalState, MeetingsRepository};
 use crate::database::repositories::transcript::TranscriptsRepository;
 use crate::state::AppState;
-use crate::voice::settings::is_final_model;
+use crate::voice::settings::{is_final_model, AutoFinal};
 use crate::voice::{describe_error, VoiceService, VoiceSettings};
 
 /// `meetings.final_status` / event `state` values.
@@ -639,12 +639,50 @@ pub fn start_for_meeting(app: &AppHandle, meeting_id: &str, model: Option<String
     });
 }
 
+/// Whether a stopped or recovered recording gets the final transcript automatically. With
+/// `WhenLiveIncomplete` a live transcript that completed on the final model is the result;
+/// `live_complete` is unknown for recovered meetings and recordings without live sessions.
+pub fn final_needed(settings: &VoiceSettings, meeting: &Meeting) -> bool {
+    match settings.auto_final {
+        AutoFinal::Always => true,
+        AutoFinal::Never => false,
+        AutoFinal::WhenLiveIncomplete => {
+            !(meeting.live_complete == Some(true)
+                && meeting.live_model.as_deref() == Some(settings.final_model.as_str()))
+        }
+    }
+}
+
+/// Queues the final transcript when it is needed (so `queued` is stored before the caller
+/// reports the stop), else starts the automatic summary from the live rows.
 async fn start_if_auto(app: &AppHandle, meeting_id: &str) {
     let settings = app.state::<VoiceService>().settings();
-    if settings.auto_final {
-        start_for_meeting(app, meeting_id, None);
-    } else if settings.auto_summary {
-        let pool = app.state::<AppState>().db_manager.pool().clone();
+    let pool = pool_of(app);
+    let meeting = match MeetingsRepository::get(&pool, meeting_id).await {
+        Ok(Some(meeting)) => meeting,
+        Ok(None) => {
+            log::error!("Meeting not found: {}", meeting_id);
+            return;
+        }
+        Err(e) => {
+            log::error!("Failed to load meeting {}: {}", meeting_id, e);
+            return;
+        }
+    };
+    if final_needed(&settings, &meeting) {
+        if let Err(e) = start(app, meeting_id, None).await {
+            log::error!("Final transcript of {} not started: {}", meeting_id, e);
+        }
+        return;
+    }
+    log::info!(
+        "No automatic final transcript for {} (auto_final {:?}, live {:?}, complete {:?})",
+        meeting_id,
+        settings.auto_final,
+        meeting.live_model,
+        meeting.live_complete
+    );
+    if settings.auto_summary {
         match TranscriptsRepository::all(&pool, meeting_id, transcript_source::LIVE).await {
             Ok(rows) if !rows.is_empty() => {
                 if let Err(error) = crate::summary::commands::start_summary(
@@ -680,7 +718,8 @@ pub fn on_meeting_recovered(app: &AppHandle, meeting_id: &str) {
     });
 }
 
-/// Startup: runs that were queued or running when the app exited start again with their model.
+/// Startup: runs that were queued or running when the app exited start again with their model,
+/// or with the settings' model when theirs is no longer offered.
 pub async fn resume_unfinished(app: &AppHandle, pool: &SqlitePool) {
     match MeetingsRepository::final_in_progress(pool).await {
         Ok(meetings) => {
@@ -689,7 +728,8 @@ pub async fn resume_unfinished(app: &AppHandle, pool: &SqlitePool) {
                     "Restarting the unfinished final transcript of {}",
                     meeting.id
                 );
-                start_for_meeting(app, &meeting.id, meeting.final_model.clone());
+                let model = meeting.final_model.filter(|m| is_final_model(m));
+                start_for_meeting(app, &meeting.id, model);
             }
         }
         Err(e) => log::error!("Failed to look up unfinished final transcripts: {}", e),
@@ -780,7 +820,7 @@ mod tests {
             &meeting,
             dir.path().to_path_buf(),
             dir.path().join("audio.mp4"),
-            "elevenlabs-scribe_v2",
+            "elevenlabs-scribe_v3",
             &VoiceSettings::default(),
         );
         assert!(job.recorded_at.is_some());
@@ -853,7 +893,7 @@ mod tests {
             &meeting,
             dir.path().to_path_buf(),
             dir.path().join("audio.mp4"),
-            "elevenlabs-scribe_v2",
+            "elevenlabs-scribe_v3",
             &VoiceSettings::default(),
         );
         store_final(&pool, &job, "job_1", &artifact).await.unwrap();
@@ -881,15 +921,14 @@ mod tests {
         assert_eq!(rows[0].speaker.as_deref(), Some("Speaker 1"));
     }
 
-    #[test]
-    fn job_options_follow_settings() {
-        let meeting = Meeting {
+    fn bare_meeting(status: &str) -> Meeting {
+        Meeting {
             id: "m1".into(),
             title: "t".into(),
             created_at: Some("2026-11-10T15:00:00+00:00".into()),
             updated_at: None,
             folder_path: None,
-            status: meeting_status::IMPORTED.into(),
+            status: status.into(),
             duration_seconds: None,
             live_model: None,
             live_mode: None,
@@ -899,7 +938,53 @@ mod tests {
             final_job_id: None,
             final_error: None,
             final_updated_at: None,
+            live_complete: None,
+        }
+    }
+
+    #[test]
+    fn final_runs_unless_live_completed_on_the_final_model() {
+        let settings = VoiceSettings::default();
+        assert_eq!(settings.auto_final, AutoFinal::WhenLiveIncomplete);
+        let live = |model: Option<&str>, complete: Option<bool>| Meeting {
+            live_model: model.map(str::to_string),
+            live_complete: complete,
+            ..bare_meeting(meeting_status::STOPPED)
         };
+        let v3 = Some("elevenlabs-scribe_v3");
+        let complete_v3 = live(v3, Some(true));
+        assert!(!final_needed(&settings, &complete_v3));
+        // Nova fallback, dropped audio or an unclean finish.
+        assert!(final_needed(&settings, &live(v3, Some(false))));
+        // Interrupted, recovered or recorded before completeness was stored.
+        assert!(final_needed(&settings, &live(v3, None)));
+        // Live off or no key.
+        assert!(final_needed(&settings, &live(None, None)));
+        assert!(final_needed(
+            &settings,
+            &live(Some("deepgram-nova-3"), Some(true))
+        ));
+        let voxtral_final = VoiceSettings {
+            final_model: "mistral-voxtral-small-transcribe-3".into(),
+            ..VoiceSettings::default()
+        };
+        assert!(final_needed(&voxtral_final, &complete_v3));
+
+        let always = VoiceSettings {
+            auto_final: AutoFinal::Always,
+            ..VoiceSettings::default()
+        };
+        assert!(final_needed(&always, &complete_v3));
+        let never = VoiceSettings {
+            auto_final: AutoFinal::Never,
+            ..VoiceSettings::default()
+        };
+        assert!(!final_needed(&never, &live(None, None)));
+    }
+
+    #[test]
+    fn job_options_follow_settings() {
+        let meeting = bare_meeting(meeting_status::IMPORTED);
         let settings = VoiceSettings {
             keyterms: vec!["Netask".into()],
             language: "auto".into(),
@@ -920,7 +1005,7 @@ mod tests {
             &meeting,
             PathBuf::from("/m"),
             PathBuf::from("/m/audio.m4a"),
-            "elevenlabs-scribe_v2",
+            "elevenlabs-scribe_v3",
             &settings,
         );
         assert!(job.options.diarize);

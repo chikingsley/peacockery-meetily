@@ -23,8 +23,8 @@ import {
 /**
  * The one owner of "recording stopped": the Stop button calls `stopRecording()`, and stops from
  * the tray or a shortcut arrive as `recording-stopped`. Either way the stopped meeting opens
- * once in /meeting-details, where its final transcript status shows (Rust starts the final
- * transcript itself when `auto_final` is on).
+ * once in /meeting-details, where its final transcript status shows (Rust queues the final
+ * transcript before `recording-stopped` when `auto_final` calls for one).
  */
 
 interface RecordingStopContextType {
@@ -71,9 +71,7 @@ export function RecordingStopProvider({ children }: { children: ReactNode }) {
         setCurrentMeeting({ id: meetingId, title });
       }
 
-      router.push(
-        `/meeting-details?id=${encodeURIComponent(meetingId)}&source=recording`
-      );
+      router.push(`/meeting-details?id=${encodeURIComponent(meetingId)}`);
     },
     [refetchMeetings, router, setCurrentMeeting, setIsMeetingActive]
   );

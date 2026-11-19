@@ -133,7 +133,7 @@ pub struct JobView {
 /// Options for a transcription job.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TranscribeOptions {
-    /// Batch model id (`elevenlabs-scribe_v2`, `mistral-voxtral-small-transcribe-3`, …).
+    /// Batch model id (`elevenlabs-scribe_v3`, `mistral-voxtral-small-transcribe-3`, …).
     pub asr_model: String,
     pub diarize: bool,
     /// ISO-639-1; `None` or `"auto"` lets the provider detect.
@@ -597,7 +597,7 @@ mod tests {
 
     #[test]
     fn provider_options_per_family() {
-        let mut o = TranscribeOptions::new("elevenlabs-scribe_v2");
+        let mut o = TranscribeOptions::new("elevenlabs-scribe_v3");
         o.keyterms = vec![
             "Cica-Huntek".into(),
             "Netask".into(),
@@ -606,7 +606,7 @@ mod tests {
         ];
         assert_eq!(
             o.request_body("uploads/u/source"),
-            json!({"asr_model":"elevenlabs-scribe_v2","input_key":"uploads/u/source","diarize":true,"language":"en",
+            json!({"asr_model":"elevenlabs-scribe_v3","input_key":"uploads/u/source","diarize":true,"language":"en",
                    "provider_options":{"elevenlabs":{"keyterms":["Cica-Huntek","Netask"]}}})
         );
         o.asr_model = "mistral-voxtral-small-transcribe-3".into();
@@ -627,7 +627,7 @@ mod tests {
             json!({"asr_model":"cohere-transcribe","input_key":"k","diarize":false})
         );
         o.keyterms.clear();
-        o.asr_model = "elevenlabs-scribe_v2".into();
+        o.asr_model = "elevenlabs-scribe_v3".into();
         assert!(o.request_body("k").get("provider_options").is_none());
     }
 

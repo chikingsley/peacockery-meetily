@@ -27,9 +27,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useConfig } from "@/contexts/ConfigContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
 import {
+  AUTO_FINAL_CHOICES,
   DEFAULT_BASE_URL,
   LANGUAGES,
   formatKeyterms,
+  modelLabel,
   parseKeyterms,
   supportsLiveSpeakerLabels,
 } from "@/lib/voice-models";
@@ -110,7 +112,7 @@ export function VoiceSettingsTab() {
       <SettingsSection
         title="Final transcript"
         icon={<FileText className="h-5 w-5" />}
-        description="Process the complete saved audio after recording for the final transcript and speaker labels."
+        description="Transcribes the complete saved audio with speaker labels when the live transcript cannot serve as the result."
       >
         <ModelSelect
           id="final-model"
@@ -126,13 +128,35 @@ export function VoiceSettingsTab() {
           checked={voiceSettings.final_diarize}
           onChange={(final_diarize) => update({ final_diarize })}
         />
-        <ToggleRow
-          id="auto-final"
-          label="Run automatically after stop"
-          description="Off: run it yourself from the meeting page."
-          checked={voiceSettings.auto_final}
-          onChange={(auto_final) => update({ auto_final })}
-        />
+        <div className="space-y-1.5">
+          <Label htmlFor="auto-final">Run after stop</Label>
+          <Select
+            value={voiceSettings.auto_final}
+            onValueChange={(value) => {
+              const choice = AUTO_FINAL_CHOICES.find((c) => c.value === value);
+
+              if (choice) {
+                update({ auto_final: choice.value });
+              }
+            }}
+          >
+            <SelectTrigger id="auto-final" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {AUTO_FINAL_CHOICES.map((c) => (
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Recommended: a live transcript that ran completely on{" "}
+            {modelLabel(voiceModels?.final, voiceSettings.final_model)} is kept
+            as the result.
+          </p>
+        </div>
       </SettingsSection>
 
       <LanguageSection settings={voiceSettings} update={update} />
@@ -148,7 +172,7 @@ export function VoiceSettingsTab() {
         <ToggleRow
           id="auto-summary"
           label="Summarize automatically"
-          description="Runs after recording stops, or after the optional final pass finishes."
+          description="Runs after recording stops, or after the final transcript finishes when one runs."
           checked={voiceSettings.auto_summary}
           onChange={(auto_summary) => update({ auto_summary })}
         />

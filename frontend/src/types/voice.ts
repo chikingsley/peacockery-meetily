@@ -9,6 +9,9 @@
 
 export type LiveMode = "split" | "mixed";
 
+/** When the final transcript runs after a recording stops. */
+export type AutoFinal = "always" | "when_live_incomplete" | "never";
+
 export interface VoiceSettings {
   base_url: string;
   live_enabled: boolean;
@@ -17,7 +20,7 @@ export interface VoiceSettings {
   live_diarize: boolean;
   final_model: string;
   final_diarize: boolean;
-  auto_final: boolean;
+  auto_final: AutoFinal;
   /** ISO-639-1 code, or "auto". */
   language: string;
   keyterms: string[];
@@ -140,6 +143,8 @@ export interface MeetingMetadata {
   live_mode: LiveMode | null;
   /** JSON array of realtime session ids, as stored. */
   realtime_session_ids: string | null;
+  /** Every live channel transcribed all its audio on `live_model`; null = unknown. */
+  live_complete: boolean | null;
   final_status: FinalTranscriptState | null;
   final_model: string | null;
   final_job_id: string | null;

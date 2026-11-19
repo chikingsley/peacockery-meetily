@@ -30,7 +30,6 @@ export default function PageContent({
   onMeetingUpdated,
   onFinalTranscriptDone,
   onRenameSpeaker,
-  justRecorded,
   transcripts,
   source,
   showingLiveDraft,
@@ -46,7 +45,6 @@ export default function PageContent({
   onMeetingUpdated?: () => Promise<void>;
   onFinalTranscriptDone: () => Promise<void>;
   onRenameSpeaker: (from: string, to: string) => Promise<void>;
-  justRecorded: boolean;
   transcripts: Transcript[];
   source: TranscriptSource | null;
   showingLiveDraft: boolean;
@@ -130,7 +128,6 @@ export default function PageContent({
               meeting={meeting}
               transcripts={transcripts}
               source={source}
-              justRecorded={justRecorded}
               onToggleSource={onToggleSource}
               onRenameSpeaker={onRenameSpeaker}
               finalTranscript={finalTranscript}

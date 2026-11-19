@@ -38,7 +38,7 @@ Identity: productName `Peacockery Meetily`, identifier `studio.peacockery.meetil
   "live_diarize": true,          // recording types request separation on all captured channels
   "final_model": "elevenlabs-scribe_v3",
   "final_diarize": true,
-  "auto_final": true,            // process saved audio automatically after stop; live rows remain
+  "auto_final": "when_live_incomplete", // or "always" / "never": the final transcript after stop (§6)
   "language": "en",              // ISO-639-1, or "auto"
   "keyterms": [],                // vocabulary hints (names, companies); sent where the model supports them
   "me_label": "Me",
@@ -56,10 +56,8 @@ Model allow-lists (labels shown in the UI; availability = present in `GET /v1/mo
 | live    | `elevenlabs-scribe_v3`                       | Scribe v3 Live (via Superwhisper) – default; live speaker labels                      |
 | live    | `deepgram-nova-3`                            | Deepgram Nova (via Superwhisper) – automatic fallback; lowest latency, channel labels |
 | live    | `mistral-voxtral-mini-transcribe-realtime-3` | Voxtral Mini Realtime 3 – more accurate, live speaker labels                          |
-| live    | `elevenlabs-scribe_v2`                       | Scribe v2 Realtime (via Superwhisper) – accurate, less reliable                       |
 | live    | `cohere-transcribe`                          | Cohere Transcribe (self-hosted on GMK) – free, may be offline                         |
-| final   | `elevenlabs-scribe_v3`                       | Scribe v3 – optional final pass; diarization and word timestamps                      |
-| final   | `elevenlabs-scribe_v2`                       | Scribe v2 – legacy; diarization + word timestamps                                     |
+| final   | `elevenlabs-scribe_v3`                       | Scribe v3 – default; diarization and word timestamps                                  |
 | final   | `mistral-voxtral-small-transcribe-3`         | Voxtral Small Transcribe 3 – top overall WER; segment timestamps                      |
 | final   | `mistral-voxtral-mini-transcribe-3`          | Voxtral Mini Transcribe 3                                                             |
 | final   | `deepgram-nova-3`                            | Deepgram Nova (via Superwhisper)                                                      |
@@ -78,10 +76,9 @@ Model allow-lists (labels shown in the UI; availability = present in `GET /v1/mo
   - Voxtral realtime 3, no diarize: only `transcript.delta` word fragments (append verbatim), no committed events.
   - Voxtral realtime 3, `diarize=true`: only `transcript.committed` fragments, each `segments[0].speaker` = `speaker_N`, times null.
   - Nova-3 (lab): `transcript.interim` (full current hypothesis) + `transcript.committed` lines with `segments[].startSeconds/endSeconds`.
-  - Scribe v2 realtime (lab): `transcript.interim` + a few long `transcript.committed`.
   - Every session: `session.started {session_id}` first; terminal `session.completed {result}` or `session.failed {error}`.
 - Batch: `POST /v1/uploads {content_type, filename, size_bytes}` → `transfer.kind` `single` (PUT url+headers) or `multipart` (parts with url, keep ETag) → `POST /v1/uploads/{id}/complete {parts:[...]}` → `POST /v1/transcriptions {asr_model, input_key, diarize, language?, provider_options?}` → poll `GET /v1/jobs/{id}` (2 s, backing off to 10 s) until `succeeded|failed`. A 150 s clip finishes in ~8–10 s.
-  - Scribe v2 (lab): `result.content.words.items[{start_seconds,end_seconds,text,speaker:"speaker_N"}]`; `segments`/`speaker_turns` empty (`provider_omitted`) → group words into turns client-side.
+  - Scribe batch (fixture `b-scribe.json`, recorded with Scribe v2, since removed): `result.content.words.items[{start_seconds,end_seconds,text,speaker:"speaker_N"}]`; `segments`/`speaker_turns` empty (`provider_omitted`) → group words into turns client-side.
   - Voxtral 3 batch: `result.content.speaker_turns.items[{start_seconds,end_seconds,text,speaker}]` (and segments).
   - Keyterms: `provider_options.elevenlabs.keyterms` (Scribe), `provider_options.mistral.contextBias` (Voxtral), `provider_options.deepgram.keyterm` (Nova).
 - Text: `POST /v1/text {model, messages, maxOutputTokens, context:{conversationId,turnId}, routing:{fallbackModels}}` → `{text, model, provider, usage, finishReason}`. Hard 10 s per attempt server-side.
@@ -112,7 +109,9 @@ Model allow-lists (labels shown in the UI; availability = present in `GET /v1/mo
 
 ## 6. Final transcript
 
-Rust owns it (`final_transcript.rs`), keyed by meeting id:
+Rust owns it (`final_transcript.rs`), keyed by meeting id. Scribe v3 is the final model by default.
+
+When it runs automatically after a stop or a crash recovery (`auto_final`): `always`; `never` (run it from the meeting page); `when_live_incomplete` (default) runs it unless the live transcript completed on the final model (`live_complete = 1` and `live_model = final_model`), in which case the live transcript is the result. A channel that falls back to Nova, loses a session (audio the provider had not committed), drops buffered audio while connecting, gives up, stops while failing or reconnecting, or does not finish cleanly, and the 20 s stop timeout, each mark the live transcript incomplete. Recovered meetings and recordings without live sessions have `live_complete` NULL, so they run. A needed run is queued (`queued` stored) before `recording-stopped`. Imports always run it. When no final transcript runs, `auto_summary` summarizes the live rows. Retry and startup resume use the run's stored model while it is still in the final list, else `final_model`.
 
 1. A run first waits for the meeting's background audio save (state `queued`, message "Saving audio…"); a failed encode fails the run with its error.
 1. Sources over 20 MiB are temporarily encoded as one complete mono 16 kHz AAC file at 32 kbit/s, with the original file and timeline preserved. The temporary file is removed on completion, failure or cancellation. `audio.mp4` (or its complete encoded copy) → upload → job (`final_model`, `final_diarize`, `language`, keyterms) → poll.
@@ -122,13 +121,14 @@ Rust owns it (`final_transcript.rs`), keyed by meeting id:
 1. Update meeting `final_status/final_model/final_job_id/final_error`; emit `final-transcript-status`.
 1. If `auto_summary`, start the summary afterwards.
 
-## 7. Database (fresh single migration `20261109000000_initial.sql`, SQLite via sqlx)
+## 7. Database (SQLite via sqlx; migrations `20261109000000_initial.sql`, `20261117000000_publications.sql`, `20261118000000_live_complete.sql`)
 
 ```sql
 meetings(id TEXT PK, title TEXT NOT NULL, created_at TEXT, updated_at TEXT, folder_path TEXT,
          status TEXT NOT NULL DEFAULT 'recording',      -- recording | stopped | interrupted | imported
          duration_seconds REAL, live_model TEXT, live_mode TEXT, realtime_session_ids TEXT,  -- JSON array
-         final_status TEXT, final_model TEXT, final_job_id TEXT, final_error TEXT, final_updated_at TEXT)
+         final_status TEXT, final_model TEXT, final_job_id TEXT, final_error TEXT, final_updated_at TEXT,
+         live_complete INTEGER)                         -- 1/0 set at stop; NULL = unknown (§6)
 transcripts(id TEXT PK, meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
             source TEXT NOT NULL,                       -- live | final
             speaker TEXT, transcript TEXT NOT NULL, timestamp TEXT,
@@ -139,7 +139,7 @@ summary_processes(meeting_id TEXT PK REFERENCES meetings(id) ON DELETE CASCADE, 
                   processing_time REAL, metadata TEXT, result_backup TEXT, result_backup_timestamp TEXT)
 ```
 
-"Best" transcript of a meeting = `final` rows if any exist, else `live` rows. On startup, meetings still `recording` become `interrupted`, and every meeting whose folder still holds an audio journal (interrupted, failed encode, or quit before the background encode finished) is registered as saving before unfinished final transcripts resume, then encoded on the background worker. If `auto_final`, the final transcript runs for every interrupted meeting once it has an `audio.*` file (including one whose `audio.mp4` was already written before the crash, with no journal left); a meeting that was already stopped only gets its audio encoded, and its queued final transcript resumes and waits for it.
+"Best" transcript of a meeting = `final` rows if any exist, else `live` rows. On startup, meetings still `recording` become `interrupted`, and every meeting whose folder still holds an audio journal (interrupted, failed encode, or quit before the background encode finished) is registered as saving before unfinished final transcripts resume, then encoded on the background worker. Unless `auto_final` is `never`, the final transcript runs for every interrupted meeting once it has an `audio.*` file (including one whose `audio.mp4` was already written before the crash, with no journal left); a meeting that was already stopped only gets its audio encoded, and its queued final transcript resumes and waits for it.
 
 ## 8. Tauri commands (frontend → Rust)
 
@@ -165,7 +165,7 @@ Voice settings:
 Meetings / transcripts:
 
 - `api_get_meetings() -> {id, title, created_at, final_status}[]`, `api_search_transcripts(query)`
-- `api_get_meeting_metadata(meeting_id) -> MeetingMetadata` (all meeting columns + `audio_path: string|null` – the folder's `audio.*` file – + `audio_saving: bool` – the audio is still being encoded from the journal – + `has_live`, `has_final`, optional `recording_context`)
+- `api_get_meeting_metadata(meeting_id) -> MeetingMetadata` (all meeting columns, `live_complete: bool|null` included, + `audio_path: string|null` – the folder's `audio.*` file – + `audio_saving: bool` – the audio is still being encoded from the journal – + `has_live`, `has_final`, optional `recording_context`)
 - `api_get_meeting_transcripts(meeting_id, limit, offset, source?: "best"|"live"|"final") ->  {transcripts: Transcript[], total_count, has_more, source: "live"|"final"}` where `Transcript = {id, text, timestamp, speaker|null, source, audio_start_time, audio_end_time, duration}`
 - `api_save_meeting_title(meeting_id, title)`, `api_delete_meeting(meeting_id)`, `open_meeting_folder(meeting_id)`
 - `rename_speaker(meeting_id, from, to) -> number` – renames on `final` rows (and `live` rows) of that meeting; returns rows changed
@@ -218,12 +218,12 @@ Ultracite's core, React, Next.js, anti-slop, and shadcn presets run through Oxli
 
 ### Scribe v3 live delivery
 
-Scribe v3 waits for the diarized commit before saving each passage. The API preserves word times and speaker turns, and the app splits multi-speaker commits into separate lines. On a provider rejection or two transient failures, each Scribe channel switches to Nova while local audio capture continues. Nova uses the configured channel labels. Authentication failures remain actionable errors. The API allows eight seconds for delayed labels after stop. Existing settings remain preserved; the November 13 installation explicitly selects Scribe v3, enables live labels, and turns automatic final transcription off.
+Scribe v3 waits for the diarized commit before saving each passage. The API preserves word times and speaker turns, and the app splits multi-speaker commits into separate lines. On a provider rejection or two transient failures, each Scribe channel switches to Nova while local audio capture continues; the live transcript is then incomplete and the final transcript runs (§6). Nova uses the configured channel labels. Authentication failures remain actionable errors. The API allows eight seconds for delayed labels after stop.
 
-Automatic summaries use the saved live transcript when automatic final transcription is off. Summary registration happens before the recording-stopped event so the meeting page can attach to the active summary. An optional batch pass takes precedence when it exists; it is queued at the same point and waits for the background audio encode.
+Automatic summaries use the saved live transcript when no final transcript runs. Summary registration happens before the recording-stopped event so the meeting page can attach to the active summary. A final transcript takes precedence when it runs; it is queued at the same point and waits for the background audio encode.
 
 #### 0.6.1 acceptance (November 13, 2026)
 
 The deployed lab API passed paced Scribe v3 tests with and without diarization, a Nova fallback-route test, saved-session recovery, and optional Scribe v3 batch transcription. A 12.43-second AMI fixture returned two speaker IDs. The installed Windows app recorded the same fixture, displayed Them 1/Them 2 while recording, and retained its live rows after stop with final_status unset. Fallback selection and multi-speaker line splitting have regression coverage.
 
-Before installation, CICA's application data and recordings were backed up. Readback verified that both existing meetings, all 39 original transcript rows, and all 15 original recording-related files remained unchanged. The installation changed exactly four voice preferences: live_model, live_diarize, final_model, and auto_final. Credentials, installation identity, summary preferences, and vocabulary remained preserved.
+Before installation, CICA's application data and recordings were backed up. Readback verified that both existing meetings, all 39 original transcript rows, and all 15 original recording-related files remained unchanged. The installation changed exactly four voice preferences: live_model, live_diarize, final_model, and auto_final (now governed by the §6 rule). Credentials, installation identity, summary preferences, and vocabulary remained preserved.

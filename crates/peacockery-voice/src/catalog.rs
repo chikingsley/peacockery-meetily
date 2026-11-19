@@ -128,12 +128,6 @@ const LIVE: &[Curated] = &[
         recommended: false,
     },
     Curated {
-        id: "elevenlabs-scribe_v2",
-        label: "Scribe v2 Realtime (via Superwhisper)",
-        note: "accurate, less reliable",
-        recommended: false,
-    },
-    Curated {
         id: "cohere-transcribe",
         label: "Cohere Transcribe (self-hosted on GMK)",
         note: "free, may be offline",
@@ -145,14 +139,8 @@ const FINAL: &[Curated] = &[
     Curated {
         id: "elevenlabs-scribe_v3",
         label: "Scribe v3",
-        note: "optional final transcript",
+        note: "default; diarization and word timestamps",
         recommended: true,
-    },
-    Curated {
-        id: "elevenlabs-scribe_v2",
-        label: "Scribe v2",
-        note: "diarization + word timestamps",
-        recommended: false,
     },
     Curated {
         id: "mistral-voxtral-small-transcribe-3",
@@ -310,34 +298,21 @@ mod tests {
     use super::*;
 
     fn fixture() -> Catalog {
-        let mut catalog: Catalog =
-            serde_json::from_str(include_str!("../tests/fixtures/models.json")).unwrap();
-        let mut v3 = catalog
-            .models
-            .iter()
-            .find(|m| m.id == "elevenlabs-scribe_v2")
-            .unwrap()
-            .clone();
-        v3.id = "elevenlabs-scribe_v3".into();
-        if let Some(route) = &mut v3.routes.realtime {
-            route.supports_diarization = true;
-        }
-        catalog.models.push(v3);
-        catalog
+        serde_json::from_str(include_str!("../tests/fixtures/models.json")).unwrap()
     }
 
     #[test]
     fn parses_live_catalog() {
         let catalog = fixture();
-        assert_eq!(catalog.models.len(), 52);
+        assert_eq!(catalog.models.len(), 51);
         assert_eq!(catalog.presentation_schema_version, Some(1));
         assert_eq!(
             catalog.realtime_model_id("mistral-voxtral-mini-latest"),
             Some("mistral-voxtral-mini-transcribe-realtime-2602")
         );
         assert_eq!(
-            catalog.realtime_model_id("elevenlabs-scribe_v2"),
-            Some("elevenlabs-scribe_v2")
+            catalog.realtime_model_id("elevenlabs-scribe_v3"),
+            Some("elevenlabs-scribe_v3")
         );
         assert_eq!(
             catalog.realtime_model_id("mistral-voxtral-small-transcribe-3"),
@@ -374,23 +349,23 @@ mod tests {
     fn curated_lists_against_live_catalog() {
         let catalog = fixture();
         let live = curated_live(&catalog);
-        assert_eq!(live.len(), 5);
+        assert_eq!(live.len(), 4);
         assert!(live.iter().all(|m| m.available), "{live:?}");
-        let nova = &live[0];
-        assert!(nova.recommended && nova.id == "elevenlabs-scribe_v3");
+        let scribe = &live[0];
+        assert!(
+            scribe.recommended
+                && scribe.supports_diarization
+                && scribe.id == "elevenlabs-scribe_v3"
+        );
         assert_eq!(live.iter().filter(|m| m.recommended).count(), 1);
         let vox = live
             .iter()
             .find(|m| m.id == "mistral-voxtral-mini-transcribe-realtime-3")
             .unwrap();
         assert!(!vox.recommended && vox.supports_diarization);
-        let scribe = live
-            .iter()
-            .find(|m| m.id == "elevenlabs-scribe_v2")
-            .unwrap();
-        assert!(!scribe.supports_diarization);
 
         let fin = curated_final(&catalog);
+        assert_eq!(fin.len(), 5);
         assert!(fin.iter().all(|m| m.available), "{fin:?}");
         assert!(
             fin[0].recommended
@@ -454,7 +429,7 @@ mod tests {
             ModelFamily::Mistral
         );
         assert_eq!(ModelFamily::of("deepgram-nova-3"), ModelFamily::Deepgram);
-        assert_eq!(ModelFamily::of("elevenlabs-scribe_v2"), ModelFamily::Scribe);
+        assert_eq!(ModelFamily::of("elevenlabs-scribe_v3"), ModelFamily::Scribe);
         assert_eq!(ModelFamily::of("cohere-transcribe"), ModelFamily::Cohere);
         assert_eq!(ModelFamily::of("azure-speech"), ModelFamily::Other);
     }

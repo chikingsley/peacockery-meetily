@@ -272,6 +272,7 @@ mod tests {
             final_job_id: None,
             final_error: None,
             final_updated_at: None,
+            live_complete: Some(true),
         };
         let value = serde_json::to_value(MeetingMetadata {
             recording_context: None,
@@ -287,6 +288,7 @@ mod tests {
         assert_eq!(value["id"], "m1");
         assert_eq!(value["status"], "stopped");
         assert_eq!(value["final_status"], "done");
+        assert_eq!(value["live_complete"], true);
         assert_eq!(value["has_live"], true);
         assert_eq!(value["has_final"], false);
     }

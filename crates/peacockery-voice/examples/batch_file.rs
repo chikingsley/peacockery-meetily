@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let model = positional
         .get(1)
         .cloned()
-        .unwrap_or_else(|| "elevenlabs-scribe_v2".into());
+        .unwrap_or_else(|| "elevenlabs-scribe_v3".into());
 
     let key = std::env::var("PEACOCKERY_VOICE_LAB_API_KEY")?;
     let base =

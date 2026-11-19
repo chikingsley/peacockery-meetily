@@ -34,6 +34,8 @@ pub struct Meeting {
     pub final_job_id: Option<String>,
     pub final_error: Option<String>,
     pub final_updated_at: Option<String>,
+    /// Every live channel transcribed all its audio on `live_model`; `None` = unknown.
+    pub live_complete: Option<bool>,
 }
 
 /// One row of `transcripts`.

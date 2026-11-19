@@ -461,6 +461,7 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
             &live.model,
             live.mode,
             &ids,
+            live.complete,
         )
         .await
         {

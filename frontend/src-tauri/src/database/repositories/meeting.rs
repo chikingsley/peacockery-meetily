@@ -165,20 +165,23 @@ impl MeetingsRepository {
         .await
     }
 
-    /// Live sessions of a finished recording: public model, mode and realtime session ids (JSON array).
+    /// Live sessions of a finished recording: public model, mode, realtime session ids (JSON
+    /// array) and whether every channel transcribed all its audio on that model.
     pub async fn set_live_info(
         pool: &SqlitePool,
         meeting_id: &str,
         model: &str,
         mode: &str,
         session_ids_json: &str,
+        complete: bool,
     ) -> Result<bool, sqlx::Error> {
         let result = sqlx::query(
-            "UPDATE meetings SET live_model = ?, live_mode = ?, realtime_session_ids = ?, updated_at = ? WHERE id = ?",
+            "UPDATE meetings SET live_model = ?, live_mode = ?, realtime_session_ids = ?, live_complete = ?, updated_at = ? WHERE id = ?",
         )
         .bind(model)
         .bind(mode)
         .bind(session_ids_json)
+        .bind(complete)
         .bind(now_rfc3339())
         .bind(meeting_id)
         .execute(pool)
@@ -339,7 +342,7 @@ mod tests {
         seed(&pool, "m2", meeting_status::STOPPED).await;
         let state = FinalState {
             status: "transcribing",
-            model: "elevenlabs-scribe_v2",
+            model: "elevenlabs-scribe_v3",
             job_id: Some("job_1"),
             error: None,
         };
@@ -373,6 +376,38 @@ mod tests {
                 .await
                 .unwrap()
         );
+    }
+
+    #[tokio::test]
+    async fn live_info_records_completeness() {
+        let pool = test_pool().await;
+        seed(&pool, "m1", meeting_status::STOPPED).await;
+        seed(&pool, "m2", meeting_status::STOPPED).await;
+        seed(&pool, "m3", meeting_status::STOPPED).await;
+        let model = "elevenlabs-scribe_v3";
+        assert!(
+            MeetingsRepository::set_live_info(&pool, "m1", model, "split", "[]", true)
+                .await
+                .unwrap()
+        );
+        assert!(
+            MeetingsRepository::set_live_info(&pool, "m2", model, "split", "[]", false)
+                .await
+                .unwrap()
+        );
+        let complete = |id: &'static str| {
+            let pool = pool.clone();
+            async move {
+                MeetingsRepository::get(&pool, id)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .live_complete
+            }
+        };
+        assert_eq!(complete("m1").await, Some(true));
+        assert_eq!(complete("m2").await, Some(false));
+        assert_eq!(complete("m3").await, None);
     }
 
     #[tokio::test]

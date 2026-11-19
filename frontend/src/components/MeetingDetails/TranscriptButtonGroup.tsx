@@ -16,6 +16,8 @@ interface TranscriptButtonGroupProps {
   hasFinal: boolean;
   hasLive: boolean;
   finalModelLabel: string | null;
+  /** Pill text while live rows are shown. */
+  liveLabel: string;
   isFinalRunning: boolean;
   onToggleSource: () => void;
   onCopyTranscript: () => void;
@@ -29,6 +31,7 @@ export function TranscriptButtonGroup({
   hasFinal,
   hasLive,
   finalModelLabel,
+  liveLabel,
   isFinalRunning,
   onToggleSource,
   onCopyTranscript,
@@ -93,7 +96,7 @@ export function TranscriptButtonGroup({
         )}
         {source === "live" && (
           <span className="rounded-full bg-muted/40 px-2 py-0.5 font-medium text-foreground">
-            Live transcript
+            {liveLabel}
           </span>
         )}
         {hasFinal && hasLive && (

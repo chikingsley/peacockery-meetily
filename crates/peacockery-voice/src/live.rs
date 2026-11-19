@@ -528,7 +528,7 @@ mod tests {
         );
         assert_eq!(LineStyle::for_model("deepgram-nova-3"), LineStyle::Interim);
         assert_eq!(
-            LineStyle::for_model("elevenlabs-scribe_v2"),
+            LineStyle::for_model("elevenlabs-scribe_v3"),
             LineStyle::Interim
         );
         assert_eq!(

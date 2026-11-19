@@ -249,14 +249,20 @@ async fn run(
     });
     if let Some(live) = &stopped.live {
         let ids = serde_json::to_string(&live.session_ids).unwrap_or_else(|_| "[]".to_string());
-        if let Err(e) =
-            MeetingsRepository::set_live_info(&pool, &meeting_id, &live.model, live.mode, &ids)
-                .await
+        if let Err(e) = MeetingsRepository::set_live_info(
+            &pool,
+            &meeting_id,
+            &live.model,
+            live.mode,
+            &ids,
+            live.complete,
+        )
+        .await
         {
             problem(format!("set_live_info: {e}"));
         }
-        recording["live_summary"] =
-            json!({ "model": live.model, "mode": live.mode, "session_ids": live.session_ids });
+        recording["live_summary"] = json!({ "model": live.model, "mode": live.mode,
+            "session_ids": live.session_ids, "complete": live.complete });
     }
     if let Err(e) =
         MeetingsRepository::mark_stopped(&pool, &meeting_id, stopped.duration_seconds).await

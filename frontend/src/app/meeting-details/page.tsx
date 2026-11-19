@@ -22,7 +22,6 @@ const AUTO_SUMMARY_ATTACH_DELAY_MS = 1500;
 function MeetingDetailsContent() {
   const searchParams = useSearchParams();
   const meetingId = searchParams.get("id");
-  const justRecorded = searchParams.get("source") === "recording";
   const { setCurrentMeeting, refetchMeetings } = useSidebar();
   const { voiceSettings } = useConfig();
   const router = useRouter();
@@ -262,7 +261,6 @@ function MeetingDetailsContent() {
       onMeetingUpdated={refetchMeetings}
       onFinalTranscriptDone={handleFinalTranscriptDone}
       onRenameSpeaker={handleRenameSpeaker}
-      justRecorded={justRecorded}
       transcripts={transcripts}
       source={source}
       showingLiveDraft={showLiveDraft}

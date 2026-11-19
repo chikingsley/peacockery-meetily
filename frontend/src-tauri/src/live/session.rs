@@ -134,6 +134,11 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
                         return;
                     }
                     Ended::Lost(error) => {
+                        // Audio the provider had not committed is gone.
+                        shared.mark_incomplete(
+                            Some(channel),
+                            &format!("session lost: {}", describe_error(&error)),
+                        );
                         if up.elapsed() >= STABLE_SESSION {
                             failures = 0;
                         }
@@ -146,10 +151,12 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
         failures += 1;
         let reason = describe_error(&error);
         if !input.open {
+            shared.mark_incomplete(Some(channel), &format!("stopped while failing: {reason}"));
             shared.status_model(channel, LiveState::Closed, Some(reason), &model);
             return;
         }
         if should_fallback(&model, failures, &error) {
+            shared.mark_incomplete(Some(channel), &format!("switched to Nova: {reason}"));
             model = "deepgram-nova-3".into();
             failures = 0;
             state = LiveState::Reconnecting;
@@ -160,9 +167,9 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
             continue;
         }
         if !retryable(&error) || failures > BACKOFF_SECONDS.len() {
-            warn!(
-                "Live {:?} session gave up after {} failures: {}",
-                channel, failures, reason
+            shared.mark_incomplete(
+                Some(channel),
+                &format!("gave up after {failures} failures: {reason}"),
             );
             shared.status_model(channel, LiveState::Failed, Some(reason), &model);
             // Keep draining so the pipeline never sees a full channel.
@@ -181,6 +188,7 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
             &model,
         );
         if !input.wait(Duration::from_secs(delay)).await {
+            shared.mark_incomplete(Some(channel), "stopped while waiting to reconnect");
             shared.status_model(channel, LiveState::Closed, None, &model);
             return;
         }
@@ -257,9 +265,12 @@ async fn stream(
     let mut builder = builder_for(shared, channel, model, offset);
     let mut sent = offset;
     if input.backlog.dropped > 0 {
-        warn!(
-            "Live {:?}: {} frames of audio were dropped while connecting",
-            channel, input.backlog.dropped
+        shared.mark_incomplete(
+            Some(channel),
+            &format!(
+                "{} frames of audio were dropped while connecting",
+                input.backlog.dropped
+            ),
         );
         input.backlog.dropped = 0;
     }
@@ -270,7 +281,7 @@ async fn stream(
         sent = frame.end;
     }
     if !input.open {
-        return finish(shared, sender, events, builder, sent).await;
+        return finish(shared, channel, sender, events, builder, sent).await;
     }
 
     let mut tick = tokio::time::interval(TICK);
@@ -287,7 +298,7 @@ async fn stream(
                     sent = frame.end;
                     last_frame = Instant::now();
                 }
-                None => return finish(shared, sender, events, builder, sent).await,
+                None => return finish(shared, channel, sender, events, builder, sent).await,
             },
             event = events.recv() => match event {
                 Some(event) => {
@@ -352,6 +363,7 @@ async fn lose(
 /// Close the session and keep pumping events until its terminal outcome.
 async fn finish(
     shared: &Shared,
+    channel: Channel,
     sender: RealtimeSender,
     mut events: mpsc::Receiver<RealtimeEvent>,
     mut builder: LineBuilder,
@@ -381,7 +393,10 @@ async fn finish(
             shared.add_session_id(terminal.session_id());
             info!("Live session {} finished", terminal.session_id());
         }
-        Err(e) => warn!("Live session did not finish cleanly: {}", describe_error(e)),
+        Err(e) => shared.mark_incomplete(
+            Some(channel),
+            &format!("session did not finish cleanly: {}", describe_error(e)),
+        ),
     }
     shared.apply(builder.finish(sent));
     Ended::Stopped

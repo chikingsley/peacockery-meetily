@@ -1,14 +1,17 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  AUTO_FINAL_CHOICES,
   LIVE_SPEAKER_LABEL_MODEL,
   formatKeyterms,
   languageLabel,
   liveSpeakerLabelsHelp,
+  liveTranscriptLabel,
   modelChoices,
   modelLabel,
   modelOptionText,
   parseKeyterms,
+  retryModel,
   supportsLiveSpeakerLabels,
 } from "../../src/lib/voice-models";
 import type { ModelOption } from "../../src/types/voice";
@@ -67,7 +70,7 @@ describe("model options", () => {
     expect(supportsLiveSpeakerLabels(LIVE_SPEAKER_LABEL_MODEL)).toBe(true);
     expect(supportsLiveSpeakerLabels("deepgram-nova-3")).toBe(true);
     expect(supportsLiveSpeakerLabels("elevenlabs-scribe_v3")).toBe(true);
-    expect(supportsLiveSpeakerLabels("elevenlabs-scribe_v2")).toBe(false);
+    expect(supportsLiveSpeakerLabels("cohere-transcribe")).toBe(false);
   });
 
   test("explains live speaker labels per mode", () => {
@@ -79,6 +82,47 @@ describe("model options", () => {
     expect(languageLabel("en")).toBe("English");
     expect(languageLabel("auto")).toBe("Detect automatically");
     expect(languageLabel("sw")).toBe("sw");
+  });
+});
+
+describe("final transcript rule", () => {
+  const scribe = "elevenlabs-scribe_v3";
+  const final = [option(scribe, { label: "Scribe v3" })];
+
+  test("a live transcript is complete only when it finished on the final model", () => {
+    expect(
+      liveTranscriptLabel(
+        { live_complete: true, live_model: scribe },
+        scribe,
+        final
+      )
+    ).toBe("Live · Scribe v3 · complete");
+
+    for (const meeting of [
+      { live_complete: false, live_model: scribe },
+      { live_complete: null, live_model: scribe },
+      { live_complete: true, live_model: "deepgram-nova-3" },
+      { live_complete: null, live_model: null },
+    ]) {
+      expect(liveTranscriptLabel(meeting, scribe, final)).toBe(
+        "Live transcript (incomplete)"
+      );
+    }
+  });
+
+  test("retries with the run's model only while it is offered", () => {
+    expect(retryModel(scribe, final)).toBe(scribe);
+    expect(retryModel("elevenlabs-scribe_v2", final)).toBeNull();
+    expect(retryModel(null, final)).toBeNull();
+    expect(retryModel(scribe, undefined)).toBeNull();
+  });
+
+  test("offers the three automatic choices, recommended first", () => {
+    expect(AUTO_FINAL_CHOICES.map((c) => c.value)).toEqual([
+      "when_live_incomplete",
+      "always",
+      "never",
+    ]);
   });
 });
 

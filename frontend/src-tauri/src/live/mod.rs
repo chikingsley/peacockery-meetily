@@ -11,7 +11,7 @@
 mod session;
 pub mod taps;
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -182,6 +182,8 @@ pub struct LiveSummary {
     pub model: String,
     pub mode: &'static str,
     pub session_ids: Vec<String>,
+    /// Every channel transcribed all its audio on `model`.
+    pub complete: bool,
 }
 
 /// State shared by the session tasks of one recording.
@@ -193,9 +195,16 @@ pub(crate) struct Shared {
     sequence: AtomicU64,
     session_ids: Mutex<Vec<String>>,
     db: Mutex<Option<mpsc::UnboundedSender<NewTranscript>>>,
+    /// Set when some audio was not transcribed on the configured model.
+    incomplete: AtomicBool,
 }
 
 impl Shared {
+    fn mark_incomplete(&self, channel: Option<Channel>, reason: &str) {
+        warn!("Live transcript incomplete ({:?}): {}", channel, reason);
+        self.incomplete.store(true, Ordering::SeqCst);
+    }
+
     fn status_model(
         &self,
         channel: Channel,
@@ -355,6 +364,7 @@ impl LiveManager {
             sequence: AtomicU64::new(0),
             session_ids: Mutex::new(Vec::new()),
             db: Mutex::new(db),
+            incomplete: AtomicBool::new(false),
         });
         let mut tasks = JoinSet::new();
         let mut senders = Vec::new();
@@ -379,14 +389,18 @@ impl LiveManager {
         let all = async {
             while let Some(result) = self.tasks.join_next().await {
                 if let Err(e) = result {
-                    warn!("Live session task failed: {}", e);
+                    self.shared
+                        .mark_incomplete(None, &format!("session task failed: {e}"));
                 }
             }
         };
         if tokio::time::timeout(STOP_TIMEOUT, all).await.is_err() {
-            warn!(
-                "Live sessions did not finish within {} s; abandoning them",
-                STOP_TIMEOUT.as_secs()
+            self.shared.mark_incomplete(
+                None,
+                &format!(
+                    "sessions did not finish within {} s; abandoning them",
+                    STOP_TIMEOUT.as_secs()
+                ),
             );
             self.tasks.abort_all();
             while self.tasks.join_next().await.is_some() {}
@@ -415,6 +429,7 @@ impl LiveManager {
             model: self.shared.config.model.clone(),
             mode: self.shared.config.mode_name(),
             session_ids,
+            complete: !self.shared.incomplete.load(Ordering::SeqCst),
         }
     }
 }

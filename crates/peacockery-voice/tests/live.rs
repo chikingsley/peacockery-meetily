@@ -198,7 +198,7 @@ async fn live_batch_scribe_on_clip() {
     assert!(status.success());
 
     let client = client();
-    let mut options = TranscribeOptions::new("elevenlabs-scribe_v2");
+    let mut options = TranscribeOptions::new("elevenlabs-scribe_v3");
     options.keyterms = vec!["Peacockery".into()];
     let seen = Arc::new(Mutex::new(Vec::new()));
     let log = seen.clone();
@@ -225,7 +225,10 @@ async fn live_batch_scribe_on_clip() {
         }
     ));
     let (turns, source) = turns_with_source(&done.artifact);
-    assert_eq!(source, TurnSource::Words);
+    assert!(
+        matches!(source, TurnSource::SpeakerTurns | TurnSource::Words),
+        "{source:?}"
+    );
     let named = name_speakers(&turns, None, "Me", "Them");
     eprintln!("{named:#?}");
     assert!(!named.is_empty());

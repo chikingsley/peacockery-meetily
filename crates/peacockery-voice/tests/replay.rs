@@ -2,8 +2,7 @@
 
 use peacockery_voice::live::MAX_LINE_SECONDS;
 use peacockery_voice::{
-    Channel, LineBuilder, LineBuilderConfig, LineStyle, LineUpdate, LiveMode, RealtimeEvent,
-    SpeakerLabels,
+    Channel, LineBuilder, LineBuilderConfig, LineUpdate, LiveMode, RealtimeEvent, SpeakerLabels,
 };
 use serde_json::Value;
 
@@ -174,15 +173,4 @@ fn nova_interim_split_system() {
         .filter(|u| matches!(u, LineUpdate::Preview { text, .. } if !text.is_empty()))
         .count();
     assert!(previews >= 40, "{previews}");
-}
-
-#[test]
-fn scribe_interim_mixed() {
-    let r = replay("scribe-rt.json", LiveMode::Mixed, Channel::Mixed, false);
-    assert_sensible("scribe-rt", &r, 3, 3);
-    assert!((r.finals[0].2 - 0.06).abs() < 1e-9);
-    assert_eq!(
-        LineStyle::for_model("elevenlabs-scribe_v2"),
-        LineStyle::Interim
-    );
 }

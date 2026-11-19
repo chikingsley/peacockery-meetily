@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import { useConfig } from "@/contexts/ConfigContext";
 import type { FinalTranscriptView } from "@/hooks/meeting-details/useFinalTranscript";
 import { activeTranscriptId, speakersOf } from "@/lib/transcript-format";
-import { modelLabel } from "@/lib/voice-models";
+import {
+  liveTranscriptLabel,
+  modelLabel,
+  retryModel,
+} from "@/lib/voice-models";
 import { errorMessage } from "@/services/voiceService";
 import type {
   MeetingMetadata,
@@ -24,8 +28,6 @@ interface TranscriptPanelProps {
   meeting: MeetingMetadata;
   transcripts: Transcript[];
   source: TranscriptSource | null;
-  /** True right after a stop navigated here (`&source=recording`). */
-  justRecorded: boolean;
   finalTranscript: FinalTranscriptView & { isRunning: boolean };
   customPrompt: string;
   onPromptChange: (value: string) => void;
@@ -44,7 +46,6 @@ export function TranscriptPanel({
   meeting,
   transcripts,
   source,
-  justRecorded,
   finalTranscript,
   customPrompt,
   onPromptChange,
@@ -78,10 +79,13 @@ export function TranscriptPanel({
   const audioPath =
     meeting.status === "recording" || audioSaving ? null : meeting.audio_path;
 
-  const awaitingAutoFinal =
-    justRecorded &&
-    finalTranscript.state === null &&
-    !!voiceSettings?.auto_final;
+  const liveLabel = meeting.has_final
+    ? "Live transcript"
+    : liveTranscriptLabel(
+        meeting,
+        voiceSettings?.final_model,
+        voiceModels?.final
+      );
 
   const speakerSuggestions = useMemo(() => {
     const names = [
@@ -133,6 +137,7 @@ export function TranscriptPanel({
           hasFinal={meeting.has_final}
           hasLive={meeting.has_live}
           finalModelLabel={modelLabel(voiceModels?.final, meeting.final_model)}
+          liveLabel={liveLabel}
           isFinalRunning={finalTranscript.isRunning}
           onToggleSource={onToggleSource}
           onCopyTranscript={onCopyTranscript}
@@ -140,22 +145,14 @@ export function TranscriptPanel({
           onStartFinalTranscript={onStartFinalTranscript}
         />
         <FinalTranscriptBanner
-          view={
-            awaitingAutoFinal
-              ? {
-                  message: null,
-                  model: voiceSettings?.final_model ?? null,
-                  state: "queued",
-                }
-              : finalTranscript
-          }
-          modelLabel={
-            awaitingAutoFinal
-              ? modelLabel(voiceModels?.final, voiceSettings?.final_model)
-              : finalModelLabel
-          }
+          view={finalTranscript}
+          modelLabel={finalModelLabel}
           hasFinal={meeting.has_final}
-          onRetry={() => onStartFinalTranscript(finalTranscript.model)}
+          onRetry={() =>
+            onStartFinalTranscript(
+              retryModel(finalTranscript.model, voiceModels?.final)
+            )
+          }
         />
         {audioSaving && (
           <p className="text-center text-xs text-muted-foreground">

@@ -1,4 +1,9 @@
-import type { LiveMode, ModelOption } from "@/types/voice";
+import type {
+  AutoFinal,
+  LiveMode,
+  MeetingMetadata,
+  ModelOption,
+} from "@/types/voice";
 
 /** Voxtral supports live speaker labels alongside Scribe v3. */
 export const LIVE_SPEAKER_LABEL_MODEL =
@@ -58,6 +63,41 @@ export function modelChoices(
     },
     ...options,
   ];
+}
+
+/** The `auto_final` choices, recommended first. */
+export const AUTO_FINAL_CHOICES: { label: string; value: AutoFinal }[] = [
+  {
+    label: "When the live transcript is incomplete (recommended)",
+    value: "when_live_incomplete",
+  },
+  { label: "Always", value: "always" },
+  { label: "Never (run it from the meeting page)", value: "never" },
+];
+
+/** Pill for a meeting with only live rows: complete on the final model, or not. */
+export function liveTranscriptLabel(
+  meeting: Pick<MeetingMetadata, "live_complete" | "live_model">,
+  finalModel: string | null | undefined,
+  finalOptions: ModelOption[] | undefined
+): string {
+  if (
+    meeting.live_complete === true &&
+    !!meeting.live_model &&
+    meeting.live_model === finalModel
+  ) {
+    return `Live · ${modelLabel(finalOptions, meeting.live_model)} · complete`;
+  }
+
+  return "Live transcript (incomplete)";
+}
+
+/** Model for a retry: the run's own model while it is still offered, else null (the settings model). */
+export function retryModel(
+  model: string | null,
+  finalOptions: ModelOption[] | undefined
+): string | null {
+  return model && finalOptions?.some((o) => o.id === model) ? model : null;
 }
 
 /** Text of one select item: label, plus "recommended" / "unavailable" markers. */

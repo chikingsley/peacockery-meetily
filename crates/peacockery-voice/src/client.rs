@@ -11,7 +11,7 @@ use url::Url;
 
 use crate::error::{Error, Result};
 
-/// The lab host. Scribe v2 and the Superwhisper routes only exist here, and `pv_lab_` keys only work here.
+/// The lab host. The Superwhisper routes only exist here, and `pv_lab_` keys only work here.
 pub const DEFAULT_BASE_URL: &str = "https://voice-lab.peacockery.studio";
 
 const HEADER_APP_ID: &str = "x-peacockery-app-id";

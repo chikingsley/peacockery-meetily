@@ -131,8 +131,8 @@ mod tests {
     #[test]
     fn failed_catalog_still_lists_curated_models() {
         let lists = ModelLists::from_catalog(&Catalog::default(), Some("offline".into()));
-        assert_eq!(lists.live.len(), 5);
-        assert_eq!(lists.final_models.len(), 6);
+        assert_eq!(lists.live.len(), 4);
+        assert_eq!(lists.final_models.len(), 5);
         assert_eq!(lists.summary.len(), 5);
         assert!(lists
             .live
@@ -154,8 +154,8 @@ mod tests {
         let scribe = lists
             .final_models
             .iter()
-            .find(|o| o.id == "elevenlabs-scribe_v2")
+            .find(|o| o.id == "elevenlabs-scribe_v3")
             .unwrap();
-        assert!(scribe.available && scribe.supports_diarization && !scribe.recommended);
+        assert!(scribe.available && scribe.supports_diarization && scribe.recommended);
     }
 }

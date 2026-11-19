@@ -21,6 +21,7 @@ export const meetingMetadata = (
   has_final: false,
   has_live: true,
   id,
+  live_complete: null,
   live_mode: "split",
   live_model: "deepgram-nova-3",
   realtime_session_ids: null,
