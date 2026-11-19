@@ -73,9 +73,10 @@ pub async fn register_journals(pool: &sqlx::SqlitePool) -> Recovery {
 }
 
 /// Start the automatic work of interrupted meetings and queue the registered encodes.
-/// Only meetings interrupted by a crash start their automatic work, after their audio is
-/// saved; a meeting that was already stopped had its work started at stop, and its queued
-/// final transcript resumes through `resume_unfinished`.
+/// Meetings interrupted by a crash start their automatic work after their audio is saved.
+/// A meeting that was already stopped ran its automatic work at stop: a queued final
+/// resumes through `resume_unfinished`, and a needed final that never ran or failed
+/// waiting for the audio starts once the audio is saved.
 pub fn resume(app: &tauri::AppHandle, recovery: Recovery) {
     for meeting_id in recovery.encoded {
         crate::final_transcript::on_meeting_recovered(app, &meeting_id);
@@ -85,8 +86,12 @@ pub fn resume(app: &tauri::AppHandle, recovery: Recovery) {
         let id = meeting_id.clone();
         audio_save::queue(&meeting_id, folder, move |result| {
             audio_save::report(&app, &id, result);
-            if result.is_ok() && was_interrupted {
-                crate::final_transcript::on_meeting_recovered(&app, &id);
+            if result.is_ok() {
+                if was_interrupted {
+                    crate::final_transcript::on_meeting_recovered(&app, &id);
+                } else {
+                    crate::final_transcript::on_stopped_audio_saved(&app, &id);
+                }
             }
         });
     }

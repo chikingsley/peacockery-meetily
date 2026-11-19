@@ -14,9 +14,7 @@ interface UseMeetingDataProps {
 }
 
 export function useMeetingData({ meeting, summaryData }: UseMeetingDataProps) {
-  const [meetingTitle, setMeetingTitle] = useState(
-    meeting.title || "+ New Call"
-  );
+  const [meetingTitle, setMeetingTitle] = useState(meeting.title);
 
   const [aiSummary, setAiSummary] = useState<MeetingSummary | null>(
     summaryData

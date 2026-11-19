@@ -709,6 +709,35 @@ pub async fn on_recording_stopped(app: &AppHandle, meeting_id: &str) {
     start_if_auto(app, meeting_id).await;
 }
 
+/// Whether startup recovery restarts the final transcript of a meeting that was already
+/// stopped: its audio was not saved before, so a needed final never ran or failed waiting.
+pub fn final_needed_after_save(settings: &VoiceSettings, meeting: &Meeting) -> bool {
+    matches!(
+        meeting.final_status.as_deref(),
+        None | Some(final_state::FAILED)
+    ) && final_needed(settings, meeting)
+}
+
+/// Startup recovery saved the audio of a meeting that was already stopped. Its automatic
+/// summary already ran at stop; only a needed final transcript starts here. Queued or
+/// running finals resume through [`resume_unfinished`].
+pub fn on_stopped_audio_saved(app: &AppHandle, meeting_id: &str) {
+    let app = app.clone();
+    let meeting_id = meeting_id.to_string();
+    tauri::async_runtime::spawn(async move {
+        let settings = app.state::<VoiceService>().settings();
+        match MeetingsRepository::get(&pool_of(&app), &meeting_id).await {
+            Ok(Some(meeting)) if final_needed_after_save(&settings, &meeting) => {
+                if let Err(e) = start(&app, &meeting_id, None).await {
+                    log::error!("Final transcript of {} not started: {}", meeting_id, e);
+                }
+            }
+            Ok(_) => {}
+            Err(e) => log::error!("Failed to load meeting {}: {}", meeting_id, e),
+        }
+    });
+}
+
 /// Startup recovery saved the audio of a meeting that a crash interrupted.
 pub fn on_meeting_recovered(app: &AppHandle, meeting_id: &str) {
     let app = app.clone();
@@ -980,6 +1009,41 @@ mod tests {
             ..VoiceSettings::default()
         };
         assert!(!final_needed(&never, &live(None, None)));
+    }
+
+    #[test]
+    fn saved_audio_restarts_only_a_needed_final_that_never_ran_or_failed() {
+        let settings = VoiceSettings::default();
+        let stopped = |status: Option<&str>, complete: Option<bool>| Meeting {
+            final_status: status.map(str::to_string),
+            live_model: Some("elevenlabs-scribe_v3".into()),
+            live_complete: complete,
+            ..bare_meeting(meeting_status::STOPPED)
+        };
+        // Stopped by 0.6.14 while encoding failed: no final yet, completeness unknown.
+        assert!(final_needed_after_save(&settings, &stopped(None, None)));
+        // The final failed while the encode failed.
+        assert!(final_needed_after_save(
+            &settings,
+            &stopped(Some(final_state::FAILED), Some(false))
+        ));
+        // Queued and running finals resume through resume_unfinished; done ones stay.
+        for status in [
+            final_state::QUEUED,
+            final_state::UPLOADING,
+            final_state::TRANSCRIBING,
+            final_state::DONE,
+        ] {
+            assert!(!final_needed_after_save(
+                &settings,
+                &stopped(Some(status), None)
+            ));
+        }
+        // A complete live transcript on the final model is the result.
+        assert!(!final_needed_after_save(
+            &settings,
+            &stopped(None, Some(true))
+        ));
     }
 
     #[test]
