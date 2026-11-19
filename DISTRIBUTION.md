@@ -44,9 +44,9 @@ Settings > General > Outlook calendar opens a dedicated Edge window at CICA's te
 
 This uses the same Outlook Web session and Outlook REST calendar route as the existing CICA collector. The November 13 Graph consent experiment belongs to a separate integration; it is unrelated to this connection route. Each coworker signs into their own Microsoft account and completes any Microsoft authentication challenge.
 
-The session stays on that PC, encrypted with Windows DPAPI for that Windows user. Routine token renewal opens the dedicated profile headlessly. An expired browser session or provider challenge produces a Reconnect Outlook prompt. Failed renewal backs off for five minutes. Microsoft controls the web session and endpoint behavior, so provider changes can require maintenance.
+The session stays on that PC, encrypted with Windows DPAPI for that Windows user. Routine token renewal opens the dedicated profile headlessly. An expired browser session or provider challenge shows its error in Settings with a **Connect Outlook** button. Failed renewal backs off for five minutes. Microsoft controls the web session and endpoint behavior, so provider changes can require maintenance.
 
-Calendar reads include pagination, UTC event times, organizer and invitees. Cancelled and all-day entries are excluded from the nearby meeting list. Read-only calendar context can set a meeting's title and recording mode. Disconnect disables calendar use explicitly. Existing recordings and saved meeting context remain intact.
+Calendar reads include pagination, UTC event times, organizer and invitees. Cancelled and all-day entries are excluded from the nearby meeting list. Read-only calendar context can set a meeting's title and recording mode. Disconnect clears the selected calendar and the session, so no calendar is read. Existing recordings and saved meeting context remain intact.
 
 ## Automatic meeting publication
 
@@ -58,7 +58,7 @@ SQLite retains the upload ID, completed parts and progress across restarts. Fail
 
 ## Outlook connection boundaries
 
-The current connection targets CICA's Outlook Web tenant on Windows with Edge installed. Edge policies that block debugging produce an actionable message. Microsoft sign-in, MFA, device policy and session expiry remain provider-controlled. Automatic renewal works while the saved browser session is valid; a new challenge prompts Reconnect Outlook. The Outlook REST v2 route is a legacy provider dependency, so repeatability is verified per supported environment rather than guaranteed across Microsoft tenants. Broader distribution should evaluate Microsoft-supported calendar-specific authorization.
+The current connection targets CICA's Outlook Web tenant on Windows with Edge installed. Edge policies that block debugging produce an actionable message. Microsoft sign-in, MFA, device policy and session expiry remain provider-controlled. Automatic renewal works while the saved browser session is valid; a new challenge needs Connect Outlook again. The Outlook REST v2 route is a legacy provider dependency, so repeatability is verified per supported environment rather than guaranteed across Microsoft tenants. Broader distribution should evaluate Microsoft-supported calendar-specific authorization.
 
 ## Prior update verification
 

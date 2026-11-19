@@ -8,8 +8,8 @@ Fork of [Meetily](https://github.com/Zackriya-Solutions/meeting-minutes) (MIT, s
 
 1. Start **Peacockery Meetily** from the Start menu.
 1. First run only: enter your eight-digit activation code. **Settings → Voice → Access** also accepts it. Personal access is kept in Windows Credential Manager. Advanced connection settings remain available for operators.
-1. Pick the microphone and the system source next to the record button:
-   - the default speakers: everything the PC plays;
+1. Under **Recording options**, pick the microphone and the call and system audio source. They start from the devices saved in Settings; **Default microphone** and **Default playback device** follow Windows. For call audio:
+   - **Default playback device**: everything the PC plays;
    - **Google Chrome app audio (Google Voice)**: only Chrome's sound, so other apps stay out of the recording. Chrome must be running. This captures every Chrome tab, not only Google Voice.
 1. Choose **In person**, **Online meeting** or **Phone call** before recording. In person captures the microphone only and separates voices in the room. Online and phone capture the microphone and PC audio, with speaker separation on both channels. For a separate phone on speaker beside the microphone, choose In person.
 1. Choose an event from **Today’s calendar**, or leave **Unscheduled meeting** and optionally enter a title. A physical room suggests In person even if the invitation contains a Teams link. You can override the suggestion. Start recording; pause and resume as needed.
@@ -28,7 +28,7 @@ Chosen in **Settings → Voice**. A model is greyed out when the API does not li
 | Final transcript | ElevenLabs Scribe v3, with diarization | Voxtral Small Transcribe 3, Voxtral Mini Transcribe 3, Deepgram Nova-3, Cohere Transcribe (GMK) |
 | Summary          | Gemini 3.8 Flash                       | Claude Sonnet 5.5, DeepSeek V4 Flash, Gemini 3.1 Flash Lite, GPT-5.4 mini                       |
 
-Other settings: live transcript on or off, language, key terms, final speaker labels, when the final transcript runs after stop (by default only when the live transcript was incomplete or not on Scribe v3; or always, or never), and automatic summary. Live labels number the voices on each channel. A microphone is not a person, and invitations do not establish speaker identity.
+Other settings: live transcript on or off, language, key terms, recognition corrections for the final transcript, final speaker labels, when the final transcript runs after stop (by default only when the live transcript was incomplete or not on Scribe v3; or always, or never), and automatic summary. Live labels number the voices on each channel. A microphone is not a person, and invitations do not establish speaker identity.
 
 ## Where things are
 
@@ -41,7 +41,7 @@ Other settings: live transcript on or off, language, key terms, final speaker la
 
 ## Calendar and capture context
 
-Connect your own work Outlook account through **Settings → General → Outlook calendar**, complete Microsoft's sign-in in the dedicated Edge window, and choose a calendar. Meetily reads nearby events through the same Outlook Web route as the CICA collector. Windows protects the session on your PC, and the saved browser session supplies renewed access automatically. **Reconnect Outlook** handles a fresh Microsoft sign-in challenge. **Disconnect** removes the local session and browser profile.
+Connect your own work Outlook account through **Settings → General → Outlook calendar**, complete Microsoft's sign-in in the dedicated Edge window, and choose a calendar. Meetily reads nearby events through the same Outlook Web route as the CICA collector. Windows protects the session on your PC, and the saved browser session supplies renewed access automatically. When Microsoft asks for a fresh sign-in, Settings shows the error and **Connect Outlook** signs in again. **Disconnect** clears the selected calendar and removes the local session and browser profile.
 
 Recording also works with an unscheduled meeting. Calendar context is optional and read-only.
 
