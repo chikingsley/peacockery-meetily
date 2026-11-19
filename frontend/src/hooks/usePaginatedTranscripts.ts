@@ -32,6 +32,8 @@ interface UsePaginatedTranscriptsReturn {
   loadMore: () => Promise<void>;
   reset: () => void;
   refetch: () => Promise<void>;
+  /** Re-read the metadata only, keeping the loaded rows. */
+  reloadMetadata: () => Promise<void>;
 }
 
 export function usePaginatedTranscripts({
@@ -238,6 +240,16 @@ export function usePaginatedTranscripts({
     isCurrentRequest,
   ]);
 
+  // Re-read only the metadata (e.g. the background audio save finished); the loaded rows,
+  // scroll position and focus stay.
+  const reloadMetadata = useCallback(async () => {
+    if (!meetingId || activeMeetingIdRef.current !== meetingId) {
+      return;
+    }
+
+    await loadMetadata(requestIdRef.current);
+  }, [meetingId, loadMetadata]);
+
   // A new meeting or effect lifetime owns its own requests.
   useEffect(() => {
     activeMeetingIdRef.current = meetingId;
@@ -263,6 +275,7 @@ export function usePaginatedTranscripts({
     loadedCount: transcripts.length,
     metadata,
     refetch,
+    reloadMetadata,
     reset,
     source,
     totalCount,

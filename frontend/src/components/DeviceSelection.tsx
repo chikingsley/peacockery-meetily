@@ -16,6 +16,7 @@ import {
   deviceLabel,
   deviceValue,
   inputDevices as inputsOf,
+  selectionLabel,
   systemDevices as systemsOf,
 } from "@/lib/audio-devices";
 import { voiceService } from "@/services/voiceService";
@@ -67,48 +68,6 @@ export function DeviceSelection({
   useEffect(() => {
     void fetchDevices();
   }, [fetchDevices]);
-
-  // Reset a selection whose device is gone (e.g. the Jabra headset is off) back to the default.
-  const onDeviceChangeRef = useRef(onDeviceChange);
-  useEffect(() => {
-    onDeviceChangeRef.current = onDeviceChange;
-  }, [onDeviceChange]);
-  useEffect(() => {
-    if (loading || disabled) {
-      return;
-    }
-
-    let next = selectedDevices;
-
-    if (
-      selectedDevices.micDevice &&
-      inputDevices.length > 0 &&
-      !inputDevices.some((d) => deviceValue(d) === selectedDevices.micDevice)
-    ) {
-      next = { ...next, micDevice: null };
-    }
-
-    if (
-      selectedDevices.systemDevice &&
-      outputDevices.length > 0 &&
-      !outputDevices.some(
-        (d) => deviceValue(d) === selectedDevices.systemDevice
-      )
-    ) {
-      next = { ...next, systemDevice: null };
-    }
-
-    if (next !== selectedDevices) {
-      onDeviceChangeRef.current(next, devices);
-    }
-  }, [
-    devices,
-    inputDevices,
-    outputDevices,
-    loading,
-    disabled,
-    selectedDevices,
-  ]);
 
   // Device test: real RMS levels while monitoring.
   useEffect(() => {
@@ -307,6 +266,11 @@ function DeviceSelect({
   disabled: boolean;
   level: number | null;
 }) {
+  // A saved device that is off (e.g. the Jabra headset) stays selected; Start uses the
+  // Windows default while it is missing and the device again once it is connected.
+  const missing =
+    value !== null && !devices.some((device) => deviceValue(device) === value);
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -323,6 +287,12 @@ function DeviceSelect({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="default">{defaultLabel}</SelectItem>
+          {missing && value && (
+            <SelectItem value={value}>
+              {selectionLabel(value, devices)} (not connected; the Windows
+              default is used)
+            </SelectItem>
+          )}
           {devices.map((device) => (
             <SelectItem key={deviceValue(device)} value={deviceValue(device)}>
               {deviceLabel(device)}

@@ -32,6 +32,8 @@ interface ConfigContextType {
   refreshKeyStatus: () => Promise<KeyStatus | null>;
 
   selectedDevices: SelectedDevices;
+  /** The saved device preferences have been read (or failed to load). */
+  devicesReady: boolean;
   setSelectedDevices: (devices: SelectedDevices) => void;
 }
 
@@ -49,6 +51,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     micDevice: null,
     systemDevice: null,
   });
+
+  const [devicesReady, setDevicesReady] = useState(false);
 
   const refreshVoiceModels = useCallback(async () => {
     try {
@@ -91,18 +95,20 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
 
     voiceService
       .getRecordingPreferences()
-      .then((prefs) =>
+      .then((prefs) => {
         setSelectedDevices({
           micDevice: prefs.preferred_mic_device,
           systemDevice: prefs.preferred_system_device,
-        })
-      )
-      .catch((error) =>
+        });
+        setDevicesReady(true);
+      })
+      .catch((error) => {
         console.error(
           "[ConfigContext] get_recording_preferences failed:",
           error
-        )
-      );
+        );
+        setDevicesReady(true);
+      });
 
     let unlisten: (() => void) | undefined;
     let cancelled = false;
@@ -133,6 +139,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
       reloadVoiceSettings,
       saveVoiceSettings,
       selectedDevices,
+      devicesReady,
       setKeyStatus,
       setSelectedDevices,
       voiceModels,
@@ -147,6 +154,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
       keyStatus,
       refreshKeyStatus,
       selectedDevices,
+      devicesReady,
     ]
   );
 

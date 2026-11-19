@@ -49,7 +49,10 @@ export default function Home() {
   };
 
   const { isRecording, isStartingRecording, isStopping } = useRecordingState();
-  const { selectedDevices, setSelectedDevices, keyStatus } = useConfig();
+
+  const { selectedDevices, setSelectedDevices, devicesReady, keyStatus } =
+    useConfig();
+
   const onVoiceNotConfigured = useCallback(() => setShowVoiceDialog(true), []);
   const { startRecording } = useRecordingStart(onVoiceNotConfigured);
   const active = isRecording || isStartingRecording || isStopping;
@@ -86,8 +89,8 @@ export default function Home() {
               onSubmit={(event) => {
                 event.preventDefault();
 
-                // Start is disabled until the publishing default has loaded.
-                if (desktop && publishToCica !== null) {
+                // Start is disabled until the saved devices and publishing default load.
+                if (desktop && devicesReady && publishToCica !== null) {
                   void startRecording(
                     title,
                     mode,
@@ -119,7 +122,12 @@ export default function Home() {
               <div className="flex flex-wrap items-center gap-4">
                 <Button
                   type="submit"
-                  disabled={active || !desktop || publishToCica === null}
+                  disabled={
+                    active ||
+                    !desktop ||
+                    !devicesReady ||
+                    publishToCica === null
+                  }
                 >
                   <Mic />
                   Start recording

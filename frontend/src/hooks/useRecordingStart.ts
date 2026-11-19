@@ -7,6 +7,7 @@ import {
   RecordingStatus,
 } from "@/contexts/RecordingStateContext";
 import { useTranscripts } from "@/contexts/TranscriptContext";
+import { connectedSelection } from "@/lib/audio-devices";
 import { voiceService, errorMessage } from "@/services/voiceService";
 import type { CalendarEvent, RecordingMode } from "@/types/voice";
 
@@ -55,9 +56,12 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
         setStatus(RecordingStatus.STARTING, "Starting recording...");
         clearTranscripts();
 
+        // A selected device that is not connected now records on the Windows default.
+        const connected = await voiceService.getAudioDevices();
+
         const result = await voiceService.startRecording(
-          selectedDevices.micDevice,
-          selectedDevices.systemDevice,
+          connectedSelection(selectedDevices.micDevice, connected),
+          connectedSelection(selectedDevices.systemDevice, connected),
           title,
           recordingMode,
           calendarEvent,

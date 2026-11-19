@@ -27,6 +27,15 @@ export function selectionLabel(
     : value.replace(/ \((input|output)\)$/, "");
 }
 
+/** The device Start records from: the selection while it is connected, else null (the
+ * Windows default). */
+export function connectedSelection(
+  value: string | null,
+  devices: AudioDevice[]
+): string | null {
+  return value && devices.some((d) => deviceValue(d) === value) ? value : null;
+}
+
 export function inputDevices(devices: AudioDevice[]): AudioDevice[] {
   return devices.filter((d) => d.device_type === "Input");
 }

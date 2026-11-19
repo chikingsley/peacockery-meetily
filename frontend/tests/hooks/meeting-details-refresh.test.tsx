@@ -262,7 +262,13 @@ describe("meeting route transcript refresh", () => {
         ([command]) => command === "api_get_meeting_metadata"
       ).length;
 
+    const transcriptReads = () =>
+      invoke.mock.calls.filter(
+        ([command]) => command === "api_get_meeting_transcripts"
+      ).length;
+
     const before = reads();
+    const transcriptsBefore = transcriptReads();
 
     const audioSaved = (meetingId: string) =>
       act(async () => {
@@ -277,6 +283,8 @@ describe("meeting route transcript refresh", () => {
     expect(reads()).toBe(before);
     await audioSaved("meeting-a");
     expect(reads()).toBe(before + 1);
+    // Only the metadata is re-read: the loaded transcript rows stay on screen.
+    expect(transcriptReads()).toBe(transcriptsBefore);
     expect(text()).toContain("meeting-a");
   });
 

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  connectedSelection,
   deviceLabel,
   deviceValue,
   inputDevices,
@@ -21,6 +22,13 @@ const devices: AudioDevice[] = [
 ];
 
 describe("audio devices", () => {
+  test("Start records on a selected device while it is connected, else on the default", () => {
+    const jabra = "Headset (Jabra Evolve2 65) (input)";
+    expect(connectedSelection(jabra, devices)).toBe(jabra);
+    expect(connectedSelection(jabra, devices.slice(0, 1))).toBeNull();
+    expect(connectedSelection(null, devices)).toBeNull();
+  });
+
   test("selection values carry the direction", () => {
     expect(deviceValue(devices[1])).toBe("Headset (Jabra Evolve2 65) (input)");
     expect(deviceValue(devices[2])).toBe("app:chrome (output)");
