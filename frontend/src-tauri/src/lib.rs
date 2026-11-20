@@ -140,8 +140,6 @@ pub fn run() {
             voice::commands::voice_get_settings,
             voice::commands::voice_save_settings,
             voice::commands::voice_get_key_status,
-            voice::commands::voice_set_api_key,
-            voice::commands::voice_clear_api_key,
             voice::commands::voice_test_connection,
             voice::commands::voice_list_models,
             // Import

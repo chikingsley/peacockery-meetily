@@ -1,5 +1,5 @@
 //! Coordinates one recording session: capture streams → pipeline → recording saver, the
-//! live sessions, the energy track and levels, plus the device monitor that drives mic
+//! live sessions and levels, plus the device monitor that drives mic
 //! hot-swap.
 
 use anyhow::Result;
@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use super::device_monitor::{AudioDeviceMonitor, MicDisconnected};
 use super::devices::AudioDevice;
 use super::levels::LevelsCallback;
-use super::pipeline::{AudioPipelineManager, EnergyRecorder, PipelineOutputs, PipelineStats};
+use super::pipeline::{AudioPipelineManager, PipelineOutputs, PipelineStats};
 use super::recording_saver::{MeetingTarget, RecordingSaver};
 use super::recording_state::{AudioChunk, RecordingState};
 use super::stream::{AudioStream, AudioStreamManager, SystemSource};
@@ -119,7 +119,6 @@ impl RecordingManager {
             PipelineOutputs {
                 recording: Some(recording_sender),
                 live: taps,
-                energy: Some(EnergyRecorder::new(target.folder.clone())),
                 levels: Some(levels),
             },
         );
@@ -141,8 +140,8 @@ impl RecordingManager {
         })
     }
 
-    /// Stop capture and drain the pipeline (which closes the live inputs and writes the
-    /// energy track), then close the audio journal while the live sessions finish.
+    /// Stop capture and drain the pipeline (which closes the live inputs), then close the
+    /// audio journal while the live sessions finish.
     pub async fn stop_and_save(&mut self) -> StoppedRecording {
         self.device_monitor.stop_monitoring().await;
         let duration_seconds = self.state.get_active_recording_duration();

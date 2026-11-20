@@ -7,7 +7,7 @@ Fork of [Meetily](https://github.com/Zackriya-Solutions/meeting-minutes) (MIT, s
 ## Using it
 
 1. Start **Peacockery Meetily** from the Start menu.
-1. First run only: enter your eight-digit activation code. **Settings → Voice → Access** also accepts it. Personal access is kept in Windows Credential Manager. Advanced connection settings remain available for operators.
+1. First run only: enter your eight-digit activation code. **Settings → Voice → Access** also accepts it. Personal access is kept in Windows Credential Manager.
 1. Under **Recording options**, pick the microphone and the call and system audio source. They start from the devices saved in Settings; **Default microphone** and **Default playback device** follow Windows. For call audio:
    - **Default playback device**: everything the PC plays;
    - **Google Chrome app audio (Google Voice)**: only Chrome's sound, so other apps stay out of the recording. Chrome must be running. This captures every Chrome tab, not only Google Voice.
@@ -34,7 +34,7 @@ Other settings: live transcript on or off, language, key terms, recognition corr
 
 | What                  | Where                                                                                                                                         |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Recordings            | `%USERPROFILE%\Music\Peacockery Meetily\<title>_<date>\` (`audio.mp4`, `final-transcript.json`, `final-artifact.json`, `channel-energy.json`) |
+| Recordings            | `%USERPROFILE%\Music\Peacockery Meetily\<title>_<date>\` (`audio.mp4`, `final-transcript.json`, `final-artifact.json`) |
 | Database and settings | `%APPDATA%\studio.peacockery.meetily\`                                                                                                        |
 | Log                   | `%LOCALAPPDATA%\studio.peacockery.meetily\logs\peacockery-meetily.log`                                                                        |
 | API key               | Credential Manager, generic credential `studio.peacockery.meetily/peacockery-voice-api-key`                                                   |
@@ -45,7 +45,7 @@ Connect your own work Outlook account through **Settings → General → Outlook
 
 Recording also works with an unscheduled meeting. Calendar context is optional and read-only.
 
-Each recording saves its chosen mode and the selected calendar occurrence, organizer and invitees in `recording-context.json` beside its audio. These remain unchanged when settings change later. Final transcripts for these recordings keep numbered speakers rather than assigning a person from microphone energy.
+Each recording saves its chosen mode and the selected calendar occurrence, organizer and invitees in `recording-context.json` beside its audio. These remain unchanged when settings change later. Final transcripts keep numbered speakers.
 
 ## Build and install
 

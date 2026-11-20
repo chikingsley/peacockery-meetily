@@ -26,7 +26,7 @@ Identity: productName `Peacockery Meetily`, identifier `studio.peacockery.meetil
 
 `activate_access(code)` redeems an eight-digit invitation at the activation Worker. A Durable Object atomically binds the code to the persistent installation UUID, permits that installation's retries, and enforces seven-day expiry. The Rust command validates the returned host and credential, verifies Voice model access, then saves the credential and settings with rollback. The webview receives the recipient name. Operators use `node scripts/access.mjs invite Name` to resolve a verified contact, ensure a separate Voice user, issue scoped access and return the installer/code. Repeated invites reuse access; `--new-device` creates another revocable credential, and `status`/`revoke` manage it. `/admin/status` returns invitation state and expiry to the operator while preserving the claim. Recipients enter their code.
 
-- API key: Windows Credential Manager, generic credential, target name **`studio.peacockery.meetily/peacockery-voice-api-key`** (via the `keyring` crate, `Entry::new_with_target(TARGET, "studio.peacockery.meetily", "peacockery-voice-api-key")`). The key never reaches the webview or SQLite. Paste it in Settings, or run `cmdkey /generic:<target> /user:peacockery-voice-api-key /pass:<key>` in the desktop session (an ssh session cannot write it).
+- API key: Windows Credential Manager, generic credential, target name **`studio.peacockery.meetily/peacockery-voice-api-key`** (via the `keyring` crate, `Entry::new_with_target(TARGET, "studio.peacockery.meetily", "peacockery-voice-api-key")`). The key never reaches the webview or SQLite. Only `activate_access` writes it, from the app running in the desktop session (an ssh session cannot write it).
 - Settings: Rust-owned store file `voice-settings.json` (tauri-plugin-store), shape `VoiceSettings`:
 
 ```jsonc
@@ -91,7 +91,6 @@ Model allow-lists (labels shown in the UI; availability = present in `GET /v1/mo
 - From each aligned window (`mic_window`, `sys_window`, `mixed`):
   1. recording path: the mix → raw PCM journal `.checkpoints/audio.s16le`, synced to disk every 2 s with no process started → closed at stop → encoded to `audio.mp4` (96 kbps mono) in the background after stop returns, about 25 s per recorded hour;
   1. live path: resample 48 kHz → 16 kHz, f32 → i16, push to the live sessions (`split`, online and phone: mic → one session, system → another; `mixed`, in person: the mix → one session);
-  1. energy track: per 100 ms frame RMS dBFS of mic and system → `channel-energy.json` in the meeting folder;
   1. levels: `audio-levels` event at ~10 Hz.
 - Pause keeps live sessions alive by sending silence frames that do not advance the recording clock.
 - During a recording, `audio/device_monitor.rs` polls for the microphone every 2 s. Missing for 4 s (6 s for a Bluetooth-looking name), it triggers the fallback to the system default input, at most three failed attempts; the fallback is kept if the old device returns. System sources are not monitored.
@@ -123,7 +122,7 @@ When it runs automatically after a stop or a crash recovery (`auto_final`): `alw
 1. A run first waits for the meeting's background audio save (state `queued`, message "Saving audio…"); a failed encode fails the run with its error.
 1. Sources over 20 MiB are temporarily encoded as one complete mono 16 kHz AAC file at 32 kbit/s, with the original file and timeline preserved. The temporary file is removed on completion, failure or cancellation. `audio.mp4` (or its complete encoded copy) → upload → job (`final_model`, `final_diarize`, `language`, keyterms) → poll.
 1. Turns: use `speaker_turns` when non-empty, else group `words` (same speaker, gap < 1.5 s, split at sentence end after 30 s), else `segments`, else one segment with the full text.
-1. New recordings with `recording-context.json` use generic `Speaker 1/2/…` labels. Calendar invitees do not identify voices. For historical recordings without context, speaker naming from `channel-energy.json`: for each provider speaker, fraction of its speech time where the system channel is active (sys ≥ −50 dBFS and sys ≥ mic − 6 dB). Lowest fraction and < 0.35 → `me_label`. Remaining speakers → `them_label` if exactly one, else `them_label 1`, `them_label 2`… in order of first appearance. No energy file or no system audio at all → `Speaker 1`, `Speaker 2`….
+1. Speaker naming: provider speakers become `Speaker 1`, `Speaker 2`… in order of first appearance; turns without a provider speaker stay unnamed. Calendar invitees do not identify voices.
 1. Replace rows `transcripts WHERE meeting_id=? AND source='final'`; keep `source='live'` rows. Save `final-transcript.json` (turns) and `final-artifact.json` (raw API result) in the meeting folder.
 1. Update meeting `final_status/final_model/final_job_id/final_error`; emit `final-transcript-status`.
 1. If `auto_summary`, start the summary afterwards.
@@ -174,7 +173,7 @@ Voice settings:
 
 - `voice_get_settings() -> VoiceSettings`, `voice_save_settings(settings) -> VoiceSettings` (the full shape; emits `voice-settings-updated`)
 - `activate_access(code) -> string` – the recipient name (§2); the UI then re-reads `voice_get_settings`
-- `voice_get_key_status() -> KeyStatus = {configured: bool, masked: string|null}`, `voice_set_api_key(key) -> KeyStatus`, `voice_clear_api_key() -> KeyStatus`
+- `voice_get_key_status() -> KeyStatus = {configured: bool, masked: string|null}`
 - `voice_test_connection() -> {ok: bool, environment: string|null, latency_ms: number, error: string|null}`
 - `voice_list_models() -> {live: ModelOption[], final: ModelOption[], summary: ModelOption[], error: string|null}` (`error` set when `GET /v1/models` failed; the curated lists are still returned, all marked unavailable) where `ModelOption = {id, label, note, available: bool, supports_diarization: bool, recommended: bool}`
 
@@ -220,7 +219,7 @@ Commands: `publication_default`, `publication_set_default(enabled)`, `publicatio
 ## 10. Build and install
 
 - GMK: `scripts/build-windows.sh` → `pnpm tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis --no-sign`. ffmpeg is downloaded at build time and verified by pinned SHA-256 (never executed during the build).
-- CICA: `scripts/install-cica.sh` → `scp` the setup exe, silent per-user install (`/S`). The key cannot be stored over ssh (Credential Manager refuses a network logon session): paste it in Settings, or run `cmdkey` in the desktop session.
+- CICA: `scripts/install-cica.sh` → `scp` the setup exe, silent per-user install (`/S`). The key cannot be stored over ssh (Credential Manager refuses a network logon session): enter the activation code in the app in the desktop session.
 - Logs: `%LOCALAPPDATA%\studio.peacockery.meetily\logs\` (tauri-plugin-log), readable over `ssh cica`.
 
 ## 11. Frontend

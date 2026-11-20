@@ -12,7 +12,7 @@ pub const SPLIT_AFTER_SECONDS: f64 = 30.0;
 pub const HARD_MAX_SECONDS: f64 = 60.0;
 
 /// One transcript turn. `speaker` is the provider label (`speaker_0`) before naming,
-/// the display name (`Me`, `Them 1`, `Speaker 2`) after [`crate::speakers::name_speakers`].
+/// the display name (`Speaker 2`) after [`crate::speakers::name_speakers`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Turn {
     pub speaker: Option<String>,

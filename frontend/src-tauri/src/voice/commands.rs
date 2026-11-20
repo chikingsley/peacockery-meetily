@@ -70,23 +70,6 @@ pub async fn voice_get_key_status() -> Result<KeyStatus, String> {
 }
 
 #[tauri::command]
-pub async fn voice_set_api_key(
-    voice: State<'_, VoiceService>,
-    key: String,
-) -> Result<KeyStatus, String> {
-    let status = credential::store_key(&key)?;
-    voice.invalidate();
-    Ok(status)
-}
-
-#[tauri::command]
-pub async fn voice_clear_api_key(voice: State<'_, VoiceService>) -> Result<KeyStatus, String> {
-    credential::clear_key()?;
-    voice.invalidate();
-    Ok(KeyStatus::of(None))
-}
-
-#[tauri::command]
 pub async fn voice_test_connection(
     voice: State<'_, VoiceService>,
 ) -> Result<ConnectionTest, String> {

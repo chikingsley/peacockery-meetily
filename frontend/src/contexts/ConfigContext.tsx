@@ -27,8 +27,6 @@ interface ConfigContextType {
   voiceModels: VoiceModels | null;
   refreshVoiceModels: () => Promise<void>;
   keyStatus: KeyStatus | null;
-  /** Apply the status a key command returned. */
-  setKeyStatus: (status: KeyStatus) => void;
   refreshKeyStatus: () => Promise<KeyStatus | null>;
 
   selectedDevices: SelectedDevices;
@@ -140,7 +138,6 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
       saveVoiceSettings,
       selectedDevices,
       devicesReady,
-      setKeyStatus,
       setSelectedDevices,
       voiceModels,
       voiceSettings,

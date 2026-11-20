@@ -15,7 +15,7 @@
 //!   [`VoiceClient::create_transcription`], [`VoiceClient::wait_for_job`] …).
 //! - [`artifact`]: [`Artifact`], the TranscriptionArtifact subset; [`Artifact::raw`] keeps the full JSON.
 //! - [`turns`]: [`turns_from_artifact`] → [`Turn`]s (§6.2).
-//! - [`speakers`]: [`EnergyTrack`] (`channel-energy.json`) and [`name_speakers`] (§6.3).
+//! - [`speakers`]: [`name_speakers`] (§6.3) and [`rms_dbfs`] for the level meters.
 //! - [`realtime`]: [`RealtimeSession::connect`] → ([`RealtimeSender`], receiver of [`RealtimeEvent`]),
 //!   [`RealtimeSender::send_pcm`], [`RealtimeSender::finish`] → [`RealtimeTerminal`].
 //! - [`live`]: the pure [`LineBuilder`] (§5) turning events into [`LineUpdate`]s.
@@ -70,7 +70,7 @@ pub use realtime::{
     LiveSegment, RealtimeEvent, RealtimeOptions, RealtimeSender, RealtimeSession, RealtimeTerminal,
     SessionError, TranscriptEvent, DEFAULT_FINISH_TIMEOUT, FRAME_SAMPLES, SAMPLE_RATE,
 };
-pub use speakers::{name_speakers, rms_dbfs, EnergyTrack};
+pub use speakers::{name_speakers, rms_dbfs};
 pub use text::{Message, Role, Routing, TextContext, TextRequest, TextResponse, TextUsage};
 pub use tokio_util::sync::CancellationToken;
 pub use turns::{turns_from_artifact, turns_with_source, Turn, TurnSource};

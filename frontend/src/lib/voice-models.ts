@@ -1,7 +1,5 @@
 import type { AutoFinal, MeetingMetadata, ModelOption } from "@/types/voice";
 
-export const DEFAULT_BASE_URL = "https://voice-lab.peacockery.studio";
-
 export const LANGUAGES: { code: string; label: string }[] = [
   { code: "en", label: "English" },
   { code: "auto", label: "Detect automatically" },

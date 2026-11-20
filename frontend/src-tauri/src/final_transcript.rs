@@ -12,8 +12,8 @@ use std::sync::{Arc, LazyLock, Mutex};
 
 use chrono::{DateTime, Local};
 use peacockery_voice::{
-    name_speakers, turns_with_source, Artifact, BatchProgress, CancellationToken, EnergyTrack,
-    Error, ModelFamily, ProgressFn, TranscribeOptions, Turn, TurnSource, VoiceClient,
+    name_speakers, turns_with_source, Artifact, BatchProgress, CancellationToken, Error,
+    ModelFamily, ProgressFn, TranscribeOptions, Turn, TurnSource, VoiceClient,
 };
 use serde::Serialize;
 use sqlx::SqlitePool;
@@ -36,7 +36,6 @@ pub mod final_state {
     pub const FAILED: &str = "failed";
 }
 
-pub const ENERGY_FILE: &str = "channel-energy.json";
 pub const TRANSCRIPT_FILE: &str = "final-transcript.json";
 pub const ARTIFACT_FILE: &str = "final-artifact.json";
 const EVENT: &str = "final-transcript-status";
@@ -52,8 +51,6 @@ pub struct FinalJob {
     pub folder: PathBuf,
     pub audio: PathBuf,
     pub options: TranscribeOptions,
-    pub me_label: String,
-    pub them_label: String,
     pub transcript_corrections: Vec<crate::voice::corrections::TranscriptCorrection>,
     /// Wall-clock start of the recording, for the `HH:MM:SS` row timestamps (`None` for imports).
     pub recorded_at: Option<DateTime<Local>>,
@@ -83,8 +80,6 @@ impl FinalJob {
             folder,
             audio,
             options,
-            me_label: settings.me_label.clone(),
-            them_label: settings.them_label.clone(),
             transcript_corrections: settings.transcript_corrections.clone(),
             recorded_at,
         }
@@ -134,19 +129,6 @@ struct TranscriptFile<'a> {
     turns: &'a [Turn],
 }
 
-/// The energy track the recording wrote, if any and readable.
-pub fn load_energy(folder: &Path) -> Option<EnergyTrack> {
-    let path = folder.join(ENERGY_FILE);
-    let bytes = std::fs::read(&path).ok()?;
-    match serde_json::from_slice::<EnergyTrack>(&bytes) {
-        Ok(track) => Some(track),
-        Err(e) => {
-            log::warn!("Ignoring unreadable {}: {}", path.display(), e);
-            None
-        }
-    }
-}
-
 /// Rows for named turns, in order.
 pub fn rows_from_turns(turns: &[Turn], recorded_at: Option<DateTime<Local>>) -> Vec<NewTranscript> {
     turns
@@ -182,14 +164,7 @@ pub async fn store_final(
     artifact: &Artifact,
 ) -> Result<FinalOutcome, FinalError> {
     let (turns, turn_source) = turns_with_source(artifact);
-    // A microphone can contain several people. New recordings retain generic speaker
-    // identities; channel energy cannot establish which person is the user.
-    let energy = if crate::recording_context::RecordingContext::load(&job.folder).is_some() {
-        None
-    } else {
-        load_energy(&job.folder)
-    };
-    let mut named = name_speakers(&turns, energy.as_ref(), &job.me_label, &job.them_label);
+    let mut named = name_speakers(&turns);
     for turn in &mut named {
         turn.text =
             crate::voice::corrections::correct_text(&turn.text, &job.transcript_corrections);
@@ -885,69 +860,6 @@ mod tests {
             outcome.segments_count
         );
         assert!(dir.path().join(ARTIFACT_FILE).is_file());
-    }
-
-    #[tokio::test]
-    async fn energy_names_me_and_them() {
-        let pool = test_pool().await;
-        let dir = tempfile::tempdir().unwrap();
-        let meeting = meeting(&pool, dir.path()).await;
-        // speaker_0 talks 0-4 s on the mic, speaker_1 talks 6-10 s through the system channel.
-        let word = |start: f64, text: &str, speaker: &str| serde_json::json!({"start_seconds": start, "end_seconds": start + 0.8, "text": text, "speaker": speaker});
-        let artifact = Artifact::from_value(serde_json::json!({
-            "text": "Hello there friend. Hi back to you.",
-            "content": {"words": {"items": [
-                word(0.0, "Hello", "speaker_0"), word(1.0, "there", "speaker_0"), word(2.0, "friend.", "speaker_0"),
-                word(6.0, "Hi", "speaker_1"), word(7.0, "back", "speaker_1"), word(8.0, "to", "speaker_1"),
-                word(9.0, "you.", "speaker_1"),
-            ]}}
-        }))
-        .unwrap();
-        let mut track = EnergyTrack::new(100);
-        for i in 0..110 {
-            if i >= 55 {
-                track.push_db(-70.0, -20.0);
-            } else {
-                track.push_db(-20.0, -90.0);
-            }
-        }
-        std::fs::write(
-            dir.path().join(ENERGY_FILE),
-            serde_json::to_vec(&track).unwrap(),
-        )
-        .unwrap();
-        assert!(load_energy(dir.path()).is_some());
-
-        let job = FinalJob::new(
-            &meeting,
-            dir.path().to_path_buf(),
-            dir.path().join("audio.mp4"),
-            "elevenlabs-scribe_v3",
-            &VoiceSettings::default(),
-        );
-        store_final(&pool, &job, "job_1", &artifact).await.unwrap();
-        let rows = TranscriptsRepository::all(&pool, "m1", "final")
-            .await
-            .unwrap();
-        let named: Vec<_> = rows
-            .iter()
-            .map(|r| (r.speaker.clone().unwrap(), r.transcript.clone()))
-            .collect();
-        assert_eq!(
-            named,
-            vec![
-                ("Me".to_string(), "Hello there friend.".to_string()),
-                ("Them".to_string(), "Hi back to you.".to_string())
-            ]
-        );
-
-        // An unreadable energy file falls back to Speaker N.
-        std::fs::write(dir.path().join(ENERGY_FILE), b"{").unwrap();
-        store_final(&pool, &job, "job_2", &artifact).await.unwrap();
-        let rows = TranscriptsRepository::all(&pool, "m1", "final")
-            .await
-            .unwrap();
-        assert_eq!(rows[0].speaker.as_deref(), Some("Speaker 1"));
     }
 
     fn bare_meeting(status: &str) -> Meeting {

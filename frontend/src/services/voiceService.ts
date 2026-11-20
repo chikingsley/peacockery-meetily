@@ -132,8 +132,6 @@ export const voiceService = {
   saveSettings: (settings: VoiceSettings) =>
     invoke<VoiceSettings>("voice_save_settings", { settings }),
   getKeyStatus: () => invoke<KeyStatus>("voice_get_key_status"),
-  setApiKey: (key: string) => invoke<KeyStatus>("voice_set_api_key", { key }),
-  clearApiKey: () => invoke<KeyStatus>("voice_clear_api_key"),
   testConnection: () => invoke<ConnectionTestResult>("voice_test_connection"),
   listModels: () => invoke<VoiceModels>("voice_list_models"),
 

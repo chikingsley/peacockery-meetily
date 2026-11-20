@@ -1,8 +1,8 @@
 //! The Peacockery Voice API key in the OS credential store (ARCHITECTURE.md §2).
 //!
 //! Windows: Credential Manager generic credential `studio.peacockery.meetily/peacockery-voice-api-key`
-//! (UTF-16 blob, the same encoding `cmdkey /generic:… /pass:…` writes). Linux (dev only): the
-//! kernel keyutils session keyring. The key is never logged, emitted or returned to the webview.
+//! (UTF-16 blob), written only by activation. Linux (dev only): the kernel keyutils session
+//! keyring. The key is never logged, emitted or returned to the webview.
 
 use keyring::Entry;
 use serde::Serialize;

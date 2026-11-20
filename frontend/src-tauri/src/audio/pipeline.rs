@@ -1,26 +1,23 @@
-//! Align → mix → record, plus the live, energy and level taps (ARCHITECTURE.md §4).
+//! Align → mix → record, plus the live and level taps (ARCHITECTURE.md §4).
 //!
 //! Capture chunks (mono 48 kHz, see `capture.rs`) arrive from two independent streams.
 //! `AudioAligner` turns them into equal 100 ms windows on the mic clock; every window then
-//! goes to the recording saver (the mix), the live sessions, the energy track and the
-//! `audio-levels` meter.
+//! goes to the recording saver (the mix), the live sessions and the `audio-levels` meter.
 
 use log::{error, info, warn};
-use peacockery_voice::{rms_dbfs, EnergyTrack};
+use peacockery_voice::rms_dbfs;
 use std::collections::VecDeque;
-use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use super::levels::{LevelMeter, LevelsCallback};
 use super::recording_state::{AudioChunk, DeviceType, RecordingState};
-use crate::final_transcript::ENERGY_FILE;
 use crate::live::LiveTaps;
 
 /// Sample rate of every chunk leaving `AudioCapture`.
 pub const PIPELINE_SAMPLE_RATE: u32 = 48000;
-/// Aligned window length: one live frame, one energy frame, one level update.
+/// Aligned window length: one live frame, one level update.
 pub const WINDOW_MS: u32 = 100;
 
 /// A stream with no samples for this long is idle (idle WASAPI loopback delivers no callbacks).
@@ -36,8 +33,6 @@ const RESYNC_SYS_BACKLOG_SECONDS: f64 = 0.2;
 const MAX_MIC_BACKLOG_SECONDS: f64 = 5.0;
 /// How often the pipeline re-checks idle streams when no chunk arrives.
 const IDLE_CHECK_INTERVAL: Duration = Duration::from_millis(50);
-/// Energy frames between crash-safety flushes of `channel-energy.json` (30 s).
-const ENERGY_FLUSH_FRAMES: usize = 300;
 
 /// Turns the two asynchronous capture streams into equal windows.
 ///
@@ -181,54 +176,6 @@ fn mix_window(mic_window: &[f32], sys_window: &[f32]) -> Vec<f32> {
         .collect()
 }
 
-/// `channel-energy.json` of the meeting, flushed every 30 s and at the end.
-pub struct EnergyRecorder {
-    path: PathBuf,
-    track: EnergyTrack,
-    since_flush: usize,
-}
-
-impl EnergyRecorder {
-    pub fn new(folder: PathBuf) -> Self {
-        Self {
-            path: folder.join(ENERGY_FILE),
-            track: EnergyTrack::new(WINDOW_MS),
-            since_flush: 0,
-        }
-    }
-
-    fn push(&mut self, mic_db: f32, sys_db: f32) {
-        self.track.push_db(mic_db, sys_db);
-        self.since_flush += 1;
-        if self.since_flush >= ENERGY_FLUSH_FRAMES {
-            self.since_flush = 0;
-            let path = self.path.clone();
-            let track = self.track.clone();
-            tokio::task::spawn_blocking(move || write_energy(&path, &track));
-        }
-    }
-
-    async fn finish(self) {
-        let EnergyRecorder { path, track, .. } = self;
-        if let Err(e) = tokio::task::spawn_blocking(move || write_energy(&path, &track)).await {
-            error!("Energy track write task failed: {}", e);
-        }
-    }
-}
-
-fn write_energy(path: &std::path::Path, track: &EnergyTrack) {
-    let result = serde_json::to_vec(track)
-        .map_err(std::io::Error::other)
-        .and_then(|bytes| {
-            let tmp = path.with_extension("json.tmp");
-            std::fs::write(&tmp, bytes)?;
-            std::fs::rename(&tmp, path)
-        });
-    if let Err(e) = result {
-        warn!("Failed to write {}: {}", path.display(), e);
-    }
-}
-
 /// What one capture stream delivered to the pipeline (mono 48 kHz, before alignment).
 #[derive(Debug, Clone, Copy, Default, PartialEq, serde::Serialize)]
 pub struct SourceStats {
@@ -271,7 +218,6 @@ pub struct PipelineOutputs {
     /// The mix, to the recording saver.
     pub recording: Option<mpsc::UnboundedSender<AudioChunk>>,
     pub live: Option<LiveTaps>,
-    pub energy: Option<EnergyRecorder>,
     pub levels: Option<LevelsCallback>,
 }
 
@@ -312,7 +258,7 @@ impl AudioPipeline {
     }
 
     /// Runs until every sender of the capture channel is dropped, then drains the tail and
-    /// closes every output (the saver's channel and the live taps) and writes the energy track.
+    /// closes every output (the saver's channel and the live taps).
     pub async fn run(mut self) -> PipelineStats {
         info!("Audio pipeline started");
         let mut idle_check = tokio::time::interval(IDLE_CHECK_INTERVAL);
@@ -366,17 +312,11 @@ impl AudioPipeline {
             stats.system_zero_filled
         );
         let PipelineOutputs {
-            recording,
-            live,
-            energy,
-            ..
+            recording, live, ..
         } = self.outputs;
         drop(recording);
         if let Some(live) = live {
             live.close();
-        }
-        if let Some(energy) = energy {
-            energy.finish().await;
         }
         stats
     }
@@ -391,13 +331,8 @@ impl AudioPipeline {
         if let Some(live) = self.outputs.live.as_mut() {
             live.push(mic, sys, &mixed, end);
         }
-        let mic_db = rms_dbfs(mic);
-        let sys_db = rms_dbfs(sys);
-        if let Some(energy) = self.outputs.energy.as_mut() {
-            energy.push(mic_db, sys_db);
-        }
         if let Some(levels) = self.outputs.levels.as_mut() {
-            levels(self.meter.frame(mic_db, sys_db, end - start));
+            levels(self.meter.frame(rms_dbfs(mic), rms_dbfs(sys), end - start));
         }
         if let Some(sender) = &self.outputs.recording {
             let recording_chunk = AudioChunk {

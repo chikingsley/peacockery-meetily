@@ -229,7 +229,7 @@ async fn live_batch_scribe_on_clip() {
         matches!(source, TurnSource::SpeakerTurns | TurnSource::Words),
         "{source:?}"
     );
-    let named = name_speakers(&turns, None, "Me", "Them");
+    let named = name_speakers(&turns);
     eprintln!("{named:#?}");
     assert!(!named.is_empty());
     assert!(named.iter().all(|t| t
