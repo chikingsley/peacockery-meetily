@@ -5,31 +5,33 @@ import type { ReactNode } from "react";
 
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import { useMeetings } from "@/contexts/MeetingContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { useDesktopRuntime } from "@/hooks/useDesktopRuntime";
+
+import { MeetingTitle } from "./MeetingTitle";
 
 export default function MainContent({ children }: { children: ReactNode }) {
   const path = usePathname();
   const desktop = useDesktopRuntime();
-  const { currentMeeting } = useMeetings();
   const { isRecording } = useRecordingState();
 
   const title =
     path === "/settings"
       ? "Settings"
-      : path === "/meeting-details"
-        ? (currentMeeting?.title ?? "Meeting")
-        : isRecording
-          ? "Recording workspace"
-          : "New meeting";
+      : isRecording
+        ? "Recording workspace"
+        : "New meeting";
 
   return (
     <SidebarInset className="h-svh overflow-hidden">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
         <SidebarTrigger />
         <Separator orientation="vertical" className="h-4" />
-        <span className="truncate text-sm font-medium">{title}</span>
+        {path === "/meeting-details" ? (
+          <MeetingTitle />
+        ) : (
+          <span className="truncate text-sm font-medium">{title}</span>
+        )}
       </header>
       {!desktop && (
         <p className="border-b px-4 py-2 text-xs text-muted-foreground">

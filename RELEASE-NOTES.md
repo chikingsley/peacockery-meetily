@@ -1,4 +1,3 @@
-Simpler speaker names and access
+Rename a meeting from its page
 
-- Final transcripts always name voices Speaker 1, Speaker 2 and so on; the loudness-based Me/Them guess is removed.
-- Access is set only with the activation code; the manual key and server fields are removed from Settings.
+- Click the meeting title at the top of an open meeting to rename it. Enter saves, Escape cancels.
