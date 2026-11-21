@@ -11,6 +11,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { calendarChanged } from "@/contexts/CalendarContext";
 import { errorMessage } from "@/services/voiceService";
 
 import { SettingsSection } from "./SettingsParts";
@@ -62,6 +63,7 @@ export function OutlookCalendar() {
 
     try {
       const next = await invoke<Connection>("outlook_connect");
+      calendarChanged();
       setConnection(next);
       setMessage("");
     } catch (error) {
@@ -76,6 +78,7 @@ export function OutlookCalendar() {
 
     try {
       await invoke("outlook_disconnect");
+      calendarChanged();
       setConnection(null);
       setMessage("");
     } catch (error) {
@@ -90,6 +93,7 @@ export function OutlookCalendar() {
 
     try {
       await invoke("outlook_select", { calendar });
+      calendarChanged();
       setConnection((current) =>
         current ? { ...current, selected: calendar } : current
       );

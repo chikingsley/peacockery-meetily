@@ -1,10 +1,10 @@
 "use client";
 
 import { isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 import "./globals.css";
 import "sonner/dist/styles.css";
-import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { ThemeProvider } from "next-themes";
 import { Source_Sans_3 } from "next/font/google";
@@ -21,6 +21,7 @@ import {
   isAudioExtension,
   getAudioFormatsDisplayList,
 } from "@/constants/audioFormats";
+import { CalendarProvider } from "@/contexts/CalendarContext";
 import { ConfigProvider } from "@/contexts/ConfigContext";
 import { ImportDialogProvider } from "@/contexts/ImportDialogContext";
 import { MeetingProvider } from "@/contexts/MeetingContext";
@@ -132,24 +133,26 @@ export default function RootLayout({
             <TranscriptProvider>
               <ConfigProvider>
                 <UpdateNotice />
-                <MeetingProvider>
-                  <RecordingStopProvider>
-                    <TooltipProvider>
-                      <ImportDialogProvider onOpen={openImportDialog}>
-                        <SidebarProvider>
-                          <Sidebar />
-                          <MainContent>{children}</MainContent>
-                        </SidebarProvider>
-                        <ImportDropOverlay visible={showDropOverlay} />
-                        <ImportAudioDialog
-                          open={showImportDialog}
-                          onOpenChange={handleImportDialogChange}
-                          preselectedFile={importFilePath}
-                        />
-                      </ImportDialogProvider>
-                    </TooltipProvider>
-                  </RecordingStopProvider>
-                </MeetingProvider>
+                <CalendarProvider>
+                  <MeetingProvider>
+                    <RecordingStopProvider>
+                      <TooltipProvider>
+                        <ImportDialogProvider onOpen={openImportDialog}>
+                          <SidebarProvider>
+                            <Sidebar />
+                            <MainContent>{children}</MainContent>
+                          </SidebarProvider>
+                          <ImportDropOverlay visible={showDropOverlay} />
+                          <ImportAudioDialog
+                            open={showImportDialog}
+                            onOpenChange={handleImportDialogChange}
+                            preselectedFile={importFilePath}
+                          />
+                        </ImportDialogProvider>
+                      </TooltipProvider>
+                    </RecordingStopProvider>
+                  </MeetingProvider>
+                </CalendarProvider>
               </ConfigProvider>
             </TranscriptProvider>
           </RecordingStateProvider>

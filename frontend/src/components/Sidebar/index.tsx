@@ -192,7 +192,7 @@ export default function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild tooltip="Peacockery Meetily">
-                <Link href="/">
+                <Link prefetch href="/">
                   <Image
                     src="/icon.png"
                     alt=""
@@ -213,7 +213,7 @@ export default function AppSidebar() {
                 tooltip={active ? "Return to recording" : "New meeting"}
                 isActive={pathname === "/"}
               >
-                <Link href="/">
+                <Link prefetch href="/">
                   {active ? <AudioLines /> : <Plus />}
                   <span>{active ? "Return to recording" : "New meeting"}</span>
                 </Link>

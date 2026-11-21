@@ -17,7 +17,7 @@ import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { useDesktopRuntime } from "@/hooks/useDesktopRuntime";
 import { useRecordingStart } from "@/hooks/useRecordingStart";
 import { suggestedMode } from "@/lib/recording-context";
-import type { CalendarEvent, RecordingMode } from "@/types/voice";
+import type { RecordingMode } from "@/types/voice";
 
 import { LiveQuickSettings } from "./_components/LiveQuickSettings";
 import { RecordingSetup } from "./_components/RecordingSetup";
@@ -34,19 +34,6 @@ export default function Home() {
   const [activationDismissed, setActivationDismissed] = useState(false);
   const [title, setTitle] = useState("");
   const [mode, setMode] = useState<RecordingMode>("in_person");
-
-  const [calendarEvent, setCalendarEvent] = useState<CalendarEvent | null>(
-    null
-  );
-
-  const selectEvent = (event: CalendarEvent | null) => {
-    setCalendarEvent(event);
-
-    if (event) {
-      setTitle(event.title);
-      setMode(suggestedMode(event));
-    }
-  };
 
   const { isRecording, isStartingRecording, isStopping } = useRecordingState();
 
@@ -91,20 +78,26 @@ export default function Home() {
 
                 // Start is disabled until the saved devices and publishing default load.
                 if (desktop && devicesReady && publishToCica !== null) {
-                  void startRecording(
-                    title,
-                    mode,
-                    calendarEvent,
-                    publishToCica
-                  );
+                  void startRecording(title, mode, null, publishToCica);
                 }
               }}
             >
               <RecordingSetup
                 mode={mode}
                 onModeChange={setMode}
-                event={calendarEvent}
-                onEventChange={selectEvent}
+                canStart={
+                  desktop && devicesReady && publishToCica !== null && !active
+                }
+                onEventChange={(item) => {
+                  if (publishToCica !== null) {
+                    void startRecording(
+                      item.title,
+                      suggestedMode(item),
+                      item,
+                      publishToCica
+                    );
+                  }
+                }}
               />
               <div className="space-y-2">
                 <Label htmlFor="meeting-title">Meeting title (optional)</Label>
