@@ -533,6 +533,17 @@ pub async fn snapshot(app: &tauri::AppHandle) -> Result<Option<CalendarSnapshot>
     if s.calendar.is_empty() {
         return Ok(None);
     }
+    // Managed installations receive a private agenda for their explicitly selected calendar.
+    if let Ok(bytes) = std::fs::read(
+        app.path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())?
+            .join("managed-agenda.json"),
+    ) {
+        if let Some(snapshot) = managed_snapshot(&bytes, &s.calendar, chrono::Utc::now()) {
+            return Ok(Some(snapshot));
+        }
+    }
     let Some(auth) = current_auth(app).await? else {
         return Ok(None);
     };
@@ -611,6 +622,22 @@ pub async fn snapshot(app: &tauri::AppHandle) -> Result<Option<CalendarSnapshot>
     Err("Calendar window exceeded its page limit.".into())
 }
 
+fn managed_snapshot(
+    bytes: &[u8],
+    selected: &str,
+    now: chrono::DateTime<chrono::Utc>,
+) -> Option<CalendarSnapshot> {
+    #[derive(Deserialize)]
+    struct Agenda {
+        calendar: String,
+        snapshot: CalendarSnapshot,
+    }
+    let agenda: Agenda = serde_json::from_slice(bytes).ok()?;
+    let observed = chrono::DateTime::parse_from_rfc3339(&agenda.snapshot.observed).ok()?;
+    let age = now.signed_duration_since(observed).num_seconds();
+    (agenda.calendar == selected && !selected.is_empty() && (0..900).contains(&age))
+        .then_some(agenda.snapshot)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -646,6 +673,19 @@ mod tests {
         assert_eq!(written, br#"{"calendar":""}"#);
         assert!(parse_selection(&written).calendar.is_empty());
         assert!(parse_selection(b"junk").calendar.is_empty());
+    }
+
+    #[test]
+    fn managed_agenda_requires_selected_calendar_and_fresh_observation() {
+        let now = chrono::Utc::now();
+        let packet = serde_json::to_vec(
+            &json!({"calendar":"mine","snapshot":{"observed":now.to_rfc3339(),"events":[]}}),
+        )
+        .unwrap();
+        assert!(managed_snapshot(&packet, "mine", now).is_some());
+        assert!(managed_snapshot(&packet, "other", now).is_none());
+        assert!(managed_snapshot(&packet, "", now).is_none());
+        assert!(managed_snapshot(&packet, "mine", now + chrono::Duration::minutes(16)).is_none());
     }
 
     fn token(audience: &str, expires: i64) -> String {
