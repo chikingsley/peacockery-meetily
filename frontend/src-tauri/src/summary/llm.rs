@@ -154,6 +154,47 @@ pub async fn generate(
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn provider_delay_survives_a_fresh_queue() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio::time::{timeout, Duration};
+        let pool = crate::database::test_pool().await;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let client = VoiceClient::new(peacockery_voice::ClientConfig::new(
+            format!("http://{}", listener.local_addr().unwrap()),
+            "fixture",
+        ))
+        .unwrap();
+        let serve = tokio::spawn(async move {
+            let (mut conn, _) = listener.accept().await.unwrap();
+            let mut chunk = [0; 4096];
+            assert!(conn.read(&mut chunk).await.unwrap() > 0);
+            conn.write_all(b"HTTP/1.1 429 Too Many Requests\r\nretry-after: 60\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}").await.unwrap();
+            listener
+        });
+        let settings = VoiceSettings::default();
+        let req = request(None, None);
+        assert!(generate_with(&pool, &client, &settings, &req)
+            .await
+            .is_err());
+        let listener = serve.await.unwrap();
+        let eligible: i64 = sqlx::query_scalar("SELECT eligible_ms FROM text_request_schedule")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert!(eligible - chrono::Utc::now().timestamp_millis() > 59000);
+        *TEXT_QUEUE.lock().await = None;
+        assert!(timeout(
+            Duration::from_millis(100),
+            generate_with(&pool, &client, &settings, &req)
+        )
+        .await
+        .is_err());
+        assert!(timeout(Duration::from_millis(30), listener.accept())
+            .await
+            .is_err());
+    }
+
     fn request(model: Option<&str>, fallbacks: Option<Vec<&str>>) -> SummaryLlmRequest {
         SummaryLlmRequest {
             model: model.map(str::to_string),
