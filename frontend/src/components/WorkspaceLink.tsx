@@ -1,11 +1,15 @@
 import type { ComponentProps } from "react";
 
+import { useSidebar } from "@/components/ui/sidebar";
+
 export function WorkspaceLink({
   href,
   children,
   onClick,
   ...props
 }: ComponentProps<"a"> & { href: string }) {
+  const { isMobile, setOpenMobile } = useSidebar();
+
   return (
     <a
       {...props}
@@ -25,6 +29,10 @@ export function WorkspaceLink({
         }
 
         event.preventDefault();
+
+        if (isMobile) {
+          setOpenMobile(false);
+        }
 
         if (location.pathname + location.search !== href) {
           window.history.pushState(null, "", href);
