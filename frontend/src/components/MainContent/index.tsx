@@ -10,17 +10,26 @@ import { useDesktopRuntime } from "@/hooks/useDesktopRuntime";
 
 import { MeetingTitle } from "./MeetingTitle";
 
+function workspaceTitle(path: string, recording: boolean) {
+  switch (path) {
+    case "/calls": {
+      return "Calls and meeting prep";
+    }
+
+    case "/settings": {
+      return "Settings";
+    }
+
+    default: {
+      return recording ? "Recording workspace" : "New meeting";
+    }
+  }
+}
+
 export default function MainContent({ children }: { children: ReactNode }) {
   const path = usePathname();
   const desktop = useDesktopRuntime();
   const { isRecording } = useRecordingState();
-
-  const title =
-    path === "/settings"
-      ? "Settings"
-      : isRecording
-        ? "Recording workspace"
-        : "New meeting";
 
   return (
     <SidebarInset className="h-svh overflow-hidden">
@@ -30,7 +39,9 @@ export default function MainContent({ children }: { children: ReactNode }) {
         {path === "/meeting-details" ? (
           <MeetingTitle />
         ) : (
-          <span className="truncate text-sm font-medium">{title}</span>
+          <span className="truncate text-sm font-medium">
+            {workspaceTitle(path, isRecording)}
+          </span>
         )}
       </header>
       {!desktop && (
