@@ -72,6 +72,23 @@ foreach($record in $records){
  }
  $results|ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $OutputDir 'results.json')
 }
+# Exercise the navigation pattern that previously left a full-page loader behind.
+$timings=@()
+if ($records.Count -gt 1) {
+ foreach ($record in @($records[0], $records[-1], $records[0], $records[-1])) {
+  $stage='repeat navigation'
+  $watch=[Diagnostics.Stopwatch]::StartNew()
+  Follow $record.title
+  $null=AwaitControl $record.title $button
+  if ($record.first) {$null=AwaitControl $record.first $button}
+  $meetingMs=$watch.ElapsedMilliseconds
+  $watch.Restart()
+  Follow 'New meeting'
+  $null=AwaitControl 'Start recording' $button
+  $timings+=@{meeting=$record.id;openMs=$meetingMs;newMeetingMs=$watch.ElapsedMilliseconds}
+ }
+ $timings | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $OutputDir 'navigation.json')
+}
 Follow 'New meeting'
 $null=AwaitControl 'Start recording' $button
 Capture 'new.png'
