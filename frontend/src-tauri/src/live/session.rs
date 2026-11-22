@@ -414,8 +414,10 @@ async fn finish(
 }
 
 fn should_fallback(model: &str, failures: usize, error: &Error) -> bool {
-    model == "elevenlabs-scribe_v3"
-        && matches!(error, Error::SessionFailed { code, .. } if matches!(code.as_str(), "provider_error" | "model_unavailable" | "unsupported_model"))
+    matches!(
+        model,
+        "elevenlabs-scribe_v3" | "mistral-voxtral-mini-transcribe-realtime-3"
+    ) && matches!(error, Error::SessionFailed { code, .. } if matches!(code.as_str(), "provider_error" | "model_unavailable" | "unsupported_model"))
         && (failures >= 2 || !retryable(error))
 }
 
@@ -451,6 +453,17 @@ mod tests {
                 retryable: false
             }
         ));
+        let upstream_limit = Error::SessionFailed {
+            code: "provider_error".into(),
+            message: "Mistral realtime upgrade failed: 429".into(),
+            retryable: true,
+        };
+        assert!(should_fallback(
+            "mistral-voxtral-mini-transcribe-realtime-3",
+            2,
+            &upstream_limit
+        ));
+        assert!(!should_fallback("deepgram-nova-3", 2, &upstream_limit));
         assert!(!should_fallback("deepgram-nova-3", 2, &transient));
         assert!(!should_fallback(
             "elevenlabs-scribe_v3",
