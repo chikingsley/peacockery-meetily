@@ -11,7 +11,11 @@ import { usePaginatedTranscripts } from "@/hooks/usePaginatedTranscripts";
 import { parseSummaryContent } from "@/lib/summary-content";
 import { voiceService } from "@/services/voiceService";
 import type { MeetingSummary, SummaryProcessResponse } from "@/types";
-import type { MeetingMetadata } from "@/types/voice";
+import type {
+  Transcript,
+  TranscriptSource,
+  MeetingMetadata,
+} from "@/types/voice";
 
 import PageContent from "./page-content";
 
@@ -19,13 +23,19 @@ import PageContent from "./page-content";
 const AUTO_SUMMARY_ATTACH_TRIES = 5;
 const AUTO_SUMMARY_ATTACH_DELAY_MS = 1500;
 
-function MeetingDetailsContent() {
-  const searchParams = useSearchParams();
-  const meetingId = searchParams.get("id");
+interface DetailPreview {
+  meeting: MeetingMetadata;
+  rows: Transcript[];
+  source: TranscriptSource | null;
+  total: number;
+}
+
+const previews = new Map<string, DetailPreview>();
+
+function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
   const { setCurrentMeeting, refetchMeetings } = useMeetings();
   const { voiceSettings } = useConfig();
   const router = useRouter();
-  const [meeting, setMeeting] = useState<MeetingMetadata | null>(null);
 
   const [summaryResponse, setSummaryResponse] =
     useState<SummaryProcessResponse | null>(null);
@@ -35,7 +45,7 @@ function MeetingDetailsContent() {
   );
 
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+
   const [showLiveDraft, setShowLiveDraft] = useState(false);
 
   const {
@@ -59,13 +69,39 @@ function MeetingDetailsContent() {
     setShowLiveDraft(false);
   }, [meetingId]);
 
+  const cacheKey = JSON.stringify([meetingId, showLiveDraft]);
+  const cached = previews.get(cacheKey);
+  const fresh = metadata?.id === meetingId && !isLoadingTranscripts;
+  const meeting = fresh ? metadata : cached?.meeting;
+  useEffect(() => {
+    if (!meeting || !fresh) {
+      return;
+    }
+
+    previews.delete(cacheKey);
+
+    if (previews.size >= 12) {
+      const first = previews.keys().next().value;
+
+      if (first) {
+        previews.delete(first);
+      }
+    }
+
+    previews.set(cacheKey, {
+      meeting,
+      rows: transcripts.slice(0, 100),
+      source,
+      total: totalCount,
+    });
+  }, [fresh, meeting, cacheKey, transcripts, source, totalCount]);
+
   // Keep the current view until the selected meeting's first transcript page is ready.
   useEffect(() => {
     if (isLoadingTranscripts || !meetingId || metadata?.id !== meetingId) {
       return;
     }
 
-    setMeeting(metadata);
     setCurrentMeeting({ id: metadata.id, title: metadata.title });
   }, [metadata, meetingId, isLoadingTranscripts, setCurrentMeeting]);
 
@@ -147,29 +183,20 @@ function MeetingDetailsContent() {
   );
 
   useEffect(() => {
-    setMeeting(null);
     setMeetingSummary(null);
     setSummaryResponse(null);
     setError(null);
-    setIsLoading(true);
 
     if (!meetingId) {
       setError("No meeting selected");
-      setIsLoading(false);
 
       return;
     }
 
     let cancelled = false;
-    fetchSummary(meetingId, () => cancelled)
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      })
-      .catch((error_) =>
-        console.error("Native event synchronization failed", error_)
-      );
+    fetchSummary(meetingId, () => cancelled).catch((error_) =>
+      console.error("Native event synchronization failed", error_)
+    );
 
     return () => {
       cancelled = true;
@@ -245,7 +272,7 @@ function MeetingDetailsContent() {
     );
   }
 
-  if (isLoading || !meeting || meeting.id !== meetingId) {
+  if (!meeting || meeting.id !== meetingId) {
     return (
       <div className="flex h-full items-center justify-center">
         <LoaderIcon className="size-6 animate-spin" />
@@ -262,16 +289,22 @@ function MeetingDetailsContent() {
       onMeetingUpdated={refetchMeetings}
       onFinalTranscriptDone={handleFinalTranscriptDone}
       onRenameSpeaker={handleRenameSpeaker}
-      transcripts={transcripts}
-      source={source}
+      transcripts={fresh ? transcripts : (cached?.rows ?? [])}
+      source={fresh ? source : (cached?.source ?? null)}
       showingLiveDraft={showLiveDraft}
       onToggleSource={() => setShowLiveDraft((v) => !v)}
-      hasMore={hasMore}
+      hasMore={fresh && hasMore}
       isLoadingMore={isLoadingMore}
-      totalCount={totalCount}
+      totalCount={fresh ? totalCount : (cached?.total ?? 0)}
       onLoadMore={loadMore}
     />
   );
+}
+
+function SelectedMeeting() {
+  const id = useSearchParams().get("id");
+
+  return <MeetingDetailsContent key={id} meetingId={id} />;
 }
 
 export default function MeetingDetails() {
@@ -283,7 +316,7 @@ export default function MeetingDetails() {
         </div>
       }
     >
-      <MeetingDetailsContent />
+      <SelectedMeeting />
     </Suspense>
   );
 }

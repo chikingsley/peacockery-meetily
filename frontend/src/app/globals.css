@@ -186,3 +186,28 @@
     cursor: default;
   }
 }
+
+[data-meeting-scroll] {
+  scrollbar-width: none;
+}
+[data-meeting-scroll]::-webkit-scrollbar {
+  display: none;
+}
+[data-meeting-scroll] [data-sidebar="menu-button"]:has(.meeting-sidebar-title) {
+  padding-right: 0.45rem;
+}
+[data-meeting-scroll]
+  [data-sidebar="menu-item"]:is(:hover, :focus-within)
+  [data-sidebar="menu-button"] {
+  padding-right: 2rem;
+}
+[data-meeting-scroll]
+  [data-sidebar="menu-button"]
+  > .meeting-sidebar-title:last-child {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  mask-image: linear-gradient(to right, black calc(100% - 1rem), transparent);
+}

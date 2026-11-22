@@ -17,6 +17,7 @@ import { UpdateNotice } from "@/components/settings/AppUpdates";
 import Sidebar from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { WorkspacePage } from "@/components/WorkspacePage";
 import {
   isAudioExtension,
   getAudioFormatsDisplayList,
@@ -140,7 +141,9 @@ export default function RootLayout({
                         <ImportDialogProvider onOpen={openImportDialog}>
                           <SidebarProvider>
                             <Sidebar />
-                            <MainContent>{children}</MainContent>
+                            <MainContent>
+                              <WorkspacePage>{children}</WorkspacePage>
+                            </MainContent>
                           </SidebarProvider>
                           <ImportDropOverlay visible={showDropOverlay} />
                           <ImportAudioDialog

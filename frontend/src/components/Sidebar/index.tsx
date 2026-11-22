@@ -3,6 +3,7 @@
 import {
   AudioLines,
   CheckCircle2,
+  ChevronDown,
   CircleAlert,
   FileText,
   Loader2,
@@ -15,9 +16,8 @@ import {
   Upload,
 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -61,6 +61,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { WorkspaceLink as Link } from "@/components/WorkspaceLink";
 import { useImportDialog } from "@/contexts/ImportDialogContext";
 import { useMeetings } from "@/contexts/MeetingContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
@@ -90,6 +91,8 @@ function dateGroup(value: string | null) {
 }
 
 export default function AppSidebar() {
+  const list = useRef<HTMLDivElement>(null);
+  const [moreBelow, setMoreBelow] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -136,6 +139,27 @@ export default function AppSidebar() {
       ),
     }));
   }, [meetings, query, searchResults]);
+
+  useEffect(() => {
+    const el = list.current;
+
+    if (!el) {
+      return;
+    }
+
+    const update = () =>
+      setMoreBelow(el.scrollHeight - el.clientHeight - el.scrollTop > 2);
+
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    el.addEventListener("scroll", update, { passive: true });
+    update();
+
+    return () => {
+      observer.disconnect();
+      el.removeEventListener("scroll", update);
+    };
+  }, [groups]);
 
   async function rename() {
     if (!editing || !title.trim()) {
@@ -192,7 +216,7 @@ export default function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild tooltip="Peacockery Meetily">
-                <Link prefetch href="/">
+                <Link href="/">
                   <Image
                     src="/icon.png"
                     alt=""
@@ -213,7 +237,7 @@ export default function AppSidebar() {
                 tooltip={active ? "Return to recording" : "New meeting"}
                 isActive={pathname === "/"}
               >
-                <Link prefetch href="/">
+                <Link href="/">
                   {active ? <AudioLines /> : <Plus />}
                   <span>{active ? "Return to recording" : "New meeting"}</span>
                 </Link>
@@ -241,7 +265,7 @@ export default function AppSidebar() {
             )}
           </div>
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent ref={list} data-meeting-scroll="">
           {groups.map(
             (group) =>
               group.meetings.length > 0 && (
@@ -275,7 +299,9 @@ export default function AppSidebar() {
                             ) : (
                               <FileText />
                             )}
-                            <span>{meeting.title}</span>
+                            <span className="meeting-sidebar-title">
+                              {meeting.title}
+                            </span>
                           </Link>
                         </SidebarMenuButton>
                         <DropdownMenu>
@@ -323,6 +349,23 @@ export default function AppSidebar() {
             </div>
           )}
         </SidebarContent>
+        {moreBelow && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            aria-label="Scroll meetings down"
+            className="h-6 w-full group-data-[collapsible=icon]:hidden"
+            onClick={() =>
+              list.current?.scrollBy({
+                top: list.current.clientHeight * 0.8,
+                behavior: "smooth",
+              })
+            }
+          >
+            <ChevronDown />
+          </Button>
+        )}
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
