@@ -79,23 +79,3 @@ pub async fn call_attempts(
     sqlx::query_as("SELECT r.meeting_id,m.title,m.created_at,r.outcomes FROM meeting_reviews r JOIN meetings m ON m.id=r.meeting_id WHERE r.brief_key=? ORDER BY m.created_at DESC LIMIT 20")
         .bind(key).fetch_all(state.db_manager.pool()).await.map_err(|e|e.to_string())
 }
-
-#[tauri::command]
-pub fn open_prep_source(link: String) -> Result<(), String> {
-    let url = url::Url::parse(&link).map_err(|_| "Invalid source link")?;
-    if url.scheme() != "https"
-        || url.host_str().is_none()
-        || !url.username().is_empty()
-        || url.password().is_some()
-    {
-        return Err("Choose an HTTPS source link.".into());
-    }
-    #[cfg(windows)]
-    {
-        std::process::Command::new("explorer.exe")
-            .arg(url.as_str())
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}

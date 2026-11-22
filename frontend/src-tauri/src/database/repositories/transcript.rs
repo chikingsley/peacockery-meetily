@@ -275,10 +275,16 @@ impl TranscriptsRepository {
         .bind(from)
         .fetch_one(&mut *tx)
         .await?;
+        sqlx::query("INSERT INTO transcript_edits(transcript_id,text,speaker)
+            SELECT n.id,n.transcript,? FROM named_transcripts n
+            WHERE n.meeting_id=? AND n.speaker=? AND (n.speaker='Automated operator'
+              OR EXISTS(SELECT 1 FROM transcript_edits e WHERE e.transcript_id=n.id AND e.speaker IS NOT NULL))
+            ON CONFLICT(transcript_id) DO UPDATE SET speaker=excluded.speaker")
+            .bind(to).bind(meeting_id).bind(from).execute(&mut *tx).await?;
         sqlx::query("INSERT INTO speaker_names(meeting_id,source,label,name,evidence,manual)
             SELECT DISTINCT t.meeting_id,t.source,t.speaker,?,'Manual rename',1
             FROM transcripts t JOIN named_transcripts n ON n.id=t.id
-            WHERE t.meeting_id=? AND n.speaker=?
+            WHERE t.meeting_id=? AND n.speaker=? AND n.speaker!='Automated operator' AND NOT EXISTS(SELECT 1 FROM transcript_edits e WHERE e.transcript_id=t.id AND e.speaker IS NOT NULL)
             ON CONFLICT(meeting_id,source,label) DO UPDATE SET name=excluded.name,evidence=excluded.evidence,manual=1")
             .bind(to).bind(meeting_id).bind(from).execute(&mut *tx).await?;
         tx.commit().await?;
@@ -450,6 +456,44 @@ mod tests {
                 .unwrap(),
             (1, 1)
         );
+    }
+
+    #[tokio::test]
+    async fn menu_turn_can_be_renamed_without_renaming_the_agent() {
+        let pool = pool_with_meeting().await;
+        TranscriptsRepository::replace_source(
+            &pool,
+            "m1",
+            "final",
+            &[
+                line(
+                    "Speaker 1",
+                    "Thank you for calling SMC. Press one for product support.",
+                    0.0,
+                ),
+                line("Speaker 1", "This is Luke.", 3.0),
+            ],
+        )
+        .await
+        .unwrap();
+        for (old, new) in [
+            ("Automated operator", "SMC switchboard"),
+            ("Speaker 1", "Luke"),
+            ("SMC switchboard", "Phone menu"),
+        ] {
+            assert_eq!(
+                TranscriptsRepository::rename_speaker(&pool, "m1", old, new)
+                    .await
+                    .unwrap(),
+                1
+            );
+        }
+        let names: Vec<String> =
+            sqlx::query_scalar("SELECT speaker FROM named_transcripts ORDER BY audio_start_time")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        assert_eq!(names, ["Phone menu", "Luke"]);
     }
 
     #[tokio::test]

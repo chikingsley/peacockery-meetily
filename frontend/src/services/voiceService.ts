@@ -161,7 +161,6 @@ export const voiceService = {
     invoke<void>("api_delete_meeting", { meetingId }),
   openMeetingFolder: (meetingId: string) =>
     invoke<void>("open_meeting_folder", { meetingId }),
-  openPrepSource: (link: string) => invoke<void>("open_prep_source", { link }),
   callAttempts: (key: string) =>
     invoke<
       {

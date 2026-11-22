@@ -155,7 +155,7 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
             shared.status_model(channel, LiveState::Closed, Some(reason), &model);
             return;
         }
-        if should_fallback(&model, failures, &error) {
+        if shared.config.nova_fallback && should_fallback(&model, failures, &error) {
             shared.mark_incomplete(Some(channel), &format!("switched to Nova: {reason}"));
             model = "deepgram-nova-3".into();
             failures = 0;

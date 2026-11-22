@@ -53,13 +53,13 @@ describe("model options", () => {
     expect(modelChoices(live, null)).toBe(live);
   });
 
-  test("marks recommended and unavailable models", () => {
+  test("shows availability without competing with the selected model", () => {
     expect(modelOptionText(live[0])).toBe("Voxtral Mini Realtime 3");
     expect(
       modelOptionText(
         option("deepgram-nova-3", { label: "Deepgram Nova", recommended: true })
       )
-    ).toBe("Deepgram Nova · recommended");
+    ).toBe("Deepgram Nova");
     expect(modelOptionText(live[1])).toBe("DEEPGRAM-NOVA-3 · unavailable");
   });
 

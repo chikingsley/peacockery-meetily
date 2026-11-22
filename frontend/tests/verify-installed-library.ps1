@@ -93,7 +93,7 @@ Follow 'New meeting'
 $null=AwaitControl 'Start recording' $button
 Capture 'new.png'
 Follow 'Calls and meeting prep'
-$null=AwaitControl 'Call tasks' $null
+$null=AwaitControl 'Call Tasks' ([System.Windows.Automation.ControlType]::TabItem)
 Capture 'calls.png'
 $buttons=New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty),$button
 $task=$root.FindAll($all,$buttons) | Where-Object {$_.Current.Name -like 'Call *'} | Select-Object -First 1
@@ -106,6 +106,11 @@ if ($task) {
  Start-Sleep -Milliseconds 350
  Capture 'call-prep.png'
 }
+$tab=[System.Windows.Automation.ControlType]::TabItem
+$prep=AwaitControl 'Meeting Prep' $tab
+$prep.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
+$null=AwaitControl 'Upcoming Meetings' $null
+Capture 'upcoming.png'
 Follow 'Meetily'
 $null=AwaitControl 'Start recording' $button
 if(@($results|Where-Object{!$_.passed}).Count){throw 'Some saved meetings failed. See results.json.'}

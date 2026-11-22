@@ -158,7 +158,6 @@ export function DeviceSelection({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-foreground">Audio Devices</h4>
         <div className="flex items-center space-x-2">
           <button
             type="button"

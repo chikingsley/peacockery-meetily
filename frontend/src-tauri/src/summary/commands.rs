@@ -268,6 +268,7 @@ pub async fn start_summary(
     template_id: Option<String>,
     custom_prompt: Option<String>,
     model: Option<String>,
+    automatic: bool,
 ) -> Result<String, String> {
     if MeetingsRepository::get(pool, meeting_id)
         .await
@@ -288,6 +289,19 @@ pub async fn start_summary(
     );
 
     let _start_guard = SUMMARY_START_LOCK.lock().await;
+    if let Some(existing) = SummaryProcessesRepository::get_summary_data(pool, meeting_id)
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        if existing
+            .status
+            .as_deref()
+            .is_some_and(|s| s.eq_ignore_ascii_case("pending"))
+            || (automatic && existing.result.is_some())
+        {
+            return Ok(existing.start_time.unwrap_or_default().to_rfc3339());
+        }
+    }
     let started_at = next_summary_start(Utc::now());
     SummaryProcessesRepository::create_or_reset_process(pool, meeting_id, started_at)
         .await
@@ -320,8 +334,16 @@ pub async fn api_process_transcript(
     model: Option<String>,
 ) -> Result<ProcessTranscriptResponse, String> {
     let pool = state.db_manager.pool().clone();
-    let process_id =
-        start_summary(&app, &pool, &meeting_id, template_id, custom_prompt, model).await?;
+    let process_id = start_summary(
+        &app,
+        &pool,
+        &meeting_id,
+        template_id,
+        custom_prompt,
+        model,
+        false,
+    )
+    .await?;
     Ok(ProcessTranscriptResponse { process_id })
 }
 

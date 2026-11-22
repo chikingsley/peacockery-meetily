@@ -587,6 +587,7 @@ async fn execute(reporter: &Reporter) {
                     None,
                     None,
                     None,
+                    true,
                 )
                 .await
                 {
@@ -664,7 +665,7 @@ async fn start_if_auto(app: &AppHandle, meeting_id: &str) {
         match TranscriptsRepository::all(&pool, meeting_id, transcript_source::LIVE).await {
             Ok(rows) if !rows.is_empty() => {
                 if let Err(error) = crate::summary::commands::start_summary(
-                    app, &pool, meeting_id, None, None, None,
+                    app, &pool, meeting_id, None, None, None, true,
                 )
                 .await
                 {

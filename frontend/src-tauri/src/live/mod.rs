@@ -38,6 +38,7 @@ pub const STOP_TIMEOUT: Duration = Duration::from_secs(20);
 pub struct LiveConfig {
     pub meeting_id: String,
     /// Public model id (`live_model`).
+    pub nova_fallback: bool,
     pub model: String,
     /// Session topology, from the recording mode.
     pub mode: LiveMode,
@@ -57,6 +58,7 @@ impl LiveConfig {
         Self {
             meeting_id: meeting_id.to_string(),
             model: settings.live_model.clone(),
+            nova_fallback: settings.nova_fallback,
             mode,
             language: (settings.language != "auto").then(|| settings.language.clone()),
             keyterms: settings.keyterms.clone(),

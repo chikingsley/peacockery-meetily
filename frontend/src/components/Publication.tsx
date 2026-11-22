@@ -1,6 +1,7 @@
 "use client";
 
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { CircleCheck, CloudUpload, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -52,7 +53,9 @@ export function PublicationChoice({
     <div className="space-y-2 rounded-lg border p-4">
       <div className="flex items-center justify-between gap-4">
         <Label htmlFor="publish-to-cica">
-          {global ? "Publish new meetings to CICA" : "Publish to CICA meetings"}
+          {global
+            ? "Publish New Meetings to CICA Meetings Portal"
+            : "Publish to CICA Meetings Portal"}
         </Label>
         <Switch
           id="publish-to-cica"
@@ -187,49 +190,43 @@ export function PublicationProgress({ meetingId }: { meetingId: string }) {
     }
   };
 
-  const label =
-    status?.state === "partial"
-      ? "Partial transcript filed in CICA meetings · Audio unavailable"
-      : status?.state === "linked"
-        ? "Filed in CICA meetings"
-        : status?.state === "published"
-          ? "Published to CICA meetings"
-          : status?.state === "processing"
-            ? "Uploaded · Website is preparing notes and transcript"
-            : status?.state === "uploading"
-              ? `Uploading to CICA · ${Math.round((status.bytes_sent / Math.max(status.total_bytes, 1)) * 100)}%`
-              : status?.state === "failed"
-                ? "CICA upload needs attention"
-                : "Queued for CICA meetings";
+  const filed =
+    status && ["published", "partial", "linked"].includes(status.state);
+
+  const failed = status?.state === "failed";
+
+  const labels = {
+    partial: "Partial transcript · Audio unavailable",
+    linked: "Filed",
+    published: "Published",
+    processing: "Preparing minutes",
+    uploading: `Uploading ${Math.round(((status?.bytes_sent ?? 0) / Math.max(status?.total_bytes ?? 0, 1)) * 100)}%`,
+    failed: "Retry upload",
+    queued: "Queued",
+  };
+
+  const label = error || status?.error || (status && labels[status.state]);
 
   return (
-    <div
-      className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-background px-4 py-2 text-xs"
-      role="status"
-    >
-      <div>
-        <p>{label}</p>
-        {(error || status?.error) && (
-          <p className="text-muted-foreground">{error || status?.error}</p>
+    <div role="status" className="ml-auto shrink-0">
+      <Button
+        size="sm"
+        variant="ghost"
+        title={label ?? undefined}
+        aria-label={`CICA Meetings Portal · ${label ?? ""}`}
+        disabled={!filed && !failed && status?.state !== "processing"}
+        onClick={() => void (failed ? retry() : open())}
+      >
+        {filed ? (
+          <CircleCheck className="text-success" />
+        ) : failed || error ? (
+          <TriangleAlert />
+        ) : (
+          <CloudUpload />
         )}
-      </div>
-      {status &&
-        ["published", "partial", "linked"].includes(status.state) &&
-        status.url && (
-          <Button size="sm" variant="outline" onClick={() => void open()}>
-            Open on website
-          </Button>
-        )}
-      {status?.state === "processing" && (
-        <Button size="sm" variant="outline" onClick={() => void open()}>
-          View processing queue
-        </Button>
-      )}
-      {status?.state === "failed" && (
-        <Button size="sm" variant="outline" onClick={() => void retry()}>
-          Retry upload
-        </Button>
-      )}
+        <span className="hidden sm:inline">CICA Meetings Portal</span>
+        {(!filed || status?.state === "partial") && <span>{label}</span>}
+      </Button>
     </div>
   );
 }

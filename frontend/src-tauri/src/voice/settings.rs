@@ -26,6 +26,8 @@ pub enum AutoFinal {
 pub struct VoiceSettings {
     pub base_url: String,
     pub live_enabled: bool,
+    #[serde(default = "fallback_enabled")]
+    pub nova_fallback: bool,
     pub live_model: String,
     pub final_model: String,
     pub final_diarize: bool,
@@ -41,11 +43,16 @@ pub struct VoiceSettings {
     pub auto_summary: bool,
 }
 
+fn fallback_enabled() -> bool {
+    true
+}
+
 impl Default for VoiceSettings {
     fn default() -> Self {
         Self {
             base_url: DEFAULT_BASE_URL.to_string(),
             live_enabled: true,
+            nova_fallback: true,
             live_model: "elevenlabs-scribe_v3".to_string(),
             final_model: "elevenlabs-scribe_v3".to_string(),
             final_diarize: true,
@@ -267,7 +274,8 @@ mod tests {
             value["summary_fallback_models"],
             json!(["deepseek-deepseek-v4-flash", "google-gemini-3.1-flash-lite"])
         );
-        assert_eq!(value.as_object().unwrap().len(), 14);
+        assert_eq!(value["nova_fallback"], true);
+        assert_eq!(value.as_object().unwrap().len(), 15);
     }
 
     #[test]

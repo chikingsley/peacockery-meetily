@@ -73,8 +73,23 @@ pub fn text_request(settings: &VoiceSettings, req: &SummaryLlmRequest) -> TextRe
     request
 }
 
+// Desktop summaries and speaker review share this queue. The guard sets the
+// quiet period on drop, including when a waiting generation is cancelled mid-flight.
+type Deadline = Option<tokio::time::Instant>;
+static TEXT_QUEUE: tokio::sync::Mutex<Deadline> = tokio::sync::Mutex::const_new(None);
+struct QuietPeriod<'a> {
+    deadline: tokio::sync::MutexGuard<'a, Deadline>,
+    delay: std::time::Duration,
+}
+impl Drop for QuietPeriod<'_> {
+    fn drop(&mut self) {
+        *self.deadline = tokio::time::Instant::now().checked_add(self.delay);
+    }
+}
+
 /// Generate one completion with an explicit client (no app state).
 pub async fn generate_with(
+    pool: &sqlx::SqlitePool,
     client: &VoiceClient,
     settings: &VoiceSettings,
     req: &SummaryLlmRequest,
@@ -86,10 +101,36 @@ pub async fn generate_with(
         request.model,
         request.routing.as_ref().map(|r| &r.fallback_models)
     );
-    let response = client
-        .generate(&request)
+    let deadline = TEXT_QUEUE.lock().await;
+    if let Some(next) = *deadline {
+        tokio::time::sleep_until(next).await;
+    }
+    let eligible_ms: i64 =
+        sqlx::query_scalar("SELECT eligible_ms FROM text_request_schedule WHERE id=1")
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    let remaining = eligible_ms.saturating_sub(chrono::Utc::now().timestamp_millis());
+    if remaining > 0 {
+        tokio::time::sleep(std::time::Duration::from_millis(remaining as u64)).await;
+    }
+    let mut quiet = QuietPeriod {
+        deadline,
+        delay: std::time::Duration::from_secs(15),
+    };
+    let response = client.generate(&request).await;
+    if let Err(peacockery_voice::Error::TextBackoff { delay, .. }) = &response {
+        quiet.delay = quiet.delay.max(*delay);
+    }
+    let eligible = chrono::Utc::now()
+        .timestamp_millis()
+        .saturating_add(i64::try_from(quiet.delay.as_millis()).unwrap_or(i64::MAX));
+    sqlx::query("UPDATE text_request_schedule SET eligible_ms=? WHERE id=1")
+        .bind(eligible)
+        .execute(pool)
         .await
-        .map_err(|e| describe_error(&e))?;
+        .map_err(|e| e.to_string())?;
+    let response = response.map_err(|e| describe_error(&e))?;
     Ok(SummaryLlmResponse {
         text: response.text,
         model: response.model,
@@ -105,7 +146,8 @@ pub async fn generate(
 ) -> Result<SummaryLlmResponse, String> {
     let voice = app.state::<VoiceService>();
     let client = voice.client()?;
-    generate_with(&client, &voice.settings(), &req).await
+    let state = app.state::<crate::state::AppState>();
+    generate_with(state.db_manager.pool(), &client, &voice.settings(), &req).await
 }
 
 #[cfg(test)]

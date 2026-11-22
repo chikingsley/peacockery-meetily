@@ -57,11 +57,11 @@ export function modelChoices(
 /** The `auto_final` choices, recommended first. */
 export const AUTO_FINAL_CHOICES: { label: string; value: AutoFinal }[] = [
   {
-    label: "When the live transcript is incomplete (recommended)",
+    label: "When the live transcript is incomplete",
     value: "when_live_incomplete",
   },
   { label: "Always", value: "always" },
-  { label: "Never (run it from the meeting page)", value: "never" },
+  { label: "Manual", value: "never" },
 ];
 
 /** Pill for a meeting with only live rows, from what the meeting recorded at stop. */
@@ -86,7 +86,7 @@ export function retryModel(
 
 /** Text of one select item: label, plus "recommended" / "unavailable" markers. */
 export function modelOptionText(option: ModelOption): string {
-  return `${option.label}${option.recommended ? " · recommended" : ""}${option.available ? "" : " · unavailable"}`;
+  return `${option.label}${option.available ? "" : " · unavailable"}`;
 }
 
 /** Vocabulary hints from free text: comma- or line-separated, trimmed, de-duplicated. */

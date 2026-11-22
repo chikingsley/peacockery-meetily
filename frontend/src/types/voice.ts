@@ -15,6 +15,7 @@ export type AutoFinal = "always" | "when_live_incomplete" | "never";
 export interface VoiceSettings {
   base_url: string;
   live_enabled: boolean;
+  nova_fallback: boolean;
   live_model: string;
   final_model: string;
   final_diarize: boolean;

@@ -130,6 +130,7 @@ pub fn describe_error(error: &Error) -> String {
         Error::SessionFailed { message, .. } => format!("The live transcription provider failed: {}", shorten(message)),
         Error::RealtimeClosed(message) => format!("The live transcription connection closed: {}", message),
         Error::Cancelled => "Cancelled".to_string(),
+        Error::TextBackoff { .. } => error.to_string(),
         Error::Truncated(response) => format!(
             "The answer from {} was cut off at the output limit. Try a shorter template or another model.",
             response.model

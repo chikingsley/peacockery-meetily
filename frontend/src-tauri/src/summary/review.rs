@@ -174,17 +174,8 @@ async fn review_one(
         max_output_tokens:4096,conversation_id:format!("meetily-review:{id}"),
         turn_id:format!("review:{id}:{revision}")
     };
-    let mut request = request;
-    let mut result = generate(app, request.clone()).await?;
-    let review = match parse_review(&result.text) {
-        Ok(review) => review,
-        Err(_) => {
-            request.system.push_str(" The previous output could not be decoded. Return one JSON object with both arrays and use integer turn indices.");
-            request.turn_id.push_str(":format-retry");
-            result = generate(app, request).await?;
-            parse_review(&result.text)?
-        }
-    };
+    let result = generate(app, request).await?;
+    let review = parse_review(&result.text)?;
     let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     sqlx::query("DELETE FROM speaker_names WHERE meeting_id=? AND manual=0")
         .bind(id)
@@ -253,16 +244,18 @@ async fn review_one(
 async fn next(app: &AppHandle, pool: &SqlitePool) -> Result<bool, String> {
     // A new source or a replaced final changes its last row ID even at the same length.
     let due:Option<(String,String)>=sqlx::query_as("WITH candidates AS (
-    SELECT m.id,m.status,m.created_at,CASE WHEN m.status='recording' THEN 'live:'||CAST(MAX(t.audio_start_time)/300 AS INTEGER)
+    SELECT m.id,m.status,m.created_at,CASE WHEN m.status='recording' THEN 'live:'||CASE WHEN MAX(t.audio_start_time)>=300 THEN 1 ELSE 0 END
     ELSE 'end:'||COUNT(*)||':'||MAX(t.rowid) END AS revision
     FROM meetings m JOIN transcripts t ON t.meeting_id=m.id GROUP BY m.id)
     SELECT c.id,c.revision FROM candidates c LEFT JOIN meeting_reviews r ON r.meeting_id=c.id
-    WHERE coalesce(r.revision,'')!=c.revision AND c.revision!='live:0' AND coalesce(r.retry_at,0)<=unixepoch()
+    WHERE coalesce(r.revision,'')!=c.revision AND c.revision!='live:0' AND (coalesce(r.attempted_revision,'')!=c.revision OR r.attempts<2)
+    AND (coalesce(r.attempted_revision,'')!=c.revision OR coalesce(r.retry_at,0)<=unixepoch())
+    AND (c.status!='recording' OR coalesce(r.revision,'') NOT LIKE 'live:%')
     ORDER BY (c.status='recording') DESC,c.created_at DESC LIMIT 1").fetch_optional(pool).await.map_err(|e|e.to_string())?;
     let Some((id, revision)) = due else {
         return Ok(false);
     };
-    sqlx::query("INSERT INTO meeting_reviews(meeting_id,retry_at) VALUES(?,unixepoch()+600) ON CONFLICT(meeting_id) DO UPDATE SET retry_at=excluded.retry_at").bind(&id).execute(pool).await.map_err(|e|e.to_string())?;
+    sqlx::query("INSERT INTO meeting_reviews(meeting_id,attempted_revision,attempts,retry_at) VALUES(?,?,1,unixepoch()+600) ON CONFLICT(meeting_id) DO UPDATE SET attempts=CASE WHEN attempted_revision=excluded.attempted_revision THEN attempts+1 ELSE 1 END,attempted_revision=excluded.attempted_revision,retry_at=excluded.retry_at").bind(&id).bind(&revision).execute(pool).await.map_err(|e|e.to_string())?;
     review_one(app, pool, &id, &revision).await?;
     Ok(true)
 }

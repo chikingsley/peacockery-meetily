@@ -3,8 +3,10 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { PublicationProgress } from "@/components/Publication";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { useMeetings } from "@/contexts/MeetingContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { useDesktopRuntime } from "@/hooks/useDesktopRuntime";
 
@@ -27,6 +29,7 @@ function workspaceTitle(path: string, recording: boolean) {
 }
 
 export default function MainContent({ children }: { children: ReactNode }) {
+  const { currentMeeting } = useMeetings();
   const path = usePathname();
   const desktop = useDesktopRuntime();
   const { isRecording } = useRecordingState();
@@ -42,6 +45,12 @@ export default function MainContent({ children }: { children: ReactNode }) {
           <span className="truncate text-sm font-medium">
             {workspaceTitle(path, isRecording)}
           </span>
+        )}
+        {path === "/meeting-details" && currentMeeting && (
+          <PublicationProgress
+            key={currentMeeting.id}
+            meetingId={currentMeeting.id}
+          />
         )}
       </header>
       {!desktop && (

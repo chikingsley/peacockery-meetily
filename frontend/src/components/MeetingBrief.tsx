@@ -6,8 +6,28 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { WorkspaceLink } from "@/components/WorkspaceLink";
 import { errorMessage, voiceService } from "@/services/voiceService";
+
+// Keep agent source references in the saved brief and out of the editable notes.
+function splitBrief(notes: string) {
+  const sources: string[] = [];
+
+  const body = notes
+    .split("\n")
+    .filter((line) => {
+      if (/^\s*(?:[^:\n]+:\s*)?https?:\/\/\S+\s*$/i.test(line)) {
+        sources.push(line);
+
+        return false;
+      }
+
+      return true;
+    })
+    .join("\n")
+    .trimEnd();
+
+  return { body, sources };
+}
 
 /** Mount with the occurrence or task key so late reads cannot replace another draft. */
 export function MeetingBrief({ itemKey }: { itemKey: string }) {
@@ -41,7 +61,7 @@ export function MeetingBrief({ itemKey }: { itemKey: string }) {
       .then((value) => {
         if (active) {
           setSaved(value);
-          setText(value.notes);
+          setText(splitBrief(value.notes).body);
         }
       })
       .catch((error_) => {
@@ -65,11 +85,12 @@ export function MeetingBrief({ itemKey }: { itemKey: string }) {
     try {
       const next = await voiceService.saveMeetingBrief(
         itemKey,
-        text,
+        [text, ...splitBrief(saved.notes).sources].filter(Boolean).join("\n\n"),
         saved.version
       );
 
       setSaved(next);
+      setText(splitBrief(next.notes).body);
       toast.success("Prep saved");
     } catch (error_) {
       setError(errorMessage(error_));
@@ -89,32 +110,12 @@ export function MeetingBrief({ itemKey }: { itemKey: string }) {
         className="min-h-36"
         placeholder="Purpose, part numbers, drawing and RFP references, and open questions"
       />
-      {[...new Set(text.match(/https:\/\/[^\s<>]+/g))].map((link) => (
-        <Button
-          key={link}
-          type="button"
-          variant="link"
-          size="sm"
-          title={link}
-          onClick={() =>
-            void voiceService
-              .openPrepSource(link)
-              .catch((error_) => toast.error(errorMessage(error_)))
-          }
-        >
-          {link.split("/")[2]}
-        </Button>
-      ))}
       {attempts.map((attempt) => (
         <p key={attempt.meeting_id} className="text-sm">
-          <WorkspaceLink
-            href={`/meeting-details?id=${encodeURIComponent(attempt.meeting_id)}`}
-          >
-            {new Date(attempt.created_at).toLocaleDateString()} ·{" "}
-            {attempt.outcomes
-              .map((o) => o.kind.replaceAll("_", " "))
-              .join(", ") || "Recorded call"}
-          </WorkspaceLink>
+          {new Date(attempt.created_at).toLocaleDateString()} ·{" "}
+          {attempt.outcomes
+            .map((o) => o.kind.replaceAll("_", " "))
+            .join(", ") || "Recorded call"}
         </p>
       ))}
       {error && (
@@ -122,7 +123,7 @@ export function MeetingBrief({ itemKey }: { itemKey: string }) {
           {error}
         </p>
       )}
-      {saved && saved.notes !== text && (
+      {saved && splitBrief(saved.notes).body !== text && (
         <Button
           type="button"
           variant="outline"

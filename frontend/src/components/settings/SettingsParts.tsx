@@ -93,7 +93,6 @@ export function ModelSelect({
   disabled?: boolean;
 }) {
   const choices = modelChoices(options, value);
-  const note = choices.find((o) => o.id === value)?.note;
 
   return (
     <div className="space-y-1.5">
@@ -104,18 +103,12 @@ export function ModelSelect({
         </SelectTrigger>
         <SelectContent>
           {choices.map((o) => (
-            <SelectItem
-              key={o.id}
-              value={o.id}
-              disabled={!o.available}
-              description={o.note || undefined}
-            >
+            <SelectItem key={o.id} value={o.id} disabled={!o.available}>
               {modelOptionText(o)}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      {note && <p className="text-xs text-muted-foreground">{note}</p>}
     </div>
   );
 }

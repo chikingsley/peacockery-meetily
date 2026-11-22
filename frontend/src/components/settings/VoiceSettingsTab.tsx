@@ -30,7 +30,6 @@ import {
   AUTO_FINAL_CHOICES,
   LANGUAGES,
   formatKeyterms,
-  modelLabel,
   parseKeyterms,
 } from "@/lib/voice-models";
 import { voiceService, errorMessage } from "@/services/voiceService";
@@ -71,51 +70,63 @@ export function VoiceSettingsTab() {
       <ApiKeySection />
 
       <SettingsSection
-        title="Live transcription"
+        title="Live Transcription"
         icon={<AudioLines className="h-5 w-5" />}
         description={
-          isRecording
-            ? "These apply to the next recording; the current one keeps its live settings."
-            : "Transcribes while you record and keeps the transcript when you stop."
+          isRecording ? "Changes apply to the next recording." : undefined
         }
       >
         <ToggleRow
           id="live-enabled"
-          label="Live transcript while recording"
+          label="Transcribe While Recording"
           checked={voiceSettings.live_enabled}
           onChange={(live_enabled) => update({ live_enabled })}
         />
         <ModelSelect
           id="live-model"
-          label="Live model"
+          label="Live Model"
           value={voiceSettings.live_model}
           options={voiceModels?.live ?? []}
           disabled={!voiceSettings.live_enabled}
           onChange={(live_model) => update({ live_model })}
         />
-        <p className="text-sm text-muted-foreground">
-          Choose In person, Online meeting or Phone call on the recording
-          screen. Speaker separation applies to every captured channel when the
-          live model supports it.
-        </p>
+        {voiceSettings.live_enabled &&
+          voiceSettings.live_model !== "deepgram-nova-3" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="fallback-model">Fallback Model</Label>
+              <Select
+                value={voiceSettings.nova_fallback ? "nova" : "off"}
+                onValueChange={(value) =>
+                  update({ nova_fallback: value === "nova" })
+                }
+              >
+                <SelectTrigger id="fallback-model" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nova">Deepgram Nova-3</SelectItem>
+                  <SelectItem value="off">Off</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
       </SettingsSection>
 
       <SettingsSection
-        title="Final transcript"
+        title="Final Transcript"
         icon={<FileText className="h-5 w-5" />}
-        description="Transcribes the complete saved audio with speaker labels when the live transcript cannot serve as the result."
       >
         <ModelSelect
           id="final-model"
-          label="Final model"
+          label="Final Model"
           value={voiceSettings.final_model}
           options={voiceModels?.final ?? []}
           onChange={(final_model) => update({ final_model })}
         />
         <ToggleRow
           id="final-diarize"
-          label="Speaker labels"
-          description="Uses numbered speakers. A microphone may contain several people; names can be verified afterward."
+          label="Speaker Labels"
+
           checked={voiceSettings.final_diarize}
           onChange={(final_diarize) => update({ final_diarize })}
         />
@@ -142,11 +153,6 @@ export function VoiceSettingsTab() {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
-            Recommended: a live transcript that ran completely on{" "}
-            {modelLabel(voiceModels?.final, voiceSettings.final_model)} is kept
-            as the result.
-          </p>
         </div>
       </SettingsSection>
 
@@ -155,14 +161,14 @@ export function VoiceSettingsTab() {
       <SettingsSection title="Summary" icon={<Sparkles className="h-5 w-5" />}>
         <ModelSelect
           id="summary-model"
-          label="Summary model"
+          label="Summary Model"
           value={voiceSettings.summary_model}
           options={voiceModels?.summary ?? []}
           onChange={(summary_model) => update({ summary_model })}
         />
         <ToggleRow
           id="auto-summary"
-          label="Summarize automatically"
+          label="Automatic Summary"
           description="Runs after recording stops, or after the final transcript finishes when one runs."
           checked={voiceSettings.auto_summary}
           onChange={(auto_summary) => update({ auto_summary })}
@@ -216,7 +222,7 @@ function LanguageSection({
 
   return (
     <SettingsSection
-      title="Language and names"
+      title="Language and Names"
       icon={<Languages className="h-5 w-5" />}
     >
       <div className="space-y-1.5">
@@ -242,8 +248,7 @@ function LanguageSection({
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          Used for live and final transcripts. A fixed language is more accurate
-          than detection.
+          Used for live and final transcripts.
         </p>
       </div>
 
@@ -281,7 +286,7 @@ function LanguageSection({
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="me-label">Your label</Label>
+          <Label htmlFor="me-label">Your Name</Label>
           <Input
             id="me-label"
             value={meLabel.draft}
@@ -294,11 +299,12 @@ function LanguageSection({
             }}
           />
           <p className="text-xs text-muted-foreground">
-            Lines from your microphone.
+            Helps match your introductions. A shared microphone can capture
+            several people.
           </p>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="them-label">Other side label</Label>
+          <Label htmlFor="them-label">Call Audio Label</Label>
           <Input
             id="them-label"
             value={themLabel.draft}
@@ -311,7 +317,7 @@ function LanguageSection({
             }}
           />
           <p className="text-xs text-muted-foreground">
-            Lines from the call audio; several people become &quot;
+            Call audio labels include &quot;
             {settings.them_label} 1&quot;, &quot;{settings.them_label} 2&quot;.
           </p>
         </div>
@@ -353,27 +359,14 @@ function ApiKeySection() {
 
   return (
     <SettingsSection title="Access" icon={<KeyRound className="h-5 w-5" />}>
-      <p className="text-sm text-muted-foreground">
-        Enter the activation code you received.
-      </p>
-      <ActivationForm />
-      <div className="flex items-center gap-2 text-sm">
-        <span className="font-medium text-foreground">Access</span>
-        {keyStatus?.configured ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-            <CheckCircle2 className="h-3 w-3" /> Active on this PC ·{" "}
-            <span className="font-mono">{keyStatus.masked}</span>
-          </span>
-        ) : (
-          <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-            Not activated
-          </span>
-        )}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Kept in Windows Credential Manager, never in the app&apos;s files.
-      </p>
-
+      {keyStatus?.configured ? (
+        <span className="inline-flex items-center gap-2 text-sm">
+          <CheckCircle2 className="size-4 text-success" />
+          Activated
+        </span>
+      ) : (
+        <ActivationForm />
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <Button
           variant="outline"
@@ -388,11 +381,7 @@ function ApiKeySection() {
           (testResult.ok ? (
             <span className="flex items-center gap-1 text-sm text-success">
               <CheckCircle2 className="h-4 w-4" />
-              Connected
-              {testResult.environment
-                ? ` (${testResult.environment})`
-                : ""} ·{" "}
-              {testResult.latency_ms} ms
+              Connected · {testResult.latency_ms} ms
             </span>
           ) : (
             <span className="flex items-center gap-1 text-sm text-destructive">

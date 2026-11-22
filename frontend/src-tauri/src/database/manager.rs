@@ -84,6 +84,7 @@ mod tests {
                 "meetings",
                 "speaker_names",
                 "summary_processes",
+                "text_request_schedule",
                 "transcript_edits",
                 "transcripts"
             ]

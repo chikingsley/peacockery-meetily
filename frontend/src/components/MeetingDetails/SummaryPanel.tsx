@@ -117,7 +117,7 @@ export function SummaryPanel({
         </div>
       ) : hasSummary ? (
         <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl p-4">
+          <div className="meeting-minutes mx-auto w-full max-w-3xl px-4 py-3">
             <BlockNoteSummaryView
               ref={summaryRef}
               summaryData={aiSummary}

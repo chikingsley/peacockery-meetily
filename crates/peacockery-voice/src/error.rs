@@ -20,6 +20,11 @@ pub enum Error {
     /// Any other 4xx (400 validation, 409 conflict, 413, 415, 422, 426 …) with the response body.
     #[error("request rejected ({status}): {body}")]
     BadRequest { status: u16, body: String },
+    #[error("text request deferred ({status}) for {delay:?}")]
+    TextBackoff {
+        status: u16,
+        delay: std::time::Duration,
+    },
     /// 5xx from the API or the storage endpoint.
     #[error("server error ({status}): {body}")]
     Server { status: u16, body: String },

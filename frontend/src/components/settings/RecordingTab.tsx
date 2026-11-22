@@ -55,7 +55,7 @@ export function RecordingTab() {
   };
 
   return (
-    <SettingsSection title="Audio sources" icon={<Mic className="h-5 w-5" />}>
+    <SettingsSection title="Audio Devices" icon={<Mic className="h-5 w-5" />}>
       {isRecording && (
         <p
           role="status"

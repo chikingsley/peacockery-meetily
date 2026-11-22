@@ -146,6 +146,24 @@ impl VoiceClient {
             .json(request)
             .send()
             .await?;
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let seconds = response
+                .headers()
+                .get("retry-after")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<u64>().ok());
+            let body = response.text().await?;
+            let ms = serde_json::from_str::<Value>(&body)
+                .ok()
+                .and_then(|v| v.pointer("/failure/retryAfterMs").and_then(Value::as_u64));
+            if seconds.is_some() || ms.is_some() {
+                let delay = std::time::Duration::from_secs(seconds.unwrap_or_default())
+                    .max(std::time::Duration::from_millis(ms.unwrap_or_default()));
+                return Err(Error::TextBackoff { status, delay });
+            }
+            return Err(Error::from_status(status, body));
+        }
         let response: TextResponse = decode(response).await?;
         if response.finish_reason.as_deref() == Some("length") {
             return Err(Error::Truncated(Box::new(response)));

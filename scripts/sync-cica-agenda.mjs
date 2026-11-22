@@ -6,8 +6,23 @@ import { join } from "node:path";
 
 import {
   assignedCalls,
+  recordingCommand,
   stageReviewedTranscripts,
 } from "./lib/meeting-workspace.mjs";
+
+if (
+  ["--list-recordings", "--read-recording", "--edit-recording"].includes(
+    process.argv[2]
+  )
+) {
+  await recordingCommand(
+    "cica",
+    process.argv[2],
+    process.argv[3],
+    process.argv[4]
+  );
+  process.exit(0);
+}
 
 const root = join(homedir(), ".config/cica-portal");
 const load = async (file) =>
@@ -167,14 +182,17 @@ function receiveAgenda(packet, keepCalls) {
   const path = require("node:path");
   const base = path.join(process.env.APPDATA, "studio.peacockery.meetily");
   const file = path.join(base, "managed-agenda.json");
-  const selected = JSON.parse(fs.readFileSync(path.join(base, "outlook-calendar.json"), "utf8"));
+  const selected = JSON.parse(
+    fs.readFileSync(path.join(base, "outlook-calendar.json"), "utf8")
+  );
   if (selected.disabled || selected.calendar !== packet.calendar) {
     fs.rmSync(file, { force: true });
     return;
   }
   if (keepCalls && fs.existsSync(file)) {
     const previous = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (previous.calendar === packet.calendar) packet.snapshot.calls = previous.snapshot.calls ?? [];
+    if (previous.calendar === packet.calendar)
+      packet.snapshot.calls = previous.snapshot.calls ?? [];
   }
   const temporary = file + "." + process.pid + ".tmp";
   try {
@@ -186,13 +204,23 @@ function receiveAgenda(packet, keepCalls) {
 }
 const result = spawnSync(
   "ssh",
-  ["-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "cica", "node --no-warnings -"],
+  [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=5",
+    "cica",
+    "node --no-warnings -",
+  ],
   {
     input: `(${receiveAgenda.toString()})(${JSON.stringify(packet)},${calls === null});`,
     timeout: 30000,
   }
 );
 if (result.status !== 0) {
-  throw Error("CICA agenda delivery failed: " + (result.error?.code ?? result.signal ?? result.status));
+  throw Error(
+    "CICA agenda delivery failed: " +
+      (result.error?.code ?? result.signal ?? result.status)
+  );
 }
 await stageReviewedTranscripts("cica");
