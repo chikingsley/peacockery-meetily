@@ -29,10 +29,7 @@ export function GeneralTab() {
 
   return (
     <div className="space-y-6">
-      <SettingsSection
-        title="Appearance"
-        description="Choose a theme for your workspace."
-      >
+      <SettingsSection title="Appearance">
         <Label htmlFor="appearance">Theme</Label>
         <Select value={theme ?? "system"} onValueChange={setTheme}>
           <SelectTrigger id="appearance">
@@ -46,7 +43,7 @@ export function GeneralTab() {
         </Select>
       </SettingsSection>
       <SettingsSection
-        title="Recordings folder"
+        title="Recordings Folder"
         icon={<HardDrive className="h-5 w-5" />}
         description="Every recording is always saved, one folder per meeting with its audio.mp4 and transcripts."
       >

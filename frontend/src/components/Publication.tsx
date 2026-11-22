@@ -225,7 +225,9 @@ export function PublicationProgress({ meetingId }: { meetingId: string }) {
           <CloudUpload />
         )}
         <span className="hidden sm:inline">CICA Meetings Portal</span>
-        {(!filed || status?.state === "partial") && <span>{label}</span>}
+        {(!filed || status?.state === "partial") && (
+          <span>{status ? labels[status.state] : "Status unavailable"}</span>
+        )}
       </Button>
     </div>
   );

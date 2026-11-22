@@ -220,26 +220,6 @@ export function DeviceSelection({
         disabled={disabled}
         level={isTesting ? (levels?.system ?? 0) : null}
       />
-
-      <div className="space-y-1.5 rounded-md border border-info/30 bg-info/10 p-3 text-xs text-foreground">
-        <p>
-          <strong>Microphone:</strong> your voice, normally the Jabra headset
-          mic.
-        </p>
-        <p>
-          <strong>Call and system audio:</strong> choose{" "}
-          <strong>Google Chrome app audio (Google Voice)</strong> for Google
-          Voice calls. It records only Chrome&apos;s sound, wherever it plays
-          (the Jabra over Bluetooth included), so notification sounds and other
-          apps stay out of the recording. Choose a playback device instead to
-          record everything that device plays, e.g. a Teams or Zoom call in its
-          own app.
-        </p>
-        <p>
-          Use <strong>Test devices</strong> during a call: the system meter
-          should move when the other side talks.
-        </p>
-      </div>
     </div>
   );
 }

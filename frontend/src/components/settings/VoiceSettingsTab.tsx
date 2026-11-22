@@ -131,7 +131,7 @@ export function VoiceSettingsTab() {
           onChange={(final_diarize) => update({ final_diarize })}
         />
         <div className="space-y-1.5">
-          <Label htmlFor="auto-final">Run after stop</Label>
+          <Label htmlFor="auto-final">After Recording</Label>
           <Select
             value={voiceSettings.auto_final}
             onValueChange={(value) => {
@@ -253,7 +253,7 @@ function LanguageSection({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="keyterms">Vocabulary hints</Label>
+        <Label htmlFor="keyterms">Vocabulary Hints</Label>
         <Textarea
           id="keyterms"
           rows={4}
@@ -269,7 +269,7 @@ function LanguageSection({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="transcript-corrections">Recognition corrections</Label>
+        <Label htmlFor="transcript-corrections">Recognition Corrections</Label>
         <Textarea
           id="transcript-corrections"
           rows={3}
