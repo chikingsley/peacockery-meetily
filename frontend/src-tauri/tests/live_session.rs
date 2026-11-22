@@ -179,13 +179,22 @@ async fn split_session_on_dialogue_produces_lines() {
         .iter()
         .all(|l| l.audio_end_time <= SECONDS as f64 + 3.0));
 
-    assert_eq!(
-        summary.session_ids.len(),
-        2,
-        "one realtime session per channel"
-    );
     assert_eq!(summary.mode, "split");
     let statuses = sink.statuses.lock().unwrap().clone();
+    let reconnected = statuses.iter().any(|s| s.state == LiveState::Reconnecting);
+    if reconnected {
+        assert!(summary.session_ids.len() >= 2);
+        assert!(
+            !summary.complete,
+            "recover missing speech from the recording"
+        );
+    } else {
+        assert_eq!(
+            summary.session_ids.len(),
+            2,
+            "one realtime session per channel"
+        );
+    }
     for channel in [Channel::Mic, Channel::System] {
         let states: Vec<LiveState> = statuses
             .iter()

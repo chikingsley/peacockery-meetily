@@ -161,7 +161,7 @@ pub(super) async fn run(shared: Arc<Shared>, channel: Channel, rx: mpsc::Receive
             failures = 0;
             state = LiveState::Reconnecting;
             message = Some(format!(
-                "Scribe unavailable: {}. Switching live transcription to Nova.",
+                "Live provider unavailable: {}. Switching live transcription to Nova.",
                 reason
             ));
             continue;
