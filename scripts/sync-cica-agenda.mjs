@@ -160,35 +160,39 @@ console.log(JSON.stringify(db.prepare("SELECT notes,version FROM meeting_briefs 
   console.log(result.stdout.trim());
   process.exit(0);
 }
-const receiver = `
-$ErrorActionPreference='Stop'
-$d=Join-Path $env:APPDATA 'studio.peacockery.meetily'
-$p=Join-Path $d 'managed-agenda.json'
-$s=Get-Content -Raw (Join-Path $d 'outlook-calendar.json') | ConvertFrom-Json
-if ($s.calendar -cne '${calendar.outlook_calendar_id.replaceAll("'", "''")}' -or $s.disabled) {Remove-Item $p -ErrorAction SilentlyContinue; exit 0}
-$data=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String([Console]::In.ReadToEnd()))
-$packet=$data | ConvertFrom-Json
-if (${calls === null ? "$true" : "$false"} -and [IO.File]::Exists($p)){$old=Get-Content -Raw $p|ConvertFrom-Json;if($old.calendar -ceq $packet.calendar){$packet.snapshot.calls=@($old.snapshot.calls);$data=$packet|ConvertTo-Json -Depth 12 -Compress}}
-$tmp=$p+'.tmp'
-[IO.File]::WriteAllText($tmp,$data,(New-Object Text.UTF8Encoding($false)))
-if ([IO.File]::Exists($p)){[IO.File]::Replace($tmp,$p,[System.Management.Automation.Language.NullString]::Value)}else{[IO.File]::Move($tmp,$p)}
-`;
+// The PC already uses Node for prep and transcript readback. Send the agenda over
+// stdin as data and replace the file on the same volume after the account check.
+function receiveAgenda(packet, keepCalls) {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const base = path.join(process.env.APPDATA, "studio.peacockery.meetily");
+  const file = path.join(base, "managed-agenda.json");
+  const selected = JSON.parse(fs.readFileSync(path.join(base, "outlook-calendar.json"), "utf8"));
+  if (selected.disabled || selected.calendar !== packet.calendar) {
+    fs.rmSync(file, { force: true });
+    return;
+  }
+  if (keepCalls && fs.existsSync(file)) {
+    const previous = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (previous.calendar === packet.calendar) packet.snapshot.calls = previous.snapshot.calls ?? [];
+  }
+  const temporary = file + "." + process.pid + ".tmp";
+  try {
+    fs.writeFileSync(temporary, JSON.stringify(packet));
+    fs.renameSync(temporary, file);
+  } finally {
+    fs.rmSync(temporary, { force: true });
+  }
+}
 const result = spawnSync(
   "ssh",
-  [
-    "-o",
-    "BatchMode=yes",
-    "-o",
-    "ConnectTimeout=5",
-    "cica",
-    "powershell -NoProfile -NonInteractive -EncodedCommand " +
-      Buffer.from(receiver, "utf16le").toString("base64"),
-  ],
+  ["-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "cica", "node --no-warnings -"],
   {
-    input: Buffer.from(JSON.stringify(packet)).toString("base64"),
-    timeout: 15000,
+    input: `(${receiveAgenda.toString()})(${JSON.stringify(packet)},${calls === null});`,
+    timeout: 30000,
   }
 );
-if (result.status !== 0) throw Error("CICA agenda delivery failed");
-
+if (result.status !== 0) {
+  throw Error("CICA agenda delivery failed: " + (result.error?.code ?? result.signal ?? result.status));
+}
 await stageReviewedTranscripts("cica");
