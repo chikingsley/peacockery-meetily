@@ -58,6 +58,26 @@ fn supported<'a>(rows: &'a [TranscriptRow], turn: usize, quote: &str) -> Option<
     rows.get(turn)
         .filter(|r| quote.trim().len() >= 5 && r.transcript.contains(quote.trim()))
 }
+// A provider can put two introductions in the same diarized channel, even
+// within a single turn. Reject a label-wide alias when the words conflict.
+fn conflicting_introductions<'a>(lines: impl Iterator<Item = &'a str>) -> bool {
+    static INTRO: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"\b(?i:my name is|my name['’]s|this is)\s+(\p{Lu}[\p{L}’'-]+)\b")
+            .expect("valid first-person introduction pattern")
+    });
+    let mut first = None;
+    for text in lines {
+        for intro in INTRO.captures_iter(text) {
+            let name = intro[1].to_lowercase();
+            if first.as_ref().is_some_and(|seen| seen != &name) {
+                return true;
+            }
+            first = Some(name);
+        }
+    }
+    false
+}
+
 fn phone_menu(text: &str) -> bool {
     let text = text.to_lowercase();
     [
@@ -191,7 +211,12 @@ async fn review_one(
         let menu = rows.iter().any(|r| {
             r.source == source && r.speaker.as_deref() == Some(label) && phone_menu(&r.transcript)
         });
-        if menu || items.iter().any(|(n, _)| *n != name) {
+        let mixed = conflicting_introductions(
+            rows.iter()
+                .filter(|r| r.source == source && r.speaker.as_deref() == Some(label))
+                .map(|r| r.transcript.as_str()),
+        );
+        if menu || mixed || items.iter().any(|(n, _)| *n != name) {
             continue;
         }
         sqlx::query("INSERT INTO speaker_names(meeting_id,source,label,name,evidence) VALUES(?,?,?,?,?) ON CONFLICT DO NOTHING")
@@ -262,6 +287,18 @@ pub fn start(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn merged_diarization_keeps_original_label() {
+        assert!(conflicting_introductions(
+            ["This is Simon. Good morning, Simon. My name is Dana Reyes."].into_iter()
+        ));
+        assert!(conflicting_introductions(
+            ["This is Simon.", "My name is Dana."].into_iter()
+        ));
+        assert!(!conflicting_introductions(
+            ["Hello, Dana. This is Chi.", "My name is Chi."].into_iter()
+        ));
+    }
     #[test]
     fn self_intro_is_distinct_from_addressee() {
         assert!(introduced("Hello, Robert. This is Chi calling.", "Chi"));
