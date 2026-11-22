@@ -1,1 +1,1 @@
-Switch directly between New Meeting, settings, and recording details. Recent transcript previews stay ready while fresh data loads. Long sidebar titles fade at the edge, and a scroll button appears when more meetings are below.
+Open Calls and meeting prep for assigned phone tasks and upcoming calendar events. Prepare notes before recording and reopen them during or after the call. Meetily reviews introductions and call outcomes against transcript evidence, supports live speaker corrections, and brings published CICA minutes and action items into the desktop summary editor.

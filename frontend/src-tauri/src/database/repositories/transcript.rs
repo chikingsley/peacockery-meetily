@@ -36,6 +36,52 @@ pub struct TranscriptSearchResult {
     pub timestamp: Option<String>,
 }
 
+/// Carry an explicitly named voice across a new diarization only when at least three
+/// turns independently overlap the same person's speech and cover most of the cluster.
+fn aligned_names(lines: &[NewTranscript], anchors: &[(String, f64, f64)]) -> Vec<(String, String)> {
+    use std::collections::BTreeMap;
+    let mut lengths = BTreeMap::<&str, f64>::new();
+    let mut votes = BTreeMap::<(&str, &str), (usize, f64)>::new();
+    for line in lines {
+        let (Some(label), Some(start), Some(end)) = (
+            line.speaker.as_deref(),
+            line.audio_start_time,
+            line.audio_end_time,
+        ) else {
+            continue;
+        };
+        if !(end > start && start.is_finite() && end.is_finite()) {
+            continue;
+        }
+        *lengths.entry(label).or_default() += end - start;
+        let mut overlaps = BTreeMap::<&str, f64>::new();
+        for (name, a, b) in anchors.iter().take_while(|(_, a, _)| *a < end) {
+            let overlap = end.min(*b) - start.max(*a);
+            if overlap > 0.0 {
+                *overlaps.entry(name).or_default() += overlap;
+            }
+        }
+        // Crosstalk or mixed-channel speech cannot establish one person's identity.
+        if overlaps.len() != 1 {
+            continue;
+        }
+        if let Some((name, overlap)) = overlaps.first_key_value() {
+            if *overlap >= (end - start) * 0.75 {
+                let vote = votes.entry((label, name)).or_default();
+                vote.0 += 1;
+                vote.1 += overlap.min(end - start);
+            }
+        }
+    }
+    votes
+        .into_iter()
+        .filter(|&((label, _), (turns, seconds))| {
+            turns >= 3 && seconds >= 8.0 && seconds >= 0.85 * lengths[label]
+        })
+        .map(|((label, name), _)| (label.to_owned(), name.to_owned()))
+        .collect()
+}
+
 pub struct TranscriptsRepository;
 
 impl TranscriptsRepository {
@@ -91,7 +137,7 @@ impl TranscriptsRepository {
         .fetch_one(pool)
         .await?;
         let rows = sqlx::query_as::<_, TranscriptRow>(
-            "SELECT * FROM transcripts WHERE meeting_id = ? AND source = ?
+            "SELECT * FROM named_transcripts WHERE meeting_id = ? AND source = ?
              ORDER BY audio_start_time ASC, sequence ASC LIMIT ? OFFSET ?",
         )
         .bind(meeting_id)
@@ -110,7 +156,7 @@ impl TranscriptsRepository {
         source: &str,
     ) -> Result<Vec<TranscriptRow>, sqlx::Error> {
         sqlx::query_as::<_, TranscriptRow>(
-            "SELECT * FROM transcripts WHERE meeting_id = ? AND source = ?
+            "SELECT * FROM named_transcripts WHERE meeting_id = ? AND source = ?
              ORDER BY audio_start_time ASC, sequence ASC",
         )
         .bind(meeting_id)
@@ -155,6 +201,34 @@ impl TranscriptsRepository {
         lines: &[NewTranscript],
     ) -> Result<(), sqlx::Error> {
         let mut tx = pool.begin().await?;
+        let anchors:Vec<(String,f64,f64)>=sqlx::query_as(
+            "SELECT n.name,t.audio_start_time,t.audio_end_time FROM transcripts t
+             JOIN speaker_names n ON (t.meeting_id,t.source,t.speaker)=(n.meeting_id,n.source,n.label)
+             WHERE t.meeting_id=? AND t.source=? AND n.manual=1 AND t.audio_end_time>t.audio_start_time ORDER BY t.audio_start_time")
+            .bind(meeting_id).bind(source).fetch_all(&mut *tx).await?;
+        let mut aligned = aligned_names(lines, &anchors);
+        if source == "final" {
+            let live:Vec<(String,f64,f64)>=sqlx::query_as(
+                "SELECT n.name,t.audio_start_time,t.audio_end_time FROM transcripts t JOIN speaker_names n
+                 ON (t.meeting_id,t.source,t.speaker)=(n.meeting_id,n.source,n.label)
+                 WHERE t.meeting_id=? AND t.source='live' AND n.manual=1 AND t.audio_end_time>t.audio_start_time ORDER BY t.audio_start_time")
+                 .bind(meeting_id).fetch_all(&mut *tx).await?;
+            for pair in aligned_names(lines, &live) {
+                if !aligned.iter().any(|(label, _)| label == &pair.0) {
+                    aligned.push(pair);
+                }
+            }
+        }
+        // Provider clusters can be renumbered on a rerun. A fresh source gets a fresh review.
+        sqlx::query("DELETE FROM speaker_names WHERE meeting_id=? AND source=?")
+            .bind(meeting_id)
+            .bind(source)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE meeting_reviews SET revision='', retry_at=0 WHERE meeting_id=?")
+            .bind(meeting_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("DELETE FROM transcripts WHERE meeting_id = ? AND source = ?")
             .bind(meeting_id)
             .bind(source)
@@ -179,6 +253,10 @@ impl TranscriptsRepository {
             .execute(&mut *tx)
             .await?;
         }
+        for (label, name) in aligned {
+            sqlx::query("INSERT INTO speaker_names(meeting_id,source,label,name,evidence,manual) VALUES(?,?,?,?,'Timed overlap with manually named speech',1)")
+                .bind(meeting_id).bind(source).bind(label).bind(name).execute(&mut *tx).await?;
+        }
         tx.commit().await
     }
 
@@ -189,14 +267,22 @@ impl TranscriptsRepository {
         from: &str,
         to: &str,
     ) -> Result<u64, sqlx::Error> {
-        let result =
-            sqlx::query("UPDATE transcripts SET speaker = ? WHERE meeting_id = ? AND speaker = ?")
-                .bind(to)
-                .bind(meeting_id)
-                .bind(from)
-                .execute(pool)
-                .await?;
-        Ok(result.rows_affected())
+        let mut tx = pool.begin().await?;
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM named_transcripts WHERE meeting_id=? AND speaker=?",
+        )
+        .bind(meeting_id)
+        .bind(from)
+        .fetch_one(&mut *tx)
+        .await?;
+        sqlx::query("INSERT INTO speaker_names(meeting_id,source,label,name,evidence,manual)
+            SELECT DISTINCT t.meeting_id,t.source,t.speaker,?,'Manual rename',1
+            FROM transcripts t JOIN named_transcripts n ON n.id=t.id
+            WHERE t.meeting_id=? AND n.speaker=?
+            ON CONFLICT(meeting_id,source,label) DO UPDATE SET name=excluded.name,evidence=excluded.evidence,manual=1")
+            .bind(to).bind(meeting_id).bind(from).execute(&mut *tx).await?;
+        tx.commit().await?;
+        Ok(count as u64)
     }
 
     /// Literal substring search over the best transcript, one hit per meeting, newest first.
@@ -385,7 +471,7 @@ mod tests {
             2
         );
         let speakers: Vec<Option<String>> =
-            sqlx::query_scalar("SELECT speaker FROM transcripts ORDER BY transcript")
+            sqlx::query_scalar("SELECT speaker FROM named_transcripts ORDER BY transcript")
                 .fetch_all(&pool)
                 .await
                 .unwrap();
@@ -475,5 +561,31 @@ mod tests {
         let context = match_context(&text, "CAFÉ");
         assert!(context.starts_with("..."));
         assert!(context.contains("café meeting"));
+    }
+}
+
+#[cfg(test)]
+mod alignment_tests {
+    use super::*;
+    #[test]
+    fn renumbered_cluster_requires_clear_timed_agreement() {
+        let lines: Vec<_> = (0..4)
+            .map(|i| NewTranscript {
+                speaker: Some("Speaker 7".into()),
+                text: "test".into(),
+                timestamp: None,
+                audio_start_time: Some(i as f64 * 4.),
+                audio_end_time: Some(i as f64 * 4. + 3.),
+                duration: Some(3.),
+                sequence: Some(i),
+            })
+            .collect();
+        assert_eq!(
+            aligned_names(&lines, &[("Dana".into(), 0., 18.)]),
+            vec![("Speaker 7".into(), "Dana".into())]
+        );
+        assert!(
+            aligned_names(&lines, &[("Dana".into(), 0., 9.), ("Lee".into(), 8., 18.)]).is_empty()
+        );
     }
 }

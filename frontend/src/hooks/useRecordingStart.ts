@@ -35,7 +35,8 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
       meetingTitle: string,
       recordingMode: RecordingMode,
       calendarEvent: CalendarEvent | null,
-      publishToCica: boolean
+      publishToCica: boolean,
+      briefKey?: string
     ) => {
       if (isStartingRef.current || isRecording || isStopping) {
         return;
@@ -65,10 +66,13 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
           title,
           recordingMode,
           calendarEvent,
-          publishToCica
+          publishToCica,
+          briefKey
         );
 
         setMeetingId(result.meeting_id);
+
+        return result.meeting_id;
       } catch (error) {
         const message = errorMessage(error);
 

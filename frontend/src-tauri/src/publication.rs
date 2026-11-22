@@ -66,6 +66,11 @@ pub fn publication_set_default(app: AppHandle, enabled: bool) -> Result<(), Stri
     store.set("enabled", enabled);
     store.save().map_err(|e| e.to_string())
 }
+/// Published and filed meetings already receive notes from the portal.
+pub async fn needs_local_notes(pool: &SqlitePool, meeting_id: &str) -> bool {
+    sqlx::query_scalar::<_,i64>("SELECT NOT EXISTS(SELECT 1 FROM meeting_publications WHERE meeting_id=? AND state!='failed')").bind(meeting_id).fetch_one(pool).await.unwrap_or(1)!=0
+}
+
 pub async fn enqueue(pool: &SqlitePool, meeting_id: &str) -> Result<(), String> {
     sqlx::query("INSERT INTO meeting_publications (meeting_id) VALUES (?) ON CONFLICT(meeting_id) DO NOTHING")
         .bind(meeting_id).execute(pool).await.map_err(|e| e.to_string())?;
@@ -100,7 +105,9 @@ pub async fn publication_open(app: AppHandle, meeting_id: String) -> Result<(), 
         .await?
         .ok_or("Meeting has a local recording.")?;
     let url = match (publication.state.as_str(), publication.upload_id) {
-        ("published", Some(id)) if id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') => {
+        ("published" | "linked" | "partial", Some(id))
+            if id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') =>
+        {
             format!("{SITE}/#meetings/{id}")
         }
         _ => format!("{SITE}/#meetings"),
@@ -155,6 +162,101 @@ async fn checked(request: reqwest::RequestBuilder) -> Result<Value, String> {
         .await
         .map_err(|_| "Website returned an unreadable response.".into())
 }
+/// Hydrate the local editor from an already-published meeting. Local edits and concurrent
+/// generations own their row and always win the insert race.
+pub async fn import_published_notes(pool: &SqlitePool, meeting_id: &str) -> Result<(), String> {
+    let upload: Option<String> = sqlx::query_scalar(
+        "UPDATE meeting_publications SET notes_check_at=unixepoch()+120
+         WHERE meeting_id=? AND state IN ('published','linked') AND upload_id IS NOT NULL AND notes_check_at<=unixepoch()
+         AND NOT EXISTS (SELECT 1 FROM summary_processes s WHERE s.meeting_id=meeting_publications.meeting_id
+             AND (coalesce(json_extract(s.metadata,'$.publication_id'),'')!=upload_id OR lower(s.status)!='completed'))
+         RETURNING upload_id",
+    ).bind(meeting_id).fetch_optional(pool).await.map_err(|e|e.to_string())?;
+    let Some(id) = upload else { return Ok(()) };
+    if !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        return Err("Invalid publication reference".into());
+    }
+    let record = checked(client()?.get(format!("{SITE}/api/meetings/{id}"))).await?;
+    if record["id"].as_str() != Some(id.as_str()) {
+        return Err("Website returned a different meeting".into());
+    }
+    let markdown = published_markdown(&record);
+    if !markdown.is_empty() {
+        let now = crate::database::now_rfc3339();
+        sqlx::query(
+            "INSERT INTO summary_processes(meeting_id,status,created_at,updated_at,result,metadata)
+          VALUES (?,'completed',?,?,?,?) ON CONFLICT(meeting_id) DO UPDATE SET updated_at=excluded.updated_at,result=excluded.result,metadata=excluded.metadata WHERE json_extract(summary_processes.metadata,'$.publication_id')=json_extract(excluded.metadata,'$.publication_id') AND lower(summary_processes.status)='completed' AND summary_processes.result!=excluded.result",
+        )
+        .bind(meeting_id)
+        .bind(&now)
+        .bind(&now)
+        .bind(json!({"markdown":markdown}).to_string())
+        .bind(json!({"publication_id":id,"minutes_source":record["minutesSource"]}).to_string())
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    }
+    sqlx::query(
+        "UPDATE meeting_publications SET notes_check_at=unixepoch()+600 WHERE meeting_id=?",
+    )
+    .bind(meeting_id)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn published_markdown(record: &Value) -> String {
+    let mut sections = Vec::new();
+    for topic in record["topics"].as_array().into_iter().flatten() {
+        let mut lines = Vec::new();
+        if let Some(title) = topic["title"].as_str() {
+            lines.push(format!("## {title}"));
+        }
+        for paragraph in topic["paragraphs"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+        {
+            lines.push(paragraph.to_owned());
+        }
+        for heading in topic["headings"].as_array().into_iter().flatten() {
+            if let Some(title) = heading["title"].as_str() {
+                lines.push(format!("### {title}"));
+            }
+            lines.extend(
+                heading["paragraphs"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned),
+            );
+        }
+        if !lines.is_empty() {
+            sections.push(lines.join("\n\n"));
+        }
+    }
+    let mut actions = Vec::new();
+    for action in record["actions"].as_array().into_iter().flatten() {
+        if let Some(task) = action["action"].as_str() {
+            let mut fields = vec![task];
+            fields.extend(
+                ["owner", "timing"]
+                    .iter()
+                    .filter_map(|k| action[*k].as_str())
+                    .filter(|s| !s.is_empty()),
+            );
+            actions.push(format!("- {}", fields.join(" · ")));
+        }
+    }
+    if !actions.is_empty() {
+        sections.push(format!("## Action items\n\n{}", actions.join("\n")));
+    }
+    sections.join("\n\n")
+}
+
 async fn remote_status(
     http: &reqwest::Client,
     site: &str,
@@ -384,6 +486,12 @@ pub fn start(app: &AppHandle) {
             if let Err(error) = tick(&pool).await {
                 log::warn!("Publication queue: {error}");
             }
+            let due: Vec<String> = sqlx::query_scalar("SELECT p.meeting_id FROM meeting_publications p LEFT JOIN summary_processes s ON s.meeting_id=p.meeting_id WHERE p.state IN ('published','linked') AND p.notes_check_at<=unixepoch() AND (s.meeting_id IS NULL OR json_extract(s.metadata,'$.publication_id')=p.upload_id AND lower(s.status)='completed') ORDER BY p.notes_check_at LIMIT 2").fetch_all(&pool).await.unwrap_or_default();
+            for id in due {
+                if let Err(error) = import_published_notes(&pool, &id).await {
+                    log::warn!("Published minutes readback: {error}");
+                }
+            }
             tokio::time::sleep(Duration::from_secs(20)).await;
         }
     });
@@ -396,6 +504,12 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use tokio::net::TcpListener;
 
+    #[test]
+    fn minutes_and_action_owners_survive_readback() {
+        let record = json!({"topics":[{"title":"Procurement","paragraphs":["Request a quote."]}],"actions":[{"owner":"Chi","action":"Send drawing","timing":"Monday"}]});
+        assert_eq!(published_markdown(&record),"## Procurement\n\nRequest a quote.\n\n## Action items\n\n- Send drawing · Chi · Monday");
+        assert!(published_markdown(&json!({"topics":[],"actions":[]})).is_empty());
+    }
     #[tokio::test]
     async fn consent_checkpoint_resume_and_lost_completion_preserve_one_upload() {
         // As `setup` does; without it the test depends on another test building a client first.

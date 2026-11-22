@@ -46,12 +46,26 @@ pub struct CalendarEvent {
 pub struct CalendarSnapshot {
     pub observed: String,
     pub events: Vec<CalendarEvent>,
+    #[serde(default)]
+    pub calls: Vec<CallTask>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CallTask {
+    pub id: String,
+    pub title: String,
+    pub number: String,
+    pub due: String,
+    pub company: String,
+    pub source: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecordingContext {
     pub mode: RecordingMode,
     pub calendar_event: Option<CalendarEvent>,
+    #[serde(default)]
+    pub brief_key: Option<String>,
 }
 
 impl RecordingContext {
@@ -90,6 +104,7 @@ mod tests {
         let context = RecordingContext {
             mode: RecordingMode::InPerson,
             calendar_event: None,
+            brief_key: None,
         };
         context.save(dir.path()).unwrap();
         assert_eq!(

@@ -96,7 +96,8 @@ export const voiceService = {
     meetingName: string,
     recordingMode: RecordingMode,
     calendarEvent: CalendarEvent | null,
-    publishToCica: boolean
+    publishToCica: boolean,
+    briefKey?: string
   ) =>
     withTimeout(
       invoke<StartRecordingResult>("start_recording_with_devices_and_meeting", {
@@ -104,6 +105,7 @@ export const voiceService = {
         recordingMode,
         calendarEvent,
         publishToCica,
+        briefKey,
         micDeviceName,
         systemDeviceName,
       }),
@@ -159,6 +161,31 @@ export const voiceService = {
     invoke<void>("api_delete_meeting", { meetingId }),
   openMeetingFolder: (meetingId: string) =>
     invoke<void>("open_meeting_folder", { meetingId }),
+  openPrepSource: (link: string) => invoke<void>("open_prep_source", { link }),
+  callAttempts: (key: string) =>
+    invoke<
+      {
+        meeting_id: string;
+        title: string;
+        created_at: string;
+        outcomes: { kind: string }[];
+      }[]
+    >("call_attempts", { key }),
+  meetingBrief: (key: string) =>
+    invoke<{ notes: string; version: number }>("meeting_brief", { key }),
+  saveMeetingBrief: (key: string, notes: string, version: number) =>
+    invoke<{ notes: string; version: number }>("save_meeting_brief", {
+      key,
+      notes,
+      version,
+    }),
+  dialPhone: (number: string) => invoke<void>("dial_phone", { number }),
+  meetingReview: (meetingId: string) =>
+    invoke<{
+      brief_key?: string | null;
+      names: Record<string, string>;
+      outcomes: { kind: string; seconds: number; quote: string }[];
+    }>("meeting_review", { meetingId }),
   renameSpeaker: (meetingId: string, from: string, to: string) =>
     invoke<number>("rename_speaker", { from, meetingId, to }),
   startFinalTranscript: (meetingId: string, model?: string | null) =>

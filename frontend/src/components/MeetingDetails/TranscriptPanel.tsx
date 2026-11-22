@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { useConfig } from "@/contexts/ConfigContext";
 import type { FinalTranscriptView } from "@/hooks/meeting-details/useFinalTranscript";
+import { useMeetingReview } from "@/hooks/useMeetingReview";
 import { activeTranscriptId, speakersOf } from "@/lib/transcript-format";
 import {
   liveTranscriptLabel,
@@ -60,6 +61,7 @@ export function TranscriptPanel({
   onLoadMore,
 }: TranscriptPanelProps) {
   const { voiceSettings, voiceModels } = useConfig();
+  const { review } = useMeetingReview(meeting.id);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playhead, setPlayhead] = useState<number | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -140,6 +142,22 @@ export function TranscriptPanel({
           onOpenMeetingFolder={onOpenMeetingFolder}
           onStartFinalTranscript={onStartFinalTranscript}
         />
+        {review.outcomes.map((item, index) => (
+          <p
+            className="text-sm"
+            key={`${item.seconds}-${index}`}
+            title={item.quote}
+          >
+            {item.kind === "conversation"
+              ? "Spoke"
+              : item.kind === "voicemail_left"
+                ? "Left voicemail"
+                : item.kind === "no_answer"
+                  ? "No answer"
+                  : "Outcome uncertain"}{" "}
+            · {Math.floor(item.seconds / 60)}m {Math.floor(item.seconds % 60)}s
+          </p>
+        ))}
         <FinalTranscriptBanner
           view={finalTranscript}
           modelLabel={finalModelLabel}

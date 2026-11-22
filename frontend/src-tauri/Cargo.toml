@@ -1,6 +1,6 @@
 [package]
 name = "peacockery-meetily"
-version = "0.6.20"
+version = "0.6.22"
 description = "Peacockery Meetily: internal Windows call and meeting recorder on the Peacockery Voice API"
 authors = ["Peacockery Studio"]
 edition.workspace = true
@@ -39,7 +39,7 @@ ebur128 = "0.1"
 # Import validation: container probing for the duration (no decoding)
 symphonia = { version = "0.5.4", default-features = false, features = ["aac", "isomp4", "mp3", "flac", "ogg", "vorbis", "pcm", "wav", "mkv"] }
 
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "chrono", "migrate", "macros"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "chrono", "json", "migrate", "macros"] }
 
 tauri = { version = "2.6.2", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-dialog = "2.3.0"

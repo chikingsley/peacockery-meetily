@@ -4,6 +4,7 @@
 pub mod commands;
 pub mod llm;
 pub mod processor;
+pub mod review;
 pub mod service;
 pub mod template_commands;
 pub mod templates;

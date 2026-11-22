@@ -50,7 +50,7 @@ impl SummaryProcessesRepository {
         };
         let now = Utc::now();
         let update = sqlx::query(
-            "UPDATE summary_processes SET result = ?, updated_at = ? WHERE meeting_id = ?",
+            "UPDATE summary_processes SET result = ?, updated_at = ?, metadata=json_remove(metadata, '$.publication_id') WHERE meeting_id = ?",
         )
         .bind(&result_json)
         .bind(now)

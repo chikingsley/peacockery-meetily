@@ -1,11 +1,16 @@
 import { motion } from "framer-motion";
-import { memo } from "react";
+import { memo, useState } from "react";
 
+import { MeetingBrief } from "@/components/MeetingBrief";
+import { SpeakerRenameDialog } from "@/components/MeetingDetails/SpeakerRenameDialog";
 import { SpeakerChip } from "@/components/SpeakerChip";
+import { useMeetingReview } from "@/hooks/useMeetingReview";
 import { formatRecordingTime } from "@/lib/transcript-format";
+import { voiceService } from "@/services/voiceService";
 import type { LiveLine, TranscriptInterim } from "@/types/voice";
 
 interface LiveTranscriptViewProps {
+  meetingId: string | null;
   lines: LiveLine[];
   interims: TranscriptInterim[];
   isRecording: boolean;
@@ -14,31 +19,46 @@ interface LiveTranscriptViewProps {
   liveEnabled: boolean;
 }
 
-const Line = memo(({ line }: { line: LiveLine }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 4 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.15 }}
-    className="mb-3 flex items-start gap-2"
-  >
-    <span className="mt-1 min-w-[50px] flex-shrink-0 text-xs text-muted-foreground tabular-nums">
-      {formatRecordingTime(line.audio_start_time)}
-    </span>
-    <div className="flex-1">
-      {line.speaker && (
-        <span className="mr-2">
-          <SpeakerChip speaker={line.speaker} />
-        </span>
-      )}
-      <span className="text-base leading-relaxed text-foreground">
-        {line.text}
+const Line = memo(
+  ({
+    line,
+    speaker,
+    rename,
+  }: {
+    line: LiveLine;
+    speaker: string | null;
+    rename: (name: string) => void;
+  }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.15 }}
+      className="mb-3 flex items-start gap-2"
+    >
+      <span className="mt-1 min-w-[50px] flex-shrink-0 text-xs text-muted-foreground tabular-nums">
+        {formatRecordingTime(line.audio_start_time)}
       </span>
-    </div>
-  </motion.div>
-));
+      <div className="flex-1">
+        {speaker && (
+          <span className="mr-2">
+            <SpeakerChip
+              speaker={speaker}
+              onClick={() => rename(speaker)}
+              title="Rename this speaker"
+            />
+          </span>
+        )}
+        <span className="text-base leading-relaxed text-foreground">
+          {line.text}
+        </span>
+      </div>
+    </motion.div>
+  )
+);
 
 /** Finalized live lines plus one italic preview line per channel. The parent scrolls. */
 export function LiveTranscriptView({
+  meetingId,
   lines,
   interims,
   isRecording,
@@ -46,10 +66,29 @@ export function LiveTranscriptView({
   isStopping,
   liveEnabled,
 }: LiveTranscriptViewProps) {
+  const { review, refresh } = useMeetingReview(meetingId);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const empty = lines.length === 0 && interims.length === 0;
 
   return (
     <div className="px-4 py-2">
+      {review.brief_key && (
+        <details className="my-3 rounded-md border p-3">
+          <summary className="cursor-pointer text-sm">Meeting prep</summary>
+          <MeetingBrief key={review.brief_key} itemKey={review.brief_key} />
+        </details>
+      )}
+      <SpeakerRenameDialog
+        speaker={renaming}
+        suggestions={Object.values(review.names)}
+        onClose={() => setRenaming(null)}
+        onRename={async (from, to) => {
+          if (meetingId) {
+            await voiceService.renameSpeaker(meetingId, from, to);
+            await refresh();
+          }
+        }}
+      />
       {empty ? (
         <div className="mt-8 text-center text-muted-foreground">
           {isRecording ? (
@@ -86,7 +125,16 @@ export function LiveTranscriptView({
       ) : (
         <div className="pt-2">
           {lines.map((line) => (
-            <Line key={`${line.meeting_id}-${line.sequence_id}`} line={line} />
+            <Line
+              key={`${line.meeting_id}-${line.sequence_id}`}
+              line={line}
+              speaker={
+                line.speaker
+                  ? (review.names[line.speaker] ?? line.speaker)
+                  : null
+              }
+              rename={setRenaming}
+            />
           ))}
           {interims.map((interim) => (
             <div
@@ -99,7 +147,9 @@ export function LiveTranscriptView({
               <div className="flex-1">
                 {interim.speaker && (
                   <span className="mr-2">
-                    <SpeakerChip speaker={interim.speaker} />
+                    <SpeakerChip
+                      speaker={review.names[interim.speaker] ?? interim.speaker}
+                    />
                   </span>
                 )}
                 <span className="text-base leading-relaxed">

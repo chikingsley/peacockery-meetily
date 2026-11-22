@@ -230,6 +230,7 @@ pub async fn stop_audio_level_monitoring() -> Result<(), String> {
 /// Start recording a new meeting: creates the meeting row (status `recording`) and its
 /// folder, then starts capture. A `None` device means the system default.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn start_recording_with_devices_and_meeting(
     app: AppHandle,
     mic_device_name: Option<String>,
@@ -238,6 +239,7 @@ pub async fn start_recording_with_devices_and_meeting(
     recording_mode: RecordingMode,
     calendar_event: Option<CalendarEvent>,
     publish_to_cica: bool,
+    brief_key: Option<String>,
 ) -> Result<RecordingStarted, String> {
     let _lifecycle = LIFECYCLE_LOCK.lock().await;
     if IS_RECORDING.load(Ordering::SeqCst) {
@@ -251,6 +253,7 @@ pub async fn start_recording_with_devices_and_meeting(
         recording_mode,
         calendar_event,
         publish_to_cica,
+        brief_key,
     )
     .await;
     // Every outcome, failures included, puts the tray back in step with the real state.
@@ -258,6 +261,7 @@ pub async fn start_recording_with_devices_and_meeting(
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn start_recording(
     app: &AppHandle,
     mic_device_name: Option<String>,
@@ -266,6 +270,7 @@ async fn start_recording(
     mode: RecordingMode,
     calendar_event: Option<CalendarEvent>,
     publish_to_cica: bool,
+    brief_key: Option<String>,
 ) -> Result<RecordingStarted, String> {
     info!(
         "Starting recording: mic={:?}, system={:?}, meeting={:?}, mode={:?}",
@@ -297,6 +302,7 @@ async fn start_recording(
     let meeting_id = format!("meeting-{}", uuid::Uuid::new_v4());
 
     let context = RecordingContext {
+        brief_key: brief_key.or_else(|| calendar_event.as_ref().map(|e| format!("event:{}", e.id))),
         mode,
         calendar_event,
     };

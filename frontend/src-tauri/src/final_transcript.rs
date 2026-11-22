@@ -575,7 +575,10 @@ async fn execute(reporter: &Reporter) {
             reporter
                 .report(final_state::DONE, None, Some(outcome.segments_count), true)
                 .await;
-            if settings.auto_summary && outcome.segments_count > 0 && !reporter.token.is_cancelled()
+            if settings.auto_summary
+                && outcome.segments_count > 0
+                && !reporter.token.is_cancelled()
+                && crate::publication::needs_local_notes(&reporter.pool, &reporter.meeting_id).await
             {
                 if let Err(e) = crate::summary::commands::start_summary(
                     app,
@@ -657,7 +660,7 @@ async fn start_if_auto(app: &AppHandle, meeting_id: &str) {
         meeting.live_model,
         meeting.live_complete
     );
-    if settings.auto_summary {
+    if settings.auto_summary && crate::publication::needs_local_notes(&pool, meeting_id).await {
         match TranscriptsRepository::all(&pool, meeting_id, transcript_source::LIVE).await {
             Ok(rows) if !rows.is_empty() => {
                 if let Err(error) = crate::summary::commands::start_summary(

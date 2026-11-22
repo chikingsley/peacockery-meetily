@@ -171,6 +171,9 @@ pub async fn api_get_summary(
     log_info!("api_get_summary called for meeting_id: {}", meeting_id);
     let pool = state.db_manager.pool();
 
+    if let Err(error) = crate::publication::import_published_notes(pool, &meeting_id).await {
+        log_warn!("Published notes readback for {meeting_id}: {error}");
+    }
     match SummaryProcessesRepository::get_summary_data(pool, &meeting_id).await {
         Ok(Some(process)) => {
             let mut status = process.status.unwrap_or_default().to_lowercase();

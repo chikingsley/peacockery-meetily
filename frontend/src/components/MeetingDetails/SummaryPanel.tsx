@@ -142,7 +142,7 @@ export function SummaryPanel({
           )}
         </div>
       ) : (
-        <EmptyStateSummary error={summaryError} />
+        <EmptyStateSummary error={summaryError} hasSpeech={hasTranscripts} />
       )}
     </div>
   );

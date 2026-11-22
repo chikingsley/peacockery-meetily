@@ -203,6 +203,24 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
     };
   }, [meetingId, fetchSummary]);
 
+  useEffect(() => {
+    if (!meetingId || summaryResponse?.status !== "idle") {
+      return;
+    }
+
+    let cancelled = false;
+
+    const timer = setInterval(
+      () => void fetchSummary(meetingId, () => cancelled),
+      8000
+    );
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [meetingId, summaryResponse?.status, fetchSummary]);
+
   const autoSummaryRef = useRef(false);
   autoSummaryRef.current = !!voiceSettings?.auto_summary;
   const visibleMeetingRef = useRef(meetingId);

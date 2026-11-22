@@ -2,6 +2,7 @@
 
 pub mod api;
 pub mod audio;
+mod briefs;
 pub mod database;
 pub mod final_transcript;
 pub mod live;
@@ -58,6 +59,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(VoiceService::load(app.handle()));
     audio::recording_preferences::allow_recordings_folder(app.handle());
     publication::start(app.handle());
+    summary::review::start(app.handle());
 
     let handle = app.handle().clone();
     tauri::async_runtime::spawn(async move {
@@ -123,6 +125,12 @@ pub fn run() {
             api::api_delete_meeting,
             api::open_meeting_folder,
             api::rename_speaker,
+            summary::review::meeting_review,
+            briefs::meeting_brief,
+            briefs::save_meeting_brief,
+            briefs::dial_phone,
+            briefs::call_attempts,
+            briefs::open_prep_source,
             recording_context::get_recording_calendar,
             outlook_calendar::outlook_status,
             outlook_calendar::outlook_connect,

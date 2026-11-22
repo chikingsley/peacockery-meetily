@@ -104,7 +104,14 @@ export function PublicationSettings() {
 }
 
 interface PublicationStatus {
-  state: "queued" | "uploading" | "processing" | "published" | "failed";
+  state:
+    | "queued"
+    | "uploading"
+    | "processing"
+    | "published"
+    | "linked"
+    | "partial"
+    | "failed";
   bytes_sent: number;
   total_bytes: number;
   error: string | null;
@@ -181,15 +188,19 @@ export function PublicationProgress({ meetingId }: { meetingId: string }) {
   };
 
   const label =
-    status?.state === "published"
-      ? "Published to CICA meetings"
-      : status?.state === "processing"
-        ? "Uploaded · Website is preparing notes and transcript"
-        : status?.state === "uploading"
-          ? `Uploading to CICA · ${Math.round((status.bytes_sent / Math.max(status.total_bytes, 1)) * 100)}%`
-          : status?.state === "failed"
-            ? "CICA upload needs attention"
-            : "Queued for CICA meetings";
+    status?.state === "partial"
+      ? "Partial transcript filed in CICA meetings · Audio unavailable"
+      : status?.state === "linked"
+        ? "Filed in CICA meetings"
+        : status?.state === "published"
+          ? "Published to CICA meetings"
+          : status?.state === "processing"
+            ? "Uploaded · Website is preparing notes and transcript"
+            : status?.state === "uploading"
+              ? `Uploading to CICA · ${Math.round((status.bytes_sent / Math.max(status.total_bytes, 1)) * 100)}%`
+              : status?.state === "failed"
+                ? "CICA upload needs attention"
+                : "Queued for CICA meetings";
 
   return (
     <div
@@ -202,11 +213,13 @@ export function PublicationProgress({ meetingId }: { meetingId: string }) {
           <p className="text-muted-foreground">{error || status?.error}</p>
         )}
       </div>
-      {status?.state === "published" && status.url && (
-        <Button size="sm" variant="outline" onClick={() => void open()}>
-          Open on website
-        </Button>
-      )}
+      {status &&
+        ["published", "partial", "linked"].includes(status.state) &&
+        status.url && (
+          <Button size="sm" variant="outline" onClick={() => void open()}>
+            Open on website
+          </Button>
+        )}
       {status?.state === "processing" && (
         <Button size="sm" variant="outline" onClick={() => void open()}>
           View processing queue

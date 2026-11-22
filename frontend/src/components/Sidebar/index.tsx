@@ -9,6 +9,7 @@ import {
   Loader2,
   MoreHorizontal,
   Pencil,
+  Phone,
   Plus,
   Search,
   Settings2,
@@ -240,6 +241,18 @@ export default function AppSidebar() {
                 <Link href="/">
                   {active ? <AudioLines /> : <Plus />}
                   <span>{active ? "Return to recording" : "New meeting"}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                tooltip="Calls and meeting prep"
+                isActive={pathname === "/calls"}
+              >
+                <Link href="/calls">
+                  <Phone />
+                  <span>Calls and meeting prep</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

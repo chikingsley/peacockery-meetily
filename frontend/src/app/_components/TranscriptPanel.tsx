@@ -26,7 +26,7 @@ export function TranscriptPanel() {
     copyTranscript,
   } = useTranscripts();
 
-  const { isRecording, isPaused, isStopping } = useRecordingState();
+  const { meetingId, isRecording, isPaused, isStopping } = useRecordingState();
   const { voiceSettings } = useConfig();
 
   const { check, isChecking, hasMicrophone, hasSystemAudio } =
@@ -95,6 +95,7 @@ export function TranscriptPanel() {
         <div className="flex justify-center">
           <div className="w-2/3 max-w-[750px]">
             <LiveTranscriptView
+              meetingId={meetingId}
               lines={lines}
               interims={interimLines}
               isRecording={isRecording}

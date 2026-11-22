@@ -611,6 +611,7 @@ pub async fn snapshot(app: &tauri::AppHandle) -> Result<Option<CalendarSnapshot>
             None => {
                 events.sort_by(|a, b| a.start.cmp(&b.start));
                 return Ok(Some(CalendarSnapshot {
+                    calls: Vec::new(),
                     observed: chrono::Utc::now().to_rfc3339(),
                     events,
                 }));

@@ -140,7 +140,12 @@ export function SummaryGeneratorButtonGroup({
                 title={template.description}
                 className="flex items-center justify-between"
               >
-                <span>{template.name}</span>
+                <span>
+                  <span className="block">{template.name}</span>
+                  <span className="block max-w-64 text-xs text-muted-foreground">
+                    {template.description}
+                  </span>
+                </span>
                 {selectedTemplate === template.id && (
                   <Check className="h-4 w-4 text-success" />
                 )}

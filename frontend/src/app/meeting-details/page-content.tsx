@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
+import { MeetingBrief } from "@/components/MeetingBrief";
 import { MeetingDetailsSplitView } from "@/components/MeetingDetails/MeetingDetailsSplitView";
 import type { MeetingDetailsTab } from "@/components/MeetingDetails/MeetingDetailsSplitView";
 import { SummaryPanel } from "@/components/MeetingDetails/SummaryPanel";
@@ -115,6 +116,15 @@ export default function PageContent({
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="flex h-full min-w-0 flex-col bg-muted/40"
     >
+      {meeting.recording_context?.brief_key && (
+        <details className="border-b px-4 py-2">
+          <summary className="cursor-pointer text-sm">Meeting prep</summary>
+          <MeetingBrief
+            key={meeting.recording_context.brief_key}
+            itemKey={meeting.recording_context.brief_key}
+          />
+        </details>
+      )}
       <PublicationProgress key={meeting.id} meetingId={meeting.id} />
       <div className="flex min-w-0 flex-1 overflow-hidden">
         <MeetingDetailsSplitView
@@ -155,7 +165,12 @@ export default function PageContent({
               onCopySummary={copyOperations.handleCopySummary}
               aiSummary={meetingData.aiSummary}
               summaryStatus={summaryGeneration.summaryStatus}
-              hasTranscripts={totalCount > 0}
+              hasTranscripts={
+                totalCount > transcripts.length ||
+                transcripts.some(
+                  (t) => t.text.replaceAll(/\[[^\]]*\]/g, "").trim().length > 0
+                )
+              }
               summaryModel={effectiveSummaryModel}
               summaryModels={voiceModels?.summary ?? []}
               onSummaryModelChange={setSummaryModel}

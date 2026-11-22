@@ -76,3 +76,11 @@ The UI uses Next.js 16, React 19, Tailwind 4 and shadcn components. General sett
 ## Sharing and updating
 
 See [Distribution and updates](DISTRIBUTION.md) for the download link, per-person activation, signed release workflow and calendar prerequisites.
+
+### Meeting prep and call review
+
+On the managed CICA installation, **Calls and meeting prep** shows the signed-in calendar's upcoming week and Chi’s assigned CRM call tasks. Select an item to edit its private prep. Start call starts Phone recording and hands the number to the Windows dialer. The same prep follows the recording. Each automatic speaker name carries a source-specific introduction. Manual labels take precedence. The recording detail lists call outcomes and their timestamps.
+
+On GMK, run `node scripts/sync-cica-agenda.mjs --list` to see the available item keys and source links. Read an item with `--read-prep KEY`. Pipe the prepared text to `--save-prep KEY VERSION`, using the returned version to protect concurrent edits. All three commands target the same prep store as the desktop editor. Include the supplier role, exact part numbers, drawing revision and detail, RFP paragraph, source links, and outstanding questionnaire items when those records support them. The selected calendar and Windows destination are bound in the managed agenda command. Other installations use their own local prep store.
+
+The CICA agenda service also stages named transcripts from explicitly published recordings in the portal’s existing meeting folders. Desktop publication checks import the website's minutes and action items. Editing a local summary gives that copy precedence.

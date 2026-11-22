@@ -161,6 +161,7 @@ export interface MeetingMetadata {
   recording_context?: {
     mode: RecordingMode;
     calendar_event: CalendarEvent | null;
+    brief_key?: string | null;
   } | null;
 }
 
@@ -377,7 +378,17 @@ export interface CalendarEvent {
   invitees: CalendarPerson[];
 }
 
+export interface CallTask {
+  id: string;
+  title: string;
+  number: string;
+  due: string;
+  company: string;
+  source: string;
+}
+
 export interface CalendarSnapshot {
+  calls?: CallTask[];
   observed: string;
   events: CalendarEvent[];
 }
