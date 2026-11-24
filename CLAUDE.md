@@ -43,3 +43,5 @@ scripts/install-cica.sh
   `%LOCALAPPDATA%\studio.peacockery.meetily\logs\peacockery-meetily.log`.
 - An ssh session on CICA is not the desktop session: Credential Manager and audio devices only
   work from a process started in the logged-on session.
+
+For CICA call queue maintenance on GMK, use the shared supplier-task procedure in `/home/simon/github/cica/workflows/trello.md`. It covers Trello wording, alternate contacts, dated callbacks, attempt evidence and readback.
