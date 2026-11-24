@@ -13,7 +13,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { useRecordingStart } from "@/hooks/useRecordingStart";
-import { suggestedMode } from "@/lib/recording-context";
+import {
+  callSchedule,
+  orderedCalls,
+  suggestedMode,
+} from "@/lib/recording-context";
 import { errorMessage, voiceService } from "@/services/voiceService";
 
 export default function Calls() {
@@ -27,10 +31,10 @@ export default function Calls() {
     toast.error("Activate recording in Settings.")
   );
 
-  const calls = (snapshot?.calls ?? []).map((c) => ({
+  const calls = orderedCalls(snapshot?.calls ?? [], now).map((c) => ({
     key: `task:${c.id}`,
     title: c.title,
-    detail: [c.company, c.number].filter(Boolean).join(" · "),
+    detail: [callSchedule(c), c.company, c.number].filter(Boolean).join(" · "),
     number: c.number,
     event: null,
   }));

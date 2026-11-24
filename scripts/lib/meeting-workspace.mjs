@@ -33,25 +33,40 @@ export async function assignedCalls(memberName) {
   if (members.length !== 1)
     throw Error("Expected a unique assigned workspace member");
   const tasks = await records("tasks");
+  const board = spawnSync(
+    join(homedir(), ".local/bin/trello"),
+    ["api", "GET", "/boards/RIThNnjq/cards", "-q", "fields=labels", "-q", "checklists=all", "-q", "checkItem_fields=name,state,due"],
+    { encoding: "utf8", timeout: 30000, maxBuffer: 16 * 1024 * 1024 }
+  );
+  if (board.status !== 0) throw Error("Trello call list unavailable");
+  const items = new Map();
+  for (const card of JSON.parse(board.stdout)) {
+    const highPriority = card.labels.some((label) => label.name === "P1");
+    for (const list of card.checklists) {
+      for (const item of list.checkItems) items.set(item.id, { ...item, highPriority });
+    }
+  }
   return tasks
     .filter(
       (t) =>
         t.assigneeId === members[0].id &&
         t.taskType === "CALL" &&
         t.status !== "DONE" &&
-        !t.deletedAt
+        !t.deletedAt &&
+        (!t.trelloItemId || items.get(t.trelloItemId)?.state === "incomplete")
     )
-    .sort((a, b) => (a.dueAt ?? "").localeCompare(b.dueAt ?? ""))
     .map((t) => {
+      const item = items.get(t.trelloItemId);
       const phone = t.phone ?? {};
       const digits = (phone.primaryPhoneNumber ?? "").replace(/\D/g, "");
       return {
         id: t.id,
-        title: t.title,
+        title: item?.name ?? t.title,
         company: t.trelloCard?.primaryLinkLabel ?? "",
         source: t.trelloCard?.primaryLinkUrl ?? "",
         number: digits ? (phone.primaryPhoneCallingCode ?? "") + digits : "",
-        due: t.dueAt ?? "",
+        due: (item ? item.due : t.dueAt) ?? "",
+        highPriority: item?.highPriority ?? false,
       };
     });
 }

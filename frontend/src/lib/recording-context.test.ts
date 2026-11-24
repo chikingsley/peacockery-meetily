@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 
 import type { CalendarEvent } from "@/types/voice";
 
-import { eventsToday, suggestedMode } from "./recording-context";
+import {
+  callSchedule,
+  orderedCalls,
+  eventsToday,
+  suggestedMode,
+} from "./recording-context";
 
 const event: CalendarEvent = {
   id: "x",
@@ -33,4 +38,21 @@ describe("calendar recording context", () => {
       0
     );
   });
+});
+
+test("call priorities respect the Phoenix day and keep undated calls last", () => {
+  const base = { id: "", title: "", number: "", company: "", source: "" };
+
+  const calls = [
+    { ...base, title: "undated", due: "", highPriority: true },
+    { ...base, title: "future", due: "2026-11-25T16:00Z", highPriority: true },
+    { ...base, title: "normal", due: "2026-11-24T14:00Z" },
+    { ...base, title: "urgent", due: "2026-11-24T14:30Z", highPriority: true },
+  ];
+
+  expect(
+    orderedCalls(calls, Date.parse("2026-11-25T01:00Z")).map((c) => c.title)
+  ).toEqual(["urgent", "normal", "future", "undated"]);
+  expect(callSchedule(calls[3])).toContain("7:30 AM");
+  expect(callSchedule(calls[0])).toContain("Date needed");
 });

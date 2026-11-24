@@ -56,6 +56,8 @@ pub struct CallTask {
     pub title: String,
     pub number: String,
     pub due: String,
+    #[serde(default, rename = "highPriority")]
+    pub high_priority: bool,
     pub company: String,
     pub source: String,
 }

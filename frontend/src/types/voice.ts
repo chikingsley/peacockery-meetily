@@ -380,6 +380,7 @@ export interface CalendarEvent {
 }
 
 export interface CallTask {
+  highPriority?: boolean;
   id: string;
   title: string;
   number: string;

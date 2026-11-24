@@ -1,1 +1,1 @@
-Start call opens the task number in Google Voice in Chrome after recording starts. Meetily keeps the call linked to its prep.
+Call Tasks shows the scheduled Phoenix date and time and Trello priority. Due calls appear first, with high-priority calls at the top. Completed Trello checklist items drop from the queue.
