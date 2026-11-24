@@ -302,8 +302,8 @@ async fn start_recording(
     let folder = super::audio_processing::create_meeting_folder(&base_folder, &title)
         .map_err(|e| format!("Failed to create meeting folder: {}", e))?;
     let folder_path = folder.to_string_lossy().to_string();
-    let meeting_id = format!("meeting-{}", uuid::Uuid::new_v4());
 
+    let meeting_id = format!("meeting-{}", uuid::Uuid::new_v4());
     let context = RecordingContext {
         brief_key: brief_key.or_else(|| calendar_event.as_ref().map(|e| format!("event:{}", e.id))),
         mode,
@@ -438,11 +438,9 @@ fn remove_folder(folder: &Path) {
     }
 }
 
-/// Stop the recording: emit `recording-stopping`, stop capture, finish the live sessions and
-/// close the audio journal, mark the meeting `stopped`, start its automatic work, emit
-/// `recording-stopped`, then encode `audio.mp4` in the background (`recording-audio` reports
-/// the result). The recording is over even when the journal could not be closed: that case
-/// resolves and is reported once, through `recording-error`.
+/// Close local capture and persist the stop before releasing the recorder. The registered
+/// save covers live-session shutdown, automatic work registration and encoding, including
+/// when quit or an update follows Stop immediately.
 #[tauri::command]
 pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> {
     let _lifecycle = LIFECYCLE_LOCK.lock().await;
@@ -457,8 +455,7 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
     );
     crate::tray::set_tray_state(&app, crate::tray::RecordingState::Stopping);
 
-    // Live sessions finished and the audio journal closed (both inside stop_and_save); the
-    // encode runs after the stop returns.
+    // Only capture and the local journal need to finish in the recorder lifecycle lock.
     let stopped = manager.stop_and_save().await;
     let target = manager.target().clone();
     drop(manager);
@@ -472,25 +469,10 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
     }
     IS_RECORDING.store(false, Ordering::SeqCst);
 
-    let pool = app.state::<AppState>().db_manager.pool().clone();
     if let Some(live) = &stopped.live {
-        let ids = serde_json::to_string(&live.session_ids).unwrap_or_else(|_| "[]".to_string());
-        if let Err(e) = MeetingsRepository::set_live_info(
-            &pool,
-            &target.meeting_id,
-            &live.model,
-            live.mode,
-            &ids,
-            live.complete,
-        )
-        .await
-        {
-            error!(
-                "Failed to store live session info for {}: {}",
-                target.meeting_id, e
-            );
-        }
+        live.detach_display();
     }
+    let pool = app.state::<AppState>().db_manager.pool().clone();
     if let Err(e) =
         MeetingsRepository::mark_stopped(&pool, &target.meeting_id, stopped.duration_seconds).await
     {
@@ -500,11 +482,6 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
         );
     }
 
-    // Register automatic work before the UI opens the completed meeting; the final
-    // transcript waits for the encode itself.
-    if saving {
-        crate::final_transcript::on_recording_stopped(&app, &target.meeting_id).await;
-    }
     let folder_path = target.folder.to_string_lossy().to_string();
     drop(stopping);
     let _ = app.emit(
@@ -532,20 +509,37 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
         error!("{}", message);
         let _ = app.emit("recording-error", serde_json::json!({ "message": message }));
     }
-    if saving {
-        info!(
-            "Recording {} stopped; encoding {} in the background",
-            target.meeting_id,
-            target.folder.display()
-        );
-        let encoded_app = app.clone();
-        let meeting_id = target.meeting_id.clone();
-        super::audio_save::queue(&target.meeting_id, target.folder.clone(), move |result| {
-            super::audio_save::report(&encoded_app, &meeting_id, result);
-        });
-    }
+    let meeting_id = target.meeting_id.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Some(live) = stopped.live {
+            let live = live.finish().await;
+            let ids = serde_json::to_string(&live.session_ids).unwrap_or_else(|_| "[]".to_string());
+            if let Err(e) = MeetingsRepository::set_live_info(
+                &pool,
+                &target.meeting_id,
+                &live.model,
+                live.mode,
+                &ids,
+                live.complete,
+            )
+            .await
+            {
+                error!(
+                    "Failed to store live session info for {}: {}",
+                    target.meeting_id, e
+                );
+            }
+        }
+        if saving {
+            crate::final_transcript::on_recording_stopped(&app, &target.meeting_id).await;
+            let id = target.meeting_id.clone();
+            super::audio_save::queue(&target.meeting_id, target.folder, move |result| {
+                super::audio_save::report(&app, &id, result);
+            });
+        }
+    });
     Ok(RecordingStopped {
-        meeting_id: target.meeting_id,
+        meeting_id,
         folder_path,
     })
 }

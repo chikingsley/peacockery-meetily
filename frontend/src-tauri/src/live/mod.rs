@@ -187,7 +187,7 @@ pub struct LiveSummary {
 pub(crate) struct Shared {
     config: LiveConfig,
     client: VoiceClient,
-    sink: Arc<dyn LiveSink>,
+    sink: Mutex<Option<Arc<dyn LiveSink>>>,
     store: LiveLineStore,
     sequence: AtomicU64,
     session_ids: Mutex<Vec<String>>,
@@ -198,6 +198,17 @@ pub(crate) struct Shared {
 }
 
 impl Shared {
+    fn display(&self, emit: impl FnOnce(&dyn LiveSink)) {
+        if let Some(sink) = self
+            .sink
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .as_deref()
+        {
+            emit(sink);
+        }
+    }
+
     fn mark_incomplete(&self, channel: Option<Channel>, reason: &str) {
         warn!("Live transcript incomplete ({:?}): {}", channel, reason);
         self.incomplete.store(true, Ordering::SeqCst);
@@ -214,12 +225,14 @@ impl Shared {
             Some(message) => info!("Live {:?} session: {:?} ({})", channel, state, message),
             None => info!("Live {:?} session: {:?}", channel, state),
         }
-        self.sink.status(&LiveStatus {
-            meeting_id: self.config.meeting_id.clone(),
-            channel,
-            model: model.to_string(),
-            state,
-            message,
+        self.display(|sink| {
+            sink.status(&LiveStatus {
+                meeting_id: self.config.meeting_id.clone(),
+                channel,
+                model: model.to_string(),
+                state,
+                message,
+            })
         });
     }
 
@@ -237,14 +250,16 @@ impl Shared {
                     channel,
                     speaker,
                     text,
-                } => self.sink.interim(&LiveInterim {
-                    meeting_id: self.config.meeting_id.clone(),
-                    channel,
-                    speaker,
-                    text: crate::voice::corrections::correct_text(
-                        &text,
-                        &self.config.transcript_corrections,
-                    ),
+                } => self.display(|sink| {
+                    sink.interim(&LiveInterim {
+                        meeting_id: self.config.meeting_id.clone(),
+                        channel,
+                        speaker,
+                        text: crate::voice::corrections::correct_text(
+                            &text,
+                            &self.config.transcript_corrections,
+                        ),
+                    })
                 }),
                 LineUpdate::Final {
                     channel,
@@ -304,7 +319,7 @@ impl Shared {
             });
         }
         self.store.push(line.clone());
-        self.sink.line(&line);
+        self.display(|sink| sink.line(&line));
     }
 }
 
@@ -363,7 +378,7 @@ impl LiveManager {
         let shared = Arc::new(Shared {
             config,
             client,
-            sink,
+            sink: Mutex::new(Some(sink)),
             store,
             sequence: AtomicU64::new(0),
             session_ids: Mutex::new(Vec::new()),
@@ -386,6 +401,15 @@ impl LiveManager {
             },
             taps,
         )
+    }
+
+    /// Retire this recording's live UI while its remaining rows continue to storage.
+    pub fn detach_display(&self) {
+        self.shared
+            .sink
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .take();
     }
 
     /// Wait for every session to finish (the taps must be closed first), at most
@@ -416,11 +440,14 @@ impl LiveManager {
             .unwrap_or_else(|p| p.into_inner())
             .take();
         if let Some(writer) = self.writer.take() {
-            if tokio::time::timeout(Duration::from_secs(10), writer)
-                .await
-                .is_err()
-            {
-                warn!("Live transcript rows were still being written after 10 s");
+            if !matches!(
+                tokio::time::timeout(Duration::from_secs(10), writer).await,
+                Ok(Ok(()))
+            ) {
+                self.shared.mark_incomplete(
+                    None,
+                    "live transcript writer did not finish cleanly within 10 s",
+                );
             }
         }
         let session_ids = self
@@ -459,6 +486,67 @@ pub fn report_unavailable(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn late_provider_line_stays_with_stopped_meeting_after_display_detaches() {
+        use crate::database::manager::DatabaseManager;
+        use crate::database::repositories::meeting::{MeetingsRepository, NewMeeting};
+        use peacockery_voice::ClientConfig;
+
+        struct Display(AtomicU64);
+        impl LiveSink for Display {
+            fn line(&self, _: &LiveLine) {
+                self.0.fetch_add(1, Ordering::SeqCst);
+            }
+            fn interim(&self, _: &LiveInterim) {}
+            fn status(&self, _: &LiveStatus) {}
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let db = DatabaseManager::open(&dir.path().join("meetings.sqlite"))
+            .await
+            .unwrap();
+        for id in ["first", "next"] {
+            MeetingsRepository::create(
+                db.pool(),
+                &NewMeeting {
+                    id,
+                    title: id,
+                    folder_path: id,
+                    status: "recording",
+                },
+            )
+            .await
+            .unwrap();
+        }
+        let display = Arc::new(Display(AtomicU64::new(0)));
+        let config = LiveConfig::from_settings("first", &VoiceSettings::default(), LiveMode::Mixed);
+        let client = VoiceClient::new(ClientConfig::new("http://localhost", "test")).unwrap();
+        let (live, _) = LiveManager::start(
+            config,
+            client,
+            display.clone(),
+            LiveLineStore::default(),
+            Some(db.pool().clone()),
+            &[],
+        );
+        live.shared
+            .final_line(Channel::Mic, None, "before stop".into(), 0., 1.);
+        live.detach_display();
+        live.shared
+            .final_line(Channel::Mic, None, "last words".into(), 1., 2.);
+        assert!(live.finish().await.complete);
+        assert_eq!(display.0.load(Ordering::SeqCst), 1);
+        let rows = TranscriptsRepository::all(db.pool(), "first", "live")
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().any(|r| r.transcript == "last words"));
+        assert!(TranscriptsRepository::all(db.pool(), "next", "live")
+            .await
+            .unwrap()
+            .is_empty());
+    }
 
     #[test]
     fn channels_follow_mode_and_sources() {

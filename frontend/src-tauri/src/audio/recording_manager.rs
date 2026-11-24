@@ -14,9 +14,7 @@ use super::pipeline::{AudioPipelineManager, PipelineOutputs, PipelineStats};
 use super::recording_saver::{MeetingTarget, RecordingSaver};
 use super::recording_state::{AudioChunk, RecordingState};
 use super::stream::{AudioStream, AudioStreamManager, SystemSource};
-use crate::live::{
-    channels_for, report_unavailable, LiveConfig, LiveManager, LiveSink, LiveSummary,
-};
+use crate::live::{channels_for, report_unavailable, LiveConfig, LiveManager, LiveSink};
 
 /// Live transcription for a recording; `client` is `Err(message)` when it cannot run
 /// (no API key …), which is reported on every session's status.
@@ -28,13 +26,12 @@ pub struct LiveSetup {
 }
 
 /// Result of a finished recording.
-#[derive(Debug)]
 pub struct StoppedRecording {
     /// The audio journal is complete and closed; `audio_save` encodes it afterwards.
     pub journal: Result<()>,
     /// Active (pause-excluded) duration in seconds.
     pub duration_seconds: Option<f64>,
-    pub live: Option<LiveSummary>,
+    pub live: Option<LiveManager>,
     /// What each capture stream delivered (`None` when the pipeline task failed).
     pub stats: Option<PipelineStats>,
 }
@@ -161,12 +158,7 @@ impl RecordingManager {
             }
         }
         let live = self.live.take();
-        let (journal, live) = tokio::join!(self.recording_saver.close_journal(), async move {
-            match live {
-                Some(live) => Some(live.finish().await),
-                None => None,
-            }
-        });
+        let journal = self.recording_saver.close_journal().await;
         self.state.cleanup();
         StoppedRecording {
             journal,

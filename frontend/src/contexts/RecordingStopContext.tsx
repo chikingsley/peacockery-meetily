@@ -23,8 +23,7 @@ import {
 /**
  * The one owner of "recording stopped": the Stop button calls `stopRecording()`, and stops from
  * the tray or a shortcut arrive as `recording-stopped`. Either way the stopped meeting opens
- * once in /meeting-details, where its final transcript status shows (Rust queues the final
- * transcript before `recording-stopped` when `auto_final` calls for one).
+ * once in /meeting-details, where its final transcript status shows as background processing progresses.
  */
 
 interface RecordingStopContextType {
@@ -63,7 +62,9 @@ export function RecordingStopProvider({ children }: { children: ReactNode }) {
       }
 
       openedMeetingIdRef.current = meetingId;
-      await refetchMeetings();
+      void refetchMeetings().catch((error) =>
+        console.error("Meeting list refresh failed", error)
+      );
 
       if (title) {
         setCurrentMeeting({ id: meetingId, title });
@@ -96,7 +97,7 @@ export function RecordingStopProvider({ children }: { children: ReactNode }) {
     setStatus(RecordingStatus.STOPPING, STOPPING_MESSAGE);
 
     try {
-      // Resolves once the live transcript is drained and the audio journal is closed; the audio
+      // Resolves once capture ends and the audio journal is closed; the audio
       // file is encoded afterwards (`recording-audio`). A failed save still resolves and is
       // reported once through `recording-error`.
       const result = await voiceService.stopRecording();

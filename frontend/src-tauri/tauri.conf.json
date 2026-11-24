@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Peacockery Meetily",
-  "version": "0.6.28",
+  "version": "0.6.29",
   "identifier": "studio.peacockery.meetily",
   "build": {
     "frontendDist": "../out",

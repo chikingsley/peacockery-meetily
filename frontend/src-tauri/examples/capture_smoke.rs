@@ -247,7 +247,8 @@ async fn run(
         "system_level_max": summary.system_max,
         "system_silent_seconds_at_end": summary.system_silent_seconds,
     });
-    if let Some(live) = &stopped.live {
+    if let Some(live) = stopped.live {
+        let live = live.finish().await;
         let ids = serde_json::to_string(&live.session_ids).unwrap_or_else(|_| "[]".to_string());
         if let Err(e) = MeetingsRepository::set_live_info(
             &pool,

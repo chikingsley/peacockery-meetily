@@ -58,7 +58,6 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
     totalCount,
     loadMore,
     refetch,
-    reloadMetadata,
     error: transcriptError,
   } = usePaginatedTranscripts({
     meetingId: meetingId || "",
@@ -126,7 +125,7 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
     voiceService
       .onRecordingAudio(({ meeting_id }) => {
         if (meeting_id === meetingId) {
-          void reloadMetadata();
+          void refetch();
         }
       })
       .then((fn) => {
@@ -140,7 +139,7 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
 
         // The save may have finished before the listener was attached.
         if (audioSavingRef.current) {
-          void reloadMetadata();
+          void refetch();
         }
       })
       .catch((error_) =>
@@ -151,7 +150,7 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
       cancelled = true;
       unlisten?.();
     };
-  }, [meetingId, reloadMetadata]);
+  }, [meetingId, refetch]);
 
   const fetchSummary = useCallback(
     async (id: string, isCancelled: () => boolean = () => false) => {

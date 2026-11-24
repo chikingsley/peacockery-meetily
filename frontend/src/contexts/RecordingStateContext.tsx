@@ -66,8 +66,8 @@ export const useRecordingState = () => {
 
 const POLL_MS = 500;
 
-/** Shown from the stop request until `recording-stopped` (the live transcript drains first). */
-export const STOPPING_MESSAGE = "Stopping… finishing live transcript";
+/** Shown from the stop request until `recording-stopped`. */
+export const STOPPING_MESSAGE = "Stopping recording…";
 
 export function RecordingStateProvider({
   children,

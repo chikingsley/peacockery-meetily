@@ -1,1 +1,1 @@
-Call times align in a fixed column. Contact details wrap beneath the company name, meeting dates line up with their titles, and selecting a row preserves its spacing.
+Stop releases the recorder once the audio journal closes and the meeting is saved. Live transcription finishes in the background, so you can start the next call while the previous transcript is processing.
