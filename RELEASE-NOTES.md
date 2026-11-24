@@ -1,1 +1,1 @@
-Call Tasks and Meeting Prep now have separate tabs. Published meetings show a compact CICA Meetings Portal status in the header. Summary typography, activation and audio settings have been simplified. Live transcription has a selectable Nova fallback. Desktop summaries and speaker review share a rate-limited queue. Automated phone menu turns are labeled in saved transcripts.
+Start call opens the task number in Google Voice in Chrome after recording starts. Meetily keeps the call linked to its prep.

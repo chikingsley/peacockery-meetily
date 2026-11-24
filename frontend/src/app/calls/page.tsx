@@ -73,7 +73,7 @@ export default function Calls() {
         try {
           await voiceService.dialPhone(item.number);
         } catch (error_) {
-          toast.error("Recording started. Open the dialer manually.", {
+          toast.error("Recording started. Open Google Voice in Chrome.", {
             description: errorMessage(error_),
           });
         }

@@ -45,22 +45,78 @@ pub async fn save_meeting_brief(
     )
 }
 
-#[tauri::command]
-pub fn dial_phone(number: String) -> Result<(), String> {
-    let digits = number.strip_prefix('+').unwrap_or(&number);
+#[cfg(any(windows, test))]
+fn google_voice_url(number: &str, account: u64) -> Result<String, String> {
+    let digits = number.strip_prefix('+').unwrap_or(number);
     if !(7..=15).contains(&digits.len()) || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return Err("Check the phone number.".into());
     }
+    let prefix = if number.starts_with('+') || (digits.len() == 11 && digits.starts_with('1')) {
+        "%2B"
+    } else if digits.len() == 10 {
+        "%2B1"
+    } else {
+        return Err("Use a phone number with its country code.".into());
+    };
+    Ok(format!(
+        "https://voice.google.com/u/{account}/calls?a=nc,{prefix}{digits}"
+    ))
+}
+
+#[tauri::command]
+pub fn dial_phone(app: tauri::AppHandle, number: String) -> Result<(), String> {
     #[cfg(windows)]
     {
-        std::process::Command::new("rundll32.exe")
-            .args(["url.dll,FileProtocolHandler", &format!("tel:{number}")])
+        use tauri_plugin_store::StoreExt;
+        let account = app
+            .store("recording_preferences.json")
+            .map_err(|e| e.to_string())?
+            .get("google_voice_account")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let url = google_voice_url(&number, account)?;
+        let chrome = [
+            "LOCALAPPDATA",
+            "ProgramW6432",
+            "ProgramFiles",
+            "ProgramFiles(x86)",
+        ]
+        .iter()
+        .filter_map(std::env::var_os)
+        .map(|root| std::path::PathBuf::from(root).join("Google/Chrome/Application/chrome.exe"))
+        .find(|path| path.is_file())
+        .ok_or("Install Google Chrome to open Google Voice.")?;
+        std::process::Command::new(chrome)
+            .arg(url)
             .spawn()
             .map_err(|e| e.to_string())?;
         Ok(())
     }
     #[cfg(not(windows))]
-    Err("The system dialer is available on Windows.".into())
+    {
+        let _ = (app, number);
+        Err("Google Voice call tasks are available on Windows.".into())
+    }
+}
+
+#[cfg(test)]
+mod dial_tests {
+    use super::google_voice_url;
+    #[test]
+    fn routes_to_the_selected_voice_account_with_a_country_code() {
+        for n in ["2025550100", "12025550100", "+12025550100"] {
+            assert_eq!(
+                google_voice_url(n, 1).unwrap(),
+                "https://voice.google.com/u/1/calls?a=nc,%2B12025550100"
+            );
+        }
+        assert!(google_voice_url("+442079460000", 0)
+            .unwrap()
+            .ends_with("%2B442079460000"));
+        for invalid in ["", "5550100", "+1&extra", "1+2025550100"] {
+            assert!(google_voice_url(invalid, 0).is_err());
+        }
+    }
 }
 
 #[derive(Serialize, sqlx::FromRow)]
