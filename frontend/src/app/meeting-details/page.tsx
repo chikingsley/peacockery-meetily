@@ -116,6 +116,7 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
     MeetingMetadata,
     "id" | "live_complete"
   > | null>(null);
+
   useEffect(() => {
     if (!metadata) {
       return;
@@ -123,6 +124,7 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
 
     const previous = previousLive.current;
     previousLive.current = metadata;
+
     if (
       previous?.id === metadata.id &&
       previous.live_complete === null &&

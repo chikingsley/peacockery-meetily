@@ -293,10 +293,12 @@ describe("meeting route transcript refresh", () => {
     readMetadata = async (id) =>
       meetingMetadata(id, { live_complete: null, audio_saving: true });
     await show();
+
     const reads = () =>
       invoke.mock.calls.filter(
         ([command]) => command === "api_get_meeting_transcripts"
       ).length;
+
     const before = reads();
     readMetadata = async (id) =>
       meetingMetadata(id, {
