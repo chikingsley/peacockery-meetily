@@ -139,14 +139,18 @@ export function CallAttempts({
     <section aria-label="Call contacts" className="divide-y">
       {contacts.map((c) => (
         <div key={c.number} className="space-y-1 py-3">
-          <div className="flex items-center justify-between gap-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] items-center gap-3">
             <div>
               <strong>{c.name}</strong>
               <div className="text-sm tabular-nums">
                 {c.number.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, "($1) $2-$3")}
               </div>
             </div>
-            <Button disabled={disabled} onClick={() => onCall(c)}>
+            <Button
+              className="h-auto min-h-9 whitespace-normal"
+              disabled={disabled}
+              onClick={() => onCall(c)}
+            >
               Call {c.name}
             </Button>
           </div>

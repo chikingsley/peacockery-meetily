@@ -1,1 +1,1 @@
-Call Tasks groups calls by Phoenix date and shows each selectable contact. Stop a task recording to return to that task, try another number or correct the transcript review. Ordinary recordings open their meeting details. Windows uses the installed Google Voice app when available in the default Chrome profile. The sidebar groups older recordings by month.
+Call times align in a fixed column. Contact details wrap beneath the company name, meeting dates line up with their titles, and selecting a row preserves its spacing.

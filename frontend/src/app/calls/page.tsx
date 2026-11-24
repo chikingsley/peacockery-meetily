@@ -147,7 +147,7 @@ function CallsContent({ initialTask }: { initialTask: string }) {
           <TabsTrigger value="calls">Call Tasks</TabsTrigger>
           <TabsTrigger value="meetings">Meeting Prep</TabsTrigger>
         </TabsList>
-        <TabsContent value={tab}>
+        <TabsContent value={tab} className="mt-4">
           <div
             className={
               item
@@ -163,27 +163,42 @@ function CallsContent({ initialTask }: { initialTask: string }) {
                 {(tab === "calls" ? calls : meetings).map((row, i, rows) => (
                   <Fragment key={row.key}>
                     {row.day && row.day !== rows[i - 1]?.day && (
-                      <h2 className="pt-3 font-semibold">
+                      <h2 className="font-semibold not-first:pt-3">
                         {row.day} {row.time && <small>Phoenix</small>}
                       </h2>
                     )}
                     <Button
                       type="button"
-                      variant={row.key === selected ? "secondary" : "outline"}
-                      className="h-auto w-full flex-col items-start text-left whitespace-normal"
+                      variant="outline"
+                      aria-pressed={row.key === selected}
+                      className="h-auto w-full justify-start text-left whitespace-normal"
                       onClick={() => setSelected(row.key)}
                     >
-                      <span className="flex flex-wrap gap-3">
-                        <strong>{row.time}</strong>
-                        {row.company || row.title}{" "}
-                        {row.high && <small>High priority</small>}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {row.day
-                          ? [row.contacts[0]?.name, row.detail]
-                              .filter(Boolean)
-                              .join(" · ")
-                          : row.detail}
+                      <span
+                        className={
+                          row.day
+                            ? "grid w-full min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-x-3"
+                            : "block w-full min-w-0"
+                        }
+                      >
+                        {row.day && (
+                          <strong className="whitespace-nowrap tabular-nums">
+                            {row.time}
+                          </strong>
+                        )}
+                        <span className="block min-w-0 space-y-1">
+                          <span className="flex flex-wrap items-baseline justify-between gap-x-2">
+                            <span>{row.company || row.title}</span>
+                            {row.high && <small>High priority</small>}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {row.day
+                              ? [row.contacts[0]?.name, row.detail]
+                                  .filter(Boolean)
+                                  .join(" · ")
+                              : row.detail}
+                          </span>
+                        </span>
                       </span>
                     </Button>
                   </Fragment>
@@ -211,7 +226,7 @@ function CallsContent({ initialTask }: { initialTask: string }) {
                   className="md:hidden"
                   onClick={() => setSelected("")}
                 >
-                  Back to calls
+                  {tab === "calls" ? "Back to calls" : "Back to meetings"}
                 </Button>
                 <h2 className="font-semibold">{item.company || item.title}</h2>
                 {item.detail !== (item.company || item.title) && (
