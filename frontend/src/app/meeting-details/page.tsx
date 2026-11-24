@@ -58,6 +58,7 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
     totalCount,
     loadMore,
     refetch,
+    reloadMetadata,
     error: transcriptError,
   } = usePaginatedTranscripts({
     meetingId: meetingId || "",
@@ -110,6 +111,27 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
     }
   }, [transcriptError]);
 
+  // A provider can commit its last turns after this page first opens.
+  const previousLive = useRef<Pick<
+    MeetingMetadata,
+    "id" | "live_complete"
+  > | null>(null);
+  useEffect(() => {
+    if (!metadata) {
+      return;
+    }
+
+    const previous = previousLive.current;
+    previousLive.current = metadata;
+    if (
+      previous?.id === metadata.id &&
+      previous.live_complete === null &&
+      metadata.live_complete !== null
+    ) {
+      void refetch();
+    }
+  }, [metadata, refetch]);
+
   const audioSavingRef = useRef(false);
   audioSavingRef.current = !!metadata?.audio_saving;
 
@@ -125,7 +147,7 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
     voiceService
       .onRecordingAudio(({ meeting_id }) => {
         if (meeting_id === meetingId) {
-          void refetch();
+          void reloadMetadata();
         }
       })
       .then((fn) => {
@@ -139,7 +161,7 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
 
         // The save may have finished before the listener was attached.
         if (audioSavingRef.current) {
-          void refetch();
+          void reloadMetadata();
         }
       })
       .catch((error_) =>
@@ -150,7 +172,7 @@ function MeetingDetailsContent({ meetingId }: { meetingId: string | null }) {
       cancelled = true;
       unlisten?.();
     };
-  }, [meetingId, refetch]);
+  }, [meetingId, reloadMetadata]);
 
   const fetchSummary = useCallback(
     async (id: string, isCancelled: () => boolean = () => false) => {

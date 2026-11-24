@@ -288,6 +288,29 @@ describe("meeting route transcript refresh", () => {
     expect(text()).toContain("meeting-a");
   });
 
+  test("closing the previous live session refreshes its last transcript turns", async () => {
+    (globalThis as { isTauri?: boolean }).isTauri = true;
+    readMetadata = async (id) =>
+      meetingMetadata(id, { live_complete: null, audio_saving: true });
+    await show();
+    const reads = () =>
+      invoke.mock.calls.filter(
+        ([command]) => command === "api_get_meeting_transcripts"
+      ).length;
+    const before = reads();
+    readMetadata = async (id) =>
+      meetingMetadata(id, {
+        live_complete: true,
+        audio_path: "/Call/audio.mp4",
+      });
+    await act(async () => {
+      listeners.get("recording-audio")!({
+        payload: { meeting_id: selectedMeeting, state: "saved", message: null },
+      });
+    });
+    expect(reads()).toBe(before + 1);
+  });
+
   test("navigation waits for the new meeting first transcript page before mounting its view", async () => {
     await show();
     await complete("Summary A", "attempt-a");
