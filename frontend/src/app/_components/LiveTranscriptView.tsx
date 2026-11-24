@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { memo, useState } from "react";
 
+import { EnglishCaption } from "@/components/EnglishCaption";
 import { MeetingBrief } from "@/components/MeetingBrief";
 import { SpeakerRenameDialog } from "@/components/MeetingDetails/SpeakerRenameDialog";
 import { SpeakerChip } from "@/components/SpeakerChip";
@@ -51,6 +52,7 @@ const Line = memo(
         <span className="text-base leading-relaxed text-foreground">
           {line.text}
         </span>
+        <EnglishCaption text={line.text} live />
       </div>
     </motion.div>
   )

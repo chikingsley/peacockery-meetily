@@ -150,6 +150,7 @@ pub fn run() {
             voice::commands::voice_get_key_status,
             voice::commands::voice_test_connection,
             voice::commands::voice_list_models,
+            voice::commands::translate_caption,
             // Import
             audio::import::select_and_validate_audio_command,
             audio::import::validate_audio_file_command,

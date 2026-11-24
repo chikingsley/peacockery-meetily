@@ -1,1 +1,1 @@
-Stop releases the recorder once the audio journal closes and the meeting is saved. Live transcription finishes in the background, so you can start the next call while the previous transcript is processing.
+Chinese speech now has English captions beneath each finalized line during recording and in saved transcripts. The original wording, speaker, timestamp and audio remain available. Meetily also recognizes Korean script and Japanese kana. Translations are cached on this PC.

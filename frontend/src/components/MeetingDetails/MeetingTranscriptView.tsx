@@ -3,6 +3,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { memo, useEffect, useMemo, useRef } from "react";
 
+import { EnglishCaption } from "@/components/EnglishCaption";
 import { SpeakerChip } from "@/components/SpeakerChip";
 import { formatRecordingTime, groupBySpeaker } from "@/lib/transcript-format";
 import type { SpeakerGroup } from "@/lib/transcript-format";
@@ -72,6 +73,7 @@ const Group = memo(
               className={`-mx-1 block w-full rounded px-1 text-left text-base leading-relaxed text-foreground ${seekable ? "cursor-pointer hover:bg-muted/40" : ""} ${activeId === t.id ? "bg-info/10" : ""}`}
             >
               {t.text.trim() || "[Silence]"}
+              <EnglishCaption text={t.text} />
             </button>
           );
         })}

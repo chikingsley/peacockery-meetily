@@ -106,6 +106,42 @@ pub async fn voice_list_models(voice: State<'_, VoiceService>) -> Result<ModelLi
     })
 }
 
+#[tauri::command]
+pub async fn translate_caption(
+    voice: State<'_, VoiceService>,
+    state: State<'_, crate::state::AppState>,
+    language: String,
+    text: String,
+) -> Result<String, String> {
+    let pool = state.db_manager.pool();
+    let cached: Option<String> = sqlx::query_scalar(
+        "SELECT english FROM caption_translations WHERE source_lang=? AND source_text=?",
+    )
+    .bind(&language)
+    .bind(&text)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    if let Some(english) = cached {
+        return Ok(english);
+    }
+    let english = voice
+        .client()?
+        .translate_caption(&language, &text)
+        .await
+        .map_err(|e| describe_error(&e))?;
+    sqlx::query(
+        "INSERT OR IGNORE INTO caption_translations(source_lang,source_text,english) VALUES(?,?,?)",
+    )
+    .bind(language)
+    .bind(text)
+    .bind(&english)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(english)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

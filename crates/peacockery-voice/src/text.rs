@@ -136,6 +136,39 @@ pub struct TextResponse {
 }
 
 impl VoiceClient {
+    /// Translate finalized text using the hosted caption model.
+    pub async fn translate_caption(&self, language: &str, text: &str) -> Result<String> {
+        let mut translations = Vec::new();
+        // The endpoint counts UTF-16 units. Split long ASR turns at sentence
+        // boundaries when possible, preserving multibyte characters.
+        let mut remaining = text.trim();
+        while !remaining.is_empty() {
+            let limit = remaining
+                .char_indices()
+                .nth(1600)
+                .map_or(remaining.len(), |(i, _)| i);
+            let candidate = &remaining[..limit];
+            let end = if limit < remaining.len() {
+                candidate
+                    .rmatch_indices(['。', '！', '？', '.', '!', '?', ' '])
+                    .find(|(i, _)| *i > limit / 2)
+                    .map_or(limit, |(i, stop)| i + stop.len())
+            } else {
+                limit
+            };
+            let response = self
+                .api()
+                .post(self.url("v1/text/translate")?)
+                .timeout(Duration::from_secs(12))
+                .json(&serde_json::json!({"source_lang": language, "text": &remaining[..end]}))
+                .send()
+                .await?;
+            translations.push(decode::<TextResponse>(response).await?.text);
+            remaining = remaining[end..].trim_start();
+        }
+        Ok(translations.join(" "))
+    }
+
     /// Generate text. `finishReason: "length"` is returned as [`Error::Truncated`] with the partial response.
     pub async fn generate(&self, request: &TextRequest) -> Result<TextResponse> {
         validate(request)?;

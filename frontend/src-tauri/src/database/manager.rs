@@ -79,6 +79,7 @@ mod tests {
             tables,
             vec![
                 "call_destinations",
+                "caption_translations",
                 "meeting_briefs",
                 "meeting_publications",
                 "meeting_reviews",

@@ -11,6 +11,7 @@ import React, {
 } from "react";
 import { toast } from "sonner";
 
+import { englishCaption } from "@/lib/captions";
 import {
   applyInterim,
   applyLiveStatus,
@@ -76,6 +77,7 @@ export function TranscriptProvider({ children }: { children: ReactNode }) {
       keep(await voiceService.onRecordingStarting(clearTranscripts));
       keep(
         await voiceService.onTranscriptUpdate((line) => {
+          void englishCaption(line.text, true)?.catch(() => null);
           setLines((prev) => insertLiveLine(prev, line));
         })
       );
