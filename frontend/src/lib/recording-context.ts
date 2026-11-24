@@ -54,25 +54,6 @@ export function eventsToday(events: CalendarEvent[], now = new Date()) {
     .toSorted((a, b) => Date.parse(a.start) - Date.parse(b.start));
 }
 
-const callDate = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Phoenix",
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZoneName: "short",
-});
-
-export function callSchedule(call: CallTask) {
-  const due = Date.parse(call.due);
-
-  return [
-    call.highPriority ? "High priority" : "Normal priority",
-    Number.isFinite(due) ? callDate.format(due) : "Date needed",
-  ].join(" · ");
-}
-
 export function orderedCalls(calls: CallTask[], now: number) {
   const day = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Phoenix",
@@ -94,7 +75,7 @@ export function orderedCalls(calls: CallTask[], now: number) {
 
     return [
       date <= today ? "0" : "1",
-      date <= today ? "" : date,
+      date,
       call.highPriority ? 0 : 1,
       time,
     ] as const;
@@ -112,4 +93,65 @@ export function orderedCalls(calls: CallTask[], now: number) {
       a.title.localeCompare(b.title)
     );
   });
+}
+
+/** The assigned CRM number is authoritative. Additional destinations must be
+ * explicitly written as “call Name at number” or “then Name at number”. */
+export function callContacts(task: CallTask) {
+  const primary = task.title.match(
+    /^call (?:or email )?(.+?)(?= again\b| at\b| about\b| if\b| to\b| for\b| re\b|[,;:]|$)/i
+  )?.[1];
+
+  const contacts = task.number
+    ? [
+        {
+          name: primary || task.company || "Primary contact",
+          number: canonicalNumber(task.number) || task.number,
+        },
+      ]
+    : [];
+
+  for (const match of task.title.matchAll(
+    /[,;]\s*(?:(?:then\s+)?call\s+|then\s+)([\p{L}][\p{L}'’ -]{0,50}?)\s+at\s+(\+?\(?\d[\d ()-]{5,20}\d)(?=[.,;\s]|$)/giu
+  )) {
+    const number = canonicalNumber(match[2]);
+
+    if (number && !contacts.some((c) => c.number === number)) {
+      contacts.push({ name: match[1].replace(/^the /i, ""), number });
+    }
+  }
+
+  return contacts;
+}
+
+function canonicalNumber(raw: string) {
+  const digits = raw.replaceAll(/\D/g, "");
+
+  if (raw.startsWith("+") && digits.length >= 7 && digits.length <= 15) {
+    return `+${digits}`;
+  }
+
+  if (digits.length === 10) {
+    return `+1${digits}`;
+  }
+
+  return digits.length === 11 && digits.startsWith("1") ? `+${digits}` : "";
+}
+
+export function callPurpose(task: CallTask) {
+  const [first] = task.title.split(/\.\s+If [^.,]+,\s*call /i);
+
+  const match = first.match(
+    /^call (?:or email )?[^,;:.]+?(?: at [+(\d][+\d() -]+)? (to|about|if|again if) (.+)/i
+  );
+
+  if (!match) {
+    return task.title;
+  }
+
+  const reason = (
+    match[1].endsWith("if") ? `Follow up if ${match[2]}` : match[2]
+  ).replace(/:\s*[+\d][\d ()-]{6,}$/, "");
+
+  return reason.charAt(0).toUpperCase() + reason.slice(1);
 }

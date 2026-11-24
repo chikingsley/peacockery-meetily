@@ -379,6 +379,11 @@ export interface CalendarEvent {
   invitees: CalendarPerson[];
 }
 
+export interface CallContact {
+  name: string;
+  number: string;
+}
+
 export interface CallTask {
   highPriority?: boolean;
   id: string;

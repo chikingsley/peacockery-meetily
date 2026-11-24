@@ -124,6 +124,8 @@ pub async fn meeting_review(app: AppHandle, meeting_id: String) -> Result<Value,
             .fetch_optional(&pool)
             .await
             .map_err(|e| e.to_string())?;
+    let manual:Option<String>=sqlx::query_scalar("SELECT manual_outcome FROM call_destinations WHERE meeting_id=? AND manual_outcome IS NOT NULL")
+        .bind(&meeting_id).fetch_optional(&pool).await.map_err(|e|e.to_string())?;
     let brief_key =
         crate::database::repositories::meeting::MeetingsRepository::get(&pool, &meeting_id)
             .await
@@ -132,7 +134,7 @@ pub async fn meeting_review(app: AppHandle, meeting_id: String) -> Result<Value,
             .and_then(|f| RecordingContext::load(Path::new(&f)))
             .and_then(|c| c.brief_key);
     Ok(
-        json!({"brief_key":brief_key,"names":names.into_iter().collect::<BTreeMap<_,_>>(),"outcomes":outcomes.and_then(|s|serde_json::from_str::<Vec<Value>>(&s).ok()).unwrap_or_default()}),
+        json!({"brief_key":brief_key,"names":names.into_iter().collect::<BTreeMap<_,_>>(),"manual_outcome":manual,"outcomes":outcomes.and_then(|s|serde_json::from_str::<Vec<Value>>(&s).ok()).unwrap_or_default()}),
     )
 }
 

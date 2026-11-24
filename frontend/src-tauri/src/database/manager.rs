@@ -78,6 +78,7 @@ mod tests {
         assert_eq!(
             tables,
             vec![
+                "call_destinations",
                 "meeting_briefs",
                 "meeting_publications",
                 "meeting_reviews",

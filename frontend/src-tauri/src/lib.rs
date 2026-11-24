@@ -130,6 +130,7 @@ pub fn run() {
             briefs::save_meeting_brief,
             briefs::dial_phone,
             briefs::call_attempts,
+            briefs::set_call_outcome,
             recording_context::get_recording_calendar,
             outlook_calendar::outlook_status,
             outlook_calendar::outlook_connect,

@@ -231,3 +231,9 @@ The shadcn shell (`components/ui/sidebar.tsx`) owns the sidebar collapse state, 
 Search debounces 200 ms and invalidates prior responses immediately, including on clear and unmount. Rust returns at most 100 distinct meeting hits, newest first, from the best transcript. SQL wildcard characters are escaped so search terms are literal. Indexed full-text search remains a separate scaling option.
 
 Ultracite's core, React, Next.js, anti-slop, and shadcn presets run through Oxlint. Oxfmt uses Ultracite's formatter preset through explicit config. Project exceptions are documented inline: component naming, native callback APIs, compiler-only checks, runtime parsers, native test fixtures, and measured transcript virtualization. `pnpm check` runs the complete frontend gate.
+
+### Task call attempts
+
+A task has one Trello checklist item and can have several dial destinations. The CRM supplies the primary number. An alternate can be written as “, call Jake Zemer at 480-989-3538” or “, then the office at 480-967-0080”. Each recording start accepts an optional contact with a name and number. For a task origin, the recorder writes one SQLite `call_destinations` row keyed by meeting ID, including attempts started without a number. A failed start rolls the attempt back with the meeting. The existing recording context preserves the task key for stop navigation from the button, tray or shortcut.
+
+`call_attempts` returns recent task recordings, their destinations, automatic review results and any manual correction. `set_call_outcome` sets or clears the correction independently of the review worker. Ordinary recordings still open their meeting details. Recording, reviewing and correcting a call leave Trello completion and due dates under the control of the existing task workflow.

@@ -69,6 +69,19 @@ export function RecordingStopProvider({ children }: { children: ReactNode }) {
         setCurrentMeeting({ id: meetingId, title });
       }
 
+      const origin = await voiceService
+        .getMeetingMetadata(meetingId)
+        .then((m) => m.recording_context?.brief_key)
+        .catch(() => null);
+
+      if (origin?.startsWith("task:")) {
+        router.push(
+          `/calls?task=${encodeURIComponent(origin)}&attempt=${encodeURIComponent(meetingId)}`
+        );
+
+        return;
+      }
+
       router.push(`/meeting-details?id=${encodeURIComponent(meetingId)}`);
     },
     [refetchMeetings, router, setCurrentMeeting]

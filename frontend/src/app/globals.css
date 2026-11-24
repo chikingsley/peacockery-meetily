@@ -234,3 +234,14 @@
   line-height: inherit;
   margin-block: 0;
 }
+
+.sidebar-scroll-cue {
+  position: relative;
+}
+.sidebar-scroll-cue::before {
+  content: "";
+  position: absolute;
+  inset: -1rem 0 100%;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--sidebar), transparent);
+}

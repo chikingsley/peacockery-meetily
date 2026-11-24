@@ -142,22 +142,29 @@ export function TranscriptPanel({
           onOpenMeetingFolder={onOpenMeetingFolder}
           onStartFinalTranscript={onStartFinalTranscript}
         />
-        {review.outcomes.map((item, index) => (
-          <p
-            className="text-sm"
-            key={`${item.seconds}-${index}`}
-            title={item.quote}
-          >
-            {item.kind === "conversation"
-              ? "Spoke"
-              : item.kind === "voicemail_left"
-                ? "Left voicemail"
-                : item.kind === "no_answer"
-                  ? "No answer"
-                  : "Outcome uncertain"}{" "}
-            · {Math.floor(item.seconds / 60)}m {Math.floor(item.seconds % 60)}s
+        {review.manual_outcome && (
+          <p className="text-sm">
+            {review.manual_outcome.replaceAll("_", " ")} · Edited
           </p>
-        ))}
+        )}
+        {!review.manual_outcome &&
+          review.outcomes.map((item, index) => (
+            <p
+              className="text-sm"
+              key={`${item.seconds}-${index}`}
+              title={item.quote}
+            >
+              {item.kind === "conversation"
+                ? "Spoke"
+                : item.kind === "voicemail_left"
+                  ? "Left voicemail"
+                  : item.kind === "no_answer"
+                    ? "No answer"
+                    : "Outcome uncertain"}{" "}
+              · {Math.floor(item.seconds / 60)}m {Math.floor(item.seconds % 60)}
+              s
+            </p>
+          ))}
         <FinalTranscriptBanner
           view={finalTranscript}
           modelLabel={finalModelLabel}

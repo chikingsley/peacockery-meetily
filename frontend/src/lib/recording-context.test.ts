@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import type { CalendarEvent } from "@/types/voice";
 
 import {
-  callSchedule,
+  callContacts,
   orderedCalls,
   eventsToday,
   suggestedMode,
@@ -53,6 +53,22 @@ test("call priorities respect the Phoenix day and keep undated calls last", () =
   expect(
     orderedCalls(calls, Date.parse("2026-11-25T01:00Z")).map((c) => c.title)
   ).toEqual(["urgent", "normal", "future", "undated"]);
-  expect(callSchedule(calls[3])).toContain("7:30 AM");
-  expect(callSchedule(calls[0])).toContain("Date needed");
+});
+
+test("an ordered call keeps alternate people and numbers on the same task", () => {
+  const task = {
+    id: "t",
+    due: "",
+    company: "Supplier",
+    source: "",
+    number: "+12025550100",
+    title:
+      "Call Frank Smith at 202-555-0100 to confirm a tour. If Frank is unavailable, call Jake Zemer at 202-555-0101, then the office at 202-555-0102.",
+  };
+
+  expect(callContacts(task)).toEqual([
+    { name: "Frank Smith", number: "+12025550100" },
+    { name: "Jake Zemer", number: "+12025550101" },
+    { name: "office", number: "+12025550102" },
+  ]);
 });

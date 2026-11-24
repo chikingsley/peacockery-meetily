@@ -9,6 +9,7 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 
 import type { SummaryDataResponse, SummaryProcessResponse } from "@/types";
 import type {
+  CallContact,
   AudioDevice,
   CalendarEvent,
   CalendarSnapshot,
@@ -97,7 +98,8 @@ export const voiceService = {
     recordingMode: RecordingMode,
     calendarEvent: CalendarEvent | null,
     publishToCica: boolean,
-    briefKey?: string
+    briefKey?: string,
+    contact?: CallContact
   ) =>
     withTimeout(
       invoke<StartRecordingResult>("start_recording_with_devices_and_meeting", {
@@ -106,6 +108,7 @@ export const voiceService = {
         calendarEvent,
         publishToCica,
         briefKey,
+        contact,
         micDeviceName,
         systemDeviceName,
       }),
@@ -161,12 +164,19 @@ export const voiceService = {
     invoke<void>("api_delete_meeting", { meetingId }),
   openMeetingFolder: (meetingId: string) =>
     invoke<void>("open_meeting_folder", { meetingId }),
+  setCallOutcome: (meetingId: string, outcome: string) =>
+    invoke<void>("set_call_outcome", { meetingId, outcome }),
   callAttempts: (key: string) =>
     invoke<
       {
         meeting_id: string;
         title: string;
         created_at: string;
+        number: string | null;
+        name: string | null;
+        manual_outcome: string | null;
+        reviewed: boolean;
+        editable: boolean;
         outcomes: { kind: string }[];
       }[]
     >("call_attempts", { key }),
@@ -181,6 +191,7 @@ export const voiceService = {
   dialPhone: (number: string) => invoke<void>("dial_phone", { number }),
   meetingReview: (meetingId: string) =>
     invoke<{
+      manual_outcome?: string | null;
       brief_key?: string | null;
       names: Record<string, string>;
       outcomes: { kind: string; seconds: number; quote: string }[];

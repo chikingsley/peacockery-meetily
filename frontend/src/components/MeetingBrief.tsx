@@ -30,7 +30,13 @@ function splitBrief(notes: string) {
 }
 
 /** Mount with the occurrence or task key so late reads cannot replace another draft. */
-export function MeetingBrief({ itemKey }: { itemKey: string }) {
+export function MeetingBrief({
+  itemKey,
+  showAttempts = true,
+}: {
+  itemKey: string;
+  showAttempts?: boolean;
+}) {
   const [saved, setSaved] = useState<{ notes: string; version: number } | null>(
     null
   );
@@ -44,18 +50,22 @@ export function MeetingBrief({ itemKey }: { itemKey: string }) {
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     let active = true;
-    void voiceService
-      .callAttempts(itemKey)
-      .then((value) => {
-        if (active) {
-          setAttempts(value);
-        }
-      })
-      .catch((error_) => {
-        if (active) {
-          setError(errorMessage(error_));
-        }
-      });
+
+    if (showAttempts) {
+      void voiceService
+        .callAttempts(itemKey)
+        .then((value) => {
+          if (active) {
+            setAttempts(value);
+          }
+        })
+        .catch((error_) => {
+          if (active) {
+            setError(errorMessage(error_));
+          }
+        });
+    }
+
     void voiceService
       .meetingBrief(itemKey)
       .then((value) => {
@@ -73,7 +83,7 @@ export function MeetingBrief({ itemKey }: { itemKey: string }) {
     return () => {
       active = false;
     };
-  }, [itemKey]);
+  }, [itemKey, showAttempts]);
 
   async function save() {
     if (!saved || saving) {
@@ -113,9 +123,11 @@ export function MeetingBrief({ itemKey }: { itemKey: string }) {
       {attempts.map((attempt) => (
         <p key={attempt.meeting_id} className="text-sm">
           {new Date(attempt.created_at).toLocaleDateString()} ·{" "}
-          {attempt.outcomes
-            .map((o) => o.kind.replaceAll("_", " "))
-            .join(", ") || "Recorded call"}
+          {attempt.manual_outcome?.replaceAll("_", " ") ||
+            attempt.outcomes
+              .map((o) => o.kind.replaceAll("_", " "))
+              .join(", ") ||
+            "Recorded call"}
         </p>
       ))}
       {error && (

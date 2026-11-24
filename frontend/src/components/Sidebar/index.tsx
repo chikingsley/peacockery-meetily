@@ -88,7 +88,16 @@ function dateGroup(value: string | null) {
     return "Yesterday";
   }
 
-  return "Earlier";
+  today.setDate(today.getDate() - 6);
+  today.setHours(0, 0, 0, 0);
+
+  if (date >= today) {
+    return "Previous 7 days";
+  }
+
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleDateString(undefined, { month: "long", year: "numeric" })
+    : "Earlier";
 }
 
 export default function AppSidebar() {
@@ -133,12 +142,14 @@ export default function AppSidebar() {
         hits.has(meeting.id)
     );
 
-    return ["Today", "Yesterday", "Earlier"].map((label) => ({
-      label,
-      meetings: visible.filter(
-        (meeting) => dateGroup(meeting.created_at) === label
-      ),
-    }));
+    return [...new Set(visible.map((m) => dateGroup(m.created_at)))].map(
+      (label) => ({
+        label,
+        meetings: visible.filter(
+          (meeting) => dateGroup(meeting.created_at) === label
+        ),
+      })
+    );
   }, [meetings, query, searchResults]);
 
   useEffect(() => {
@@ -363,21 +374,23 @@ export default function AppSidebar() {
           )}
         </SidebarContent>
         {moreBelow && (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            aria-label="Scroll meetings down"
-            className="h-6 w-full group-data-[collapsible=icon]:hidden"
-            onClick={() =>
-              list.current?.scrollBy({
-                top: list.current.clientHeight * 0.8,
-                behavior: "smooth",
-              })
-            }
-          >
-            <ChevronDown />
-          </Button>
+          <div className="sidebar-scroll-cue group-data-[collapsible=icon]:hidden">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-label="Scroll meetings down"
+              className="h-7 w-full"
+              onClick={() =>
+                list.current?.scrollBy({
+                  top: list.current.clientHeight * 0.8,
+                  behavior: "smooth",
+                })
+              }
+            >
+              <ChevronDown />
+            </Button>
+          </div>
         )}
         <SidebarFooter>
           <SidebarMenu>

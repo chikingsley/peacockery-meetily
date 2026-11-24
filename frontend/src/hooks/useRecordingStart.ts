@@ -9,7 +9,7 @@ import {
 import { useTranscripts } from "@/contexts/TranscriptContext";
 import { connectedSelection } from "@/lib/audio-devices";
 import { voiceService, errorMessage } from "@/services/voiceService";
-import type { CalendarEvent, RecordingMode } from "@/types/voice";
+import type { CallContact, CalendarEvent, RecordingMode } from "@/types/voice";
 
 function generateMeetingTitle(now = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -36,7 +36,8 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
       recordingMode: RecordingMode,
       calendarEvent: CalendarEvent | null,
       publishToCica: boolean,
-      briefKey?: string
+      briefKey?: string,
+      contact?: CallContact
     ) => {
       if (isStartingRef.current || isRecording || isStopping) {
         return;
@@ -67,7 +68,8 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
           recordingMode,
           calendarEvent,
           publishToCica,
-          briefKey
+          briefKey,
+          contact
         );
 
         setMeetingId(result.meeting_id);

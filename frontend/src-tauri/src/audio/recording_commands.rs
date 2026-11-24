@@ -240,6 +240,7 @@ pub async fn start_recording_with_devices_and_meeting(
     calendar_event: Option<CalendarEvent>,
     publish_to_cica: bool,
     brief_key: Option<String>,
+    contact: Option<crate::briefs::CallContact>,
 ) -> Result<RecordingStarted, String> {
     let _lifecycle = LIFECYCLE_LOCK.lock().await;
     if IS_RECORDING.load(Ordering::SeqCst) {
@@ -254,6 +255,7 @@ pub async fn start_recording_with_devices_and_meeting(
         calendar_event,
         publish_to_cica,
         brief_key,
+        contact,
     )
     .await;
     // Every outcome, failures included, puts the tray back in step with the real state.
@@ -271,6 +273,7 @@ async fn start_recording(
     calendar_event: Option<CalendarEvent>,
     publish_to_cica: bool,
     brief_key: Option<String>,
+    contact: Option<crate::briefs::CallContact>,
 ) -> Result<RecordingStarted, String> {
     info!(
         "Starting recording: mic={:?}, system={:?}, meeting={:?}, mode={:?}",
@@ -326,6 +329,26 @@ async fn start_recording(
         return Err(format!("Failed to create meeting: {}", e));
     }
 
+    if let Some(key) = context
+        .brief_key
+        .as_deref()
+        .filter(|k| k.starts_with("task:"))
+    {
+        if let Err(e) = sqlx::query(
+            "INSERT INTO call_destinations(meeting_id,task_key,name,number) VALUES(?,?,?,?)",
+        )
+        .bind(&meeting_id)
+        .bind(key)
+        .bind(contact.as_ref().map(|c| &c.name))
+        .bind(contact.as_ref().map(|c| &c.number))
+        .execute(&pool)
+        .await
+        {
+            let _ = MeetingsRepository::delete(&pool, &meeting_id).await;
+            remove_folder(&folder);
+            return Err(format!("Could not save call destination: {e}"));
+        }
+    }
     if publish_to_cica {
         if let Err(error) = crate::publication::enqueue(&pool, &meeting_id).await {
             let _ = sqlx::query("DELETE FROM meetings WHERE id=?")
