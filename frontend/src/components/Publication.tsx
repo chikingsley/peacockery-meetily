@@ -108,6 +108,8 @@ export function PublicationSettings() {
 
 interface PublicationStatus {
   state:
+    | "held"
+    | "approved"
     | "queued"
     | "uploading"
     | "processing"
@@ -194,8 +196,11 @@ export function PublicationProgress({ meetingId }: { meetingId: string }) {
     status && ["published", "partial", "linked"].includes(status.state);
 
   const failed = status?.state === "failed";
+  const held = status?.state === "held";
 
   const labels = {
+    held: "Ran over · Publish recording",
+    approved: "Queued",
     partial: "Partial transcript · Audio unavailable",
     linked: "Filed",
     published: "Published",
@@ -214,12 +219,12 @@ export function PublicationProgress({ meetingId }: { meetingId: string }) {
         variant="ghost"
         title={label ?? undefined}
         aria-label={`CICA Meetings Portal · ${label ?? ""}`}
-        disabled={!filed && !failed && status?.state !== "processing"}
-        onClick={() => void (failed ? retry() : open())}
+        disabled={!filed && !failed && !held && status?.state !== "processing"}
+        onClick={() => void (failed || held ? retry() : open())}
       >
         {filed ? (
           <CircleCheck className="text-success" />
-        ) : failed || error ? (
+        ) : failed || held || error ? (
           <TriangleAlert />
         ) : (
           <CloudUpload />

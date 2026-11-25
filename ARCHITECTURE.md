@@ -249,3 +249,5 @@ On Windows, Settings → Recording controls meeting focus on this PC. At recordi
 Scheduled captures append up to twelve calendar display names to saved vocabulary hints for live and final ASR. The recorded context supplies the same names on a later final pass. Names guide spelling; speaker identification requires its own evidence.
 
 The scheduled CICA agenda publisher reads assigned calls on each one-minute delivery. If the task read fails, it retains the previous list and sets `calls_stale` for the Calls tab. Call Tasks, Meeting Prep and recording setup use the same agenda row with Phoenix times.
+
+Before the first portal upload, calendar recordings reaching 15 minutes past the scheduled end are held locally. The meeting header lets the user explicitly publish the recording.

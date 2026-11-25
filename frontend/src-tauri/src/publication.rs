@@ -68,7 +68,7 @@ pub fn publication_set_default(app: AppHandle, enabled: bool) -> Result<(), Stri
 }
 /// Published and filed meetings already receive notes from the portal.
 pub async fn needs_local_notes(pool: &SqlitePool, meeting_id: &str) -> bool {
-    sqlx::query_scalar::<_,i64>("SELECT NOT EXISTS(SELECT 1 FROM meeting_publications WHERE meeting_id=? AND state!='failed')").bind(meeting_id).fetch_one(pool).await.unwrap_or(1)!=0
+    sqlx::query_scalar::<_,i64>("SELECT NOT EXISTS(SELECT 1 FROM meeting_publications WHERE meeting_id=? AND state NOT IN ('failed','held'))").bind(meeting_id).fetch_one(pool).await.unwrap_or(1)!=0
 }
 
 pub async fn enqueue(pool: &SqlitePool, meeting_id: &str) -> Result<(), String> {
@@ -94,8 +94,12 @@ pub async fn publication_status(
 #[tauri::command]
 pub async fn publication_retry(app: AppHandle, meeting_id: String) -> Result<(), String> {
     let pool = app.state::<AppState>().db_manager.pool().clone();
-    sqlx::query("UPDATE meeting_publications SET state='queued', error=NULL, attempts=0, retry_at=0 WHERE meeting_id=? AND state='failed'")
-        .bind(meeting_id).execute(&pool).await.map_err(|e| e.to_string())?;
+    retry_publication(&pool, &meeting_id).await
+}
+
+async fn retry_publication(pool: &SqlitePool, meeting_id: &str) -> Result<(), String> {
+    sqlx::query("UPDATE meeting_publications SET state=CASE WHEN state='held' THEN 'approved' ELSE 'queued' END, error=NULL, attempts=0, retry_at=0 WHERE meeting_id=? AND state IN ('failed','held')")
+        .bind(meeting_id).execute(pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 #[tauri::command]
@@ -294,6 +298,16 @@ async fn remote_status(
         .then_some("processing"))
 }
 
+fn needs_overrun_review(start: &str, scheduled_end: &str, seconds: f64) -> bool {
+    let (Ok(start), Ok(end)) = (
+        chrono::DateTime::parse_from_rfc3339(start),
+        chrono::DateTime::parse_from_rfc3339(scheduled_end),
+    ) else {
+        return false;
+    };
+    seconds >= (end - start).num_seconds().max(0) as f64 + 900.0
+}
+
 async fn upload(pool: &SqlitePool, row: &Publication, site: &str) -> Result<(), String> {
     let http = client()?;
     if let Some(id) = &row.upload_id {
@@ -314,6 +328,18 @@ async fn upload(pool: &SqlitePool, row: &Publication, site: &str) -> Result<(), 
         .folder_path
         .as_ref()
         .ok_or("Recording folder is unavailable.")?;
+    if row.state == "queued" && row.upload_id.is_none() {
+        if let (Some(start), Some(seconds), Some(event)) = (
+            meeting.created_at.as_deref(),
+            meeting.duration_seconds,
+            crate::recording_context::RecordingContext::load(Path::new(folder))
+                .and_then(|ctx| ctx.calendar_event),
+        ) {
+            if needs_overrun_review(start, &event.end, seconds) {
+                return state(pool, &row.meeting_id, "held").await;
+            }
+        }
+    }
     let mut audio = tokio::fs::File::open(Path::new(folder).join("audio.mp4"))
         .await
         .map_err(|_| {
@@ -465,7 +491,7 @@ async fn tick_at(pool: &SqlitePool, site: &str) -> Result<(), String> {
         return Ok(());
     }
     let _guard = Guard;
-    let rows: Vec<Due> = sqlx::query_as("SELECT p.meeting_id,p.state,p.upload_id,p.bytes_sent,p.total_bytes,p.error,m.folder_path FROM meeting_publications p JOIN meetings m ON m.id=p.meeting_id WHERE m.status IN ('stopped','interrupted') AND p.state IN ('queued','uploading','processing') AND p.retry_at <= ? ORDER BY (p.state='processing'),m.created_at LIMIT 10")
+    let rows: Vec<Due> = sqlx::query_as("SELECT p.meeting_id,p.state,p.upload_id,p.bytes_sent,p.total_bytes,p.error,m.folder_path FROM meeting_publications p JOIN meetings m ON m.id=p.meeting_id WHERE m.status IN ('stopped','interrupted') AND p.state IN ('queued','approved','uploading','processing') AND p.retry_at <= ? ORDER BY (p.state='processing'),m.created_at LIMIT 10")
         .bind(chrono::Utc::now().timestamp()).fetch_all(pool).await.map_err(|e| e.to_string())?;
     for due in rows {
         if audio_pending(&due) {
@@ -473,7 +499,7 @@ async fn tick_at(pool: &SqlitePool, site: &str) -> Result<(), String> {
         }
         let row = due.publication;
         if let Err(error) = upload(pool, &row, site).await {
-            sqlx::query("UPDATE meeting_publications SET attempts=attempts+1, state=CASE WHEN state='processing' THEN 'processing' WHEN attempts>=4 THEN 'failed' ELSE 'queued' END,error=?,retry_at=? WHERE meeting_id=?")
+            sqlx::query("UPDATE meeting_publications SET attempts=attempts+1, state=CASE WHEN state='processing' THEN 'processing' WHEN attempts>=4 THEN 'failed' WHEN state='approved' THEN 'approved' ELSE 'queued' END,error=?,retry_at=? WHERE meeting_id=?")
                 .bind(error).bind(chrono::Utc::now().timestamp() + 60).bind(&row.meeting_id).execute(pool).await.map_err(|e| e.to_string())?;
         }
     }
@@ -500,6 +526,16 @@ pub fn start(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn holds_calendar_overruns_at_fifteen_minutes() {
+        let start = "2026-11-25T11:30:00-07:00";
+        let end = "2026-11-25T19:00:00Z";
+        assert!(!needs_overrun_review(start, end, 2699.0));
+        assert!(needs_overrun_review(start, end, 2700.0));
+        assert!(needs_overrun_review(start, end, 10383.0));
+    }
+
     use crate::database::repositories::meeting::NewMeeting;
     use std::sync::{Arc, Mutex};
     use tokio::net::TcpListener;
@@ -649,6 +685,16 @@ mod tests {
         .unwrap();
         assert_eq!(waiting, (0, None, "queued".to_string()));
         crate::audio::audio_save::finish("meeting", Ok(dir.path().join("audio.mp4")));
+        std::fs::write(dir.path().join("recording-context.json"), serde_json::to_vec(&json!({
+            "mode":"online","calendar_event":{"id":"event","title":"Demo","start":"2026-11-25T18:30:00Z","end":"2026-11-25T19:00:00Z","online":true,"location":"Teams","organizer":null,"invitees":[]}
+        })).unwrap()).unwrap();
+        sqlx::query("UPDATE meetings SET created_at='2026-11-25T18:30:00Z',duration_seconds=10383 WHERE id='meeting'").execute(&pool).await.unwrap();
+        tick_at(&pool, &site).await.unwrap();
+        tick_at(&pool, &site).await.unwrap();
+        assert_eq!(get(&pool, "meeting").await.unwrap().unwrap().state, "held");
+        assert!(requests.lock().unwrap().is_empty());
+        retry_publication(&pool, "meeting").await.unwrap();
+
         tick_at(&pool, &site).await.unwrap();
         assert_eq!(
             get(&pool, "meeting").await.unwrap().unwrap().bytes_sent,
