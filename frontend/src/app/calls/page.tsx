@@ -110,7 +110,11 @@ function CallsContent({ initialTask }: { initialTask: string }) {
   const item = [...calls, ...meetings].find((x) => x.key === selected);
 
   async function start(contact?: CallContact) {
-    if (!item || enabled === null || (item.event && calendarPhase(item.event, Date.now()) === "ended")) {
+    if (
+      !item ||
+      enabled === null ||
+      (item.event && calendarPhase(item.event, now) === "ended")
+    ) {
       return;
     }
 
