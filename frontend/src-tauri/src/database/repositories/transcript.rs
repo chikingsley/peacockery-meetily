@@ -200,7 +200,7 @@ impl TranscriptsRepository {
         source: &str,
         lines: &[NewTranscript],
     ) -> Result<(), sqlx::Error> {
-        let mut tx = pool.begin().await?;
+        let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
         let anchors:Vec<(String,f64,f64)>=sqlx::query_as(
             "SELECT n.name,t.audio_start_time,t.audio_end_time FROM transcripts t
              JOIN speaker_names n ON (t.meeting_id,t.source,t.speaker)=(n.meeting_id,n.source,n.label)
@@ -267,7 +267,7 @@ impl TranscriptsRepository {
         from: &str,
         to: &str,
     ) -> Result<u64, sqlx::Error> {
-        let mut tx = pool.begin().await?;
+        let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
         let count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM named_transcripts WHERE meeting_id=? AND speaker=?",
         )
@@ -399,6 +399,85 @@ mod tests {
         .await
         .unwrap();
         pool
+    }
+
+    #[tokio::test]
+    async fn concurrent_final_saves_wait_for_the_writer_before_reading_speaker_names() {
+        use crate::database::manager::DatabaseManager;
+        use std::time::Duration;
+
+        let dir = tempfile::tempdir().unwrap();
+        let db = DatabaseManager::open(&dir.path().join("meetings.sqlite"))
+            .await
+            .unwrap();
+        let pool = db.pool();
+        for id in ["one", "two"] {
+            MeetingsRepository::create(
+                pool,
+                &NewMeeting {
+                    id,
+                    title: "Call",
+                    folder_path: "/tmp",
+                    status: meeting_status::STOPPED,
+                },
+            )
+            .await
+            .unwrap();
+            let mut anchor = line("A", "hello", 1.0);
+            anchor.audio_end_time = Some(10.0);
+            TranscriptsRepository::insert(pool, id, "live", &anchor)
+                .await
+                .unwrap();
+        }
+        // Overlap a manual rename with both final jobs. A deferred transaction can
+        // read the old snapshot, then immediately fail SQLITE_BUSY on its first write.
+        let mut writer = pool.begin_with("BEGIN IMMEDIATE").await.unwrap();
+        sqlx::query(
+            "INSERT INTO speaker_names(meeting_id,source,label,name,evidence,manual)
+            VALUES ('one','live','A','Chi','Manual rename',1)",
+        )
+        .execute(&mut *writer)
+        .await
+        .unwrap();
+        let first = [1.0, 4.0, 7.0].map(|start| {
+            let mut row = line("X", "first final", start);
+            row.audio_end_time = Some(start + 3.0);
+            row
+        });
+        let second = [line("Y", "second final", 1.0)];
+        let (one, two, release) = tokio::join!(
+            TranscriptsRepository::replace_source(pool, "one", "final", &first),
+            TranscriptsRepository::replace_source(pool, "two", "final", &second),
+            async {
+                tokio::time::sleep(Duration::from_millis(150)).await;
+                writer.commit().await
+            }
+        );
+        release.unwrap();
+        one.unwrap();
+        two.unwrap();
+        let first = TranscriptsRepository::all(pool, "one", "final")
+            .await
+            .unwrap();
+        assert_eq!(first[0].speaker.as_deref(), Some("Chi"));
+        assert_eq!(first[0].transcript, "first final");
+        let second = TranscriptsRepository::all(pool, "two", "final")
+            .await
+            .unwrap();
+        assert_eq!(second[0].transcript, "second final");
+        assert_eq!(
+            TranscriptsRepository::source_counts(pool, "one")
+                .await
+                .unwrap(),
+            (1, 3)
+        );
+        assert_eq!(
+            TranscriptsRepository::source_counts(pool, "two")
+                .await
+                .unwrap(),
+            (1, 1)
+        );
+        db.cleanup().await;
     }
 
     #[tokio::test]

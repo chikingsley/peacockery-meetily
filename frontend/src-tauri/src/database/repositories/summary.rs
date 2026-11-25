@@ -23,7 +23,7 @@ impl SummaryProcessesRepository {
         meeting_id: &str,
         summary: &Value,
     ) -> Result<bool, sqlx::Error> {
-        let mut transaction = pool.begin().await?;
+        let mut transaction = pool.begin_with("BEGIN IMMEDIATE").await?;
 
         let meeting_exists: bool = sqlx::query("SELECT 1 FROM meetings WHERE id = ?")
             .bind(meeting_id)

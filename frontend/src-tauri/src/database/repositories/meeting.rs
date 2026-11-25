@@ -75,7 +75,7 @@ impl MeetingsRepository {
     /// Meetings still `recording` belong to a previous app run that died: mark them
     /// `interrupted` and return them.
     pub async fn interrupt_unfinished(pool: &SqlitePool) -> Result<Vec<Meeting>, sqlx::Error> {
-        let mut tx = pool.begin().await?;
+        let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
         let unfinished = sqlx::query_as::<_, Meeting>("SELECT * FROM meetings WHERE status = ?")
             .bind(meeting_status::RECORDING)
             .fetch_all(&mut *tx)
