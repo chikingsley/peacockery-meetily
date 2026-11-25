@@ -7,6 +7,7 @@ import {
   calendarPhase,
   calendarTimeLeft,
   orderedCalls,
+  meetingPlatform,
   eventsToday,
   suggestedMode,
 } from "./recording-context";
@@ -39,6 +40,18 @@ describe("calendar recording context", () => {
     expect(suggestedMode({ ...event, location: "", online: false })).toBe(
       "in_person"
     );
+  });
+  test("Zoom in the Outlook location enables computer audio even when Outlook says offline", () => {
+    const location = "https://asu.zoom.us/j/12345";
+    expect(suggestedMode({ ...event, online: false, location })).toBe("online");
+    expect(meetingPlatform(location)).toBe("Zoom");
+    expect(
+      suggestedMode({
+        ...event,
+        online: false,
+        location: "https://maps.google.com",
+      })
+    ).toBe("in_person");
   });
   test("today follows Arizona midnight rather than the computer timezone", () => {
     expect(eventsToday([event], new Date("2026-11-17T06:59:00Z"))).toHaveLength(

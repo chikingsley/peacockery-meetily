@@ -24,20 +24,49 @@ export const RECORDING_MODES: {
   },
 ];
 
+export function meetingPlatform(location: string): string | undefined {
+  const value = location.trim();
+  const host = URL.canParse(value) ? new URL(value).hostname.toLowerCase() : "";
+
+  if (
+    /^(?:zoom(?: meeting)?)$/i.test(value) ||
+    /(^|\.)zoom\.(us|com)$/.test(host)
+  ) {
+    return "Zoom";
+  }
+
+  if (
+    /^(?:microsoft )?teams(?: meeting)?$/i.test(value) ||
+    ["teams.microsoft.com", "teams.live.com"].includes(host)
+  ) {
+    return "Microsoft Teams";
+  }
+
+  if (/^google meet$/i.test(value) || host === "meet.google.com") {
+    return "Google Meet";
+  }
+
+  if (/^webex(?: meeting)?$/i.test(value) || /(^|\.)webex\.com$/.test(host)) {
+    return "Webex";
+  }
+
+  if (/^online(?: meeting)?$/i.test(value)) {
+    return "Online meeting";
+  }
+
+  return undefined;
+}
+
 export function suggestedMode(event: CalendarEvent): RecordingMode {
-  // A physical room takes precedence over Teams links automatically added to invitations.
+  if (meetingPlatform(event.location)) {
+    return "online";
+  }
+
   const location = event.location.trim();
 
-  const virtualLocation =
-    /^(microsoft teams( meeting)?|teams|zoom( meeting)?|google meet|online|https?:\/\/.*)$/i.test(
-      location
-    );
-
-  return location && !virtualLocation
-    ? "in_person"
-    : event.online
-      ? "online"
-      : "in_person";
+  return event.online && (!location || /^https?:\/\//i.test(location))
+    ? "online"
+    : "in_person";
 }
 
 export function calendarPhase(event: CalendarEvent, now: number) {

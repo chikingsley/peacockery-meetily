@@ -18,6 +18,7 @@ import { useCalendar } from "@/contexts/CalendarContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { useRecordingStart } from "@/hooks/useRecordingStart";
 import {
+  meetingPlatform,
   calendarPhase,
   calendarTimeLeft,
   callContacts,
@@ -76,7 +77,7 @@ function agendaItems(
       key: `event:${e.id}`,
       editable: false,
       title: e.title,
-      detail: e.location,
+      detail: meetingPlatform(e.location) ?? e.location,
       day: agendaDay(e.start),
       time: agendaTime(e.start),
       overdue: false,

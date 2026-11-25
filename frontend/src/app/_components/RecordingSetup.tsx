@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { useMeetings } from "@/contexts/MeetingContext";
 import {
+  meetingPlatform,
   calendarPhase,
   calendarTimeLeft,
   eventsToday,
@@ -138,7 +139,7 @@ export function RecordingSetup({
               title={item.title}
               time={agendaTime(item.start)}
               muted={ended}
-              detail={item.location}
+              detail={meetingPlatform(item.location) ?? item.location}
               status={
                 phase === "current"
                   ? calendarTimeLeft(item.end, now)
