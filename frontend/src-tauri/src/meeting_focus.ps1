@@ -18,7 +18,10 @@ function Save-Receipt($ids) {
     # A concurrent reader or scanner can briefly deny delete-sharing on Windows.
     for ($attempt = 0; ; $attempt++) {
         try {
-            if (!$ids.Count) { [IO.File]::Delete($file) }
+            if (!$ids.Count) {
+                [IO.File]::Delete($file)
+                [IO.File]::Delete("$file.tmp")
+            }
             elseif ([IO.File]::Exists($file)) { [IO.File]::Replace("$file.tmp", $file, [System.Management.Automation.Language.NullString]::Value) }
             else { [IO.File]::Move("$file.tmp", $file) }
             return
@@ -74,8 +77,9 @@ if ($env:MEETILY_FOCUS_ACTION -eq 'restore') {
     foreach ($id in @($receipt)) {
         $app = $apps | Where-Object { $_.id -eq $id }
         if (!$app) {
-            $receipt = @($receipt | Where-Object { $_ -ne $id })
-            Save-Receipt $receipt
+            $next = @($receipt | Where-Object { $_ -ne $id })
+            Save-Receipt $next
+            $receipt = $next
             Write-Output 'Removed retired meeting focus app from restore list'
             continue
         }
@@ -89,8 +93,9 @@ if ($env:MEETILY_FOCUS_ACTION -eq 'restore') {
                 } while (!$running.Count -and $timer.Elapsed.TotalSeconds -lt 15)
                 if (!$running.Count) { throw "Launch unconfirmed for $($app.name)" }
             }
-            $receipt = @($receipt | Where-Object { $_ -ne $id })
-            Save-Receipt $receipt
+            $next = @($receipt | Where-Object { $_ -ne $id })
+            Save-Receipt $next
+            $receipt = $next
             Write-Output "Cleared restore entry for $($app.name)"
         } catch { $failures += "$($app.name): $_" }
     }
