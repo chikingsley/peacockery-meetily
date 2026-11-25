@@ -26,7 +26,7 @@ import {
   suggestedMode,
 } from "@/lib/recording-context";
 import { errorMessage, voiceService } from "@/services/voiceService";
-import type { CallContact } from "@/types/voice";
+import type { CalendarSnapshot, CallContact } from "@/types/voice";
 
 export default function Calls() {
   return (
@@ -47,21 +47,10 @@ function CallsRoute() {
   );
 }
 
-function CallsContent({ initialTask }: { initialTask: string }) {
-  const { snapshot, now, checked, error } = useCalendar();
-
-  const [tab, setTab] = useState(
-    initialTask.startsWith("event:") ? "meetings" : "calls"
-  );
-
-  const [selected, setSelected] = useState(initialTask);
-  const { enabled, setEnabled } = usePublicationDefault();
-  const { isRecording, isStartingRecording, isStopping } = useRecordingState();
-
-  const { startRecording } = useRecordingStart(() =>
-    toast.error("Activate recording in Settings.")
-  );
-
+function agendaItems(
+  snapshot: CalendarSnapshot | null | undefined,
+  now: number
+) {
   const calls = orderedCalls(snapshot?.calls ?? [], now).map((c) => ({
     key: `task:${c.id}`,
     editable: c.editable,
@@ -97,6 +86,29 @@ function CallsContent({ initialTask }: { initialTask: string }) {
       number: "",
       event: e,
     }));
+
+  return { calls, meetings };
+}
+
+function CallsContent({ initialTask }: { initialTask: string }) {
+  const { snapshot, now, checked, error } = useCalendar();
+
+  const [tab, setTab] = useState(
+    initialTask.startsWith("event:") ? "meetings" : "calls"
+  );
+
+  const [selected, setSelected] = useState(initialTask);
+  const { enabled, setEnabled } = usePublicationDefault();
+  const { isRecording, isStartingRecording, isStopping } = useRecordingState();
+
+  const { startRecording } = useRecordingStart(() =>
+    toast.error("Activate recording in Settings.")
+  );
+
+  const { calls, meetings } = agendaItems(snapshot, now);
+
+  const busy =
+    enabled === null || isRecording || isStartingRecording || isStopping;
 
   const item = [...calls, ...meetings].find((x) => x.key === selected);
 
@@ -224,6 +236,9 @@ function CallsContent({ initialTask }: { initialTask: string }) {
                   {tab === "calls" ? "Back to calls" : "Back to meetings"}
                 </Button>
                 <h2 className="font-semibold">{item.company || item.title}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {item.day} {item.time && `${item.time} Phoenix`}
+                </p>
                 {item.detail !== (item.company || item.title) && (
                   <p className="text-sm">{item.detail}</p>
                 )}
@@ -232,12 +247,7 @@ function CallsContent({ initialTask }: { initialTask: string }) {
                     key={item.key}
                     taskKey={item.key}
                     contacts={item.contacts}
-                    disabled={
-                      enabled === null ||
-                      isRecording ||
-                      isStartingRecording ||
-                      isStopping
-                    }
+                    disabled={busy}
                     onCall={(c) => void start(c)}
                   />
                 )}
@@ -254,15 +264,7 @@ function CallsContent({ initialTask }: { initialTask: string }) {
                 )}
                 <PublicationChoice enabled={enabled} onChange={setEnabled} />
                 {!item.contacts.length && (
-                  <Button
-                    disabled={
-                      enabled === null ||
-                      isRecording ||
-                      isStartingRecording ||
-                      isStopping
-                    }
-                    onClick={() => void start()}
-                  >
+                  <Button disabled={busy} onClick={() => void start()}>
                     Start recording
                   </Button>
                 )}
