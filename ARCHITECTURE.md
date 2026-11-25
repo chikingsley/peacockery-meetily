@@ -153,7 +153,7 @@ meeting_publications(meeting_id TEXT PK REFERENCES meetings(id) ON DELETE CASCAD
                      -- one row per meeting queued for CICA publication (Automatic publication below)
 ```
 
-SQLite maintains the review transcript count on insert, delete and move. An index on meeting ID supports the review worker’s last-row lookup.
+SQLite maintains the review transcript count on insert, delete and move. An index on meeting ID supports the review worker’s last-row lookup. The review receipt tracks transcript replacement as well as row count. The worker rechecks the revision before applying inferred names and outcomes. Final transcript saves and speaker edits reserve the SQLite writer before reading existing names.
 
 "Best" transcript of a meeting = `final` rows if any exist, else `live` rows. On startup, meetings still `recording` become `interrupted`, and every meeting whose folder still holds an audio journal (interrupted, failed encode, or quit before the background encode finished) is registered as saving before unfinished final transcripts resume, then encoded on the background worker. Unless `auto_final` is `never`, the final transcript runs for every interrupted meeting once it has an `audio.*` file (including one whose `audio.mp4` was already written before the crash, with no journal left); a meeting that was already stopped gets its audio encoded: its queued final transcript resumes and waits for it, and a final the §6 rule needs that never ran or failed waiting for the audio starts once the audio is saved. Its automatic summary is not repeated.
 
