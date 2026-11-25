@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useState, Suspense, Fragment } from "react";
 import { toast } from "sonner";
 
+import { AgendaRow, agendaDay, agendaTime } from "@/components/AgendaRow";
 import { CallAttempts } from "@/components/CallAttempts";
 import { CallTaskActions } from "@/components/CallTaskActions";
 import { MeetingBrief } from "@/components/MeetingBrief";
@@ -18,6 +19,7 @@ import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { useRecordingStart } from "@/hooks/useRecordingStart";
 import {
   calendarPhase,
+  calendarTimeLeft,
   callContacts,
   callPurpose,
   orderedCalls,
@@ -47,7 +49,11 @@ function CallsRoute() {
 
 function CallsContent({ initialTask }: { initialTask: string }) {
   const { snapshot, now, checked, error } = useCalendar();
-  const [tab, setTab] = useState("calls");
+
+  const [tab, setTab] = useState(
+    initialTask.startsWith("event:") ? "meetings" : "calls"
+  );
+
   const [selected, setSelected] = useState(initialTask);
   const { enabled, setEnabled } = usePublicationDefault();
   const { isRecording, isStartingRecording, isStopping } = useRecordingState();
@@ -64,42 +70,27 @@ function CallsContent({ initialTask }: { initialTask: string }) {
     company: c.company.split(" | ")[0],
     day:
       c.due && Number.isFinite(Date.parse(c.due))
-        ? new Date(c.due).toLocaleDateString("en-US", {
-            timeZone: "America/Phoenix",
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-          })
+        ? agendaDay(c.due)
         : "Date needed",
-    time:
-      c.due && Number.isFinite(Date.parse(c.due))
-        ? new Date(c.due).toLocaleTimeString("en-US", {
-            timeZone: "America/Phoenix",
-            hour: "numeric",
-            minute: "2-digit",
-          })
-        : "",
+    time: c.due && Number.isFinite(Date.parse(c.due)) ? agendaTime(c.due) : "",
     contacts: callContacts(c),
     high: c.highPriority,
+    overdue: Boolean(c.due && Date.parse(c.due) < now),
     number: c.number,
     event: null,
   }));
 
   const meetings = (snapshot?.events ?? [])
     .filter((e) => Date.parse(e.end) >= now)
+    .toSorted((a, b) => Date.parse(a.start) - Date.parse(b.start))
     .map((e) => ({
       key: `event:${e.id}`,
       editable: false,
       title: e.title,
-      detail: new Date(e.start).toLocaleString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-      day: "",
-      time: "",
+      detail: e.location,
+      day: agendaDay(e.start),
+      time: agendaTime(e.start),
+      overdue: false,
       contacts: [],
       company: "",
       high: false,
@@ -175,49 +166,45 @@ function CallsContent({ initialTask }: { initialTask: string }) {
                         {row.day} {row.time && <small>Phoenix</small>}
                       </h2>
                     )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      aria-pressed={row.key === selected}
-                      className="h-auto w-full justify-start text-left whitespace-normal"
-                      onClick={() => setSelected(row.key)}
-                    >
-                      <span
-                        className={
-                          row.day
-                            ? "grid w-full min-w-0 grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-x-3"
-                            : "block w-full min-w-0"
-                        }
-                      >
-                        {row.day && (
-                          <strong className="whitespace-nowrap tabular-nums">
-                            {row.time}
-                          </strong>
-                        )}
-                        <span className="block min-w-0 space-y-1">
-                          <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-                            <span>{row.company || row.title}</span>
-                            {row.high && <small>High priority</small>}
-                          </span>
-                          <span className="block text-xs text-muted-foreground">
-                            {row.day
-                              ? [row.contacts[0]?.name, row.detail]
-                                  .filter(Boolean)
-                                  .join(" · ")
-                              : row.detail}
-                          </span>
-                        </span>
-                      </span>
-                    </Button>
+                    <AgendaRow
+                      time={row.time}
+                      title={row.company || row.title}
+                      detail={
+                        row.event
+                          ? row.detail
+                          : [row.contacts[0]?.name, row.detail]
+                              .filter(Boolean)
+                              .join(" · ")
+                      }
+                      status={
+                        row.event && calendarPhase(row.event, now) === "current"
+                          ? calendarTimeLeft(row.event.end, now)
+                          : [
+                              row.overdue && "Past due",
+                              row.high && "High priority",
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")
+                      }
+                      selected={row.key === selected}
+                      onSelect={() => setSelected(row.key)}
+                    />
                   </Fragment>
                 ))}
-                {checked && !(tab === "calls" ? calls : meetings).length && (
-                  <p className="text-sm text-muted-foreground">
-                    {tab === "calls"
-                      ? "No assigned calls in this agenda."
-                      : "No upcoming meetings in this agenda."}
+                {tab === "calls" && snapshot?.calls_stale && (
+                  <p role="status" className="text-sm text-muted-foreground">
+                    Task sync is delayed. Showing the last available call list.
                   </p>
                 )}
+                {checked &&
+                  !(tab === "calls" && snapshot?.calls_stale) &&
+                  !(tab === "calls" ? calls : meetings).length && (
+                    <p className="text-sm text-muted-foreground">
+                      {tab === "calls"
+                        ? "No assigned calls in this agenda."
+                        : "No upcoming meetings in this agenda."}
+                    </p>
+                  )}
               </section>
               {error && (
                 <p role="status" className="text-sm">
@@ -240,7 +227,7 @@ function CallsContent({ initialTask }: { initialTask: string }) {
                 {item.detail !== (item.company || item.title) && (
                   <p className="text-sm">{item.detail}</p>
                 )}
-                {item.day && (
+                {!item.event && (
                   <CallAttempts
                     key={item.key}
                     taskKey={item.key}
@@ -257,13 +244,13 @@ function CallsContent({ initialTask }: { initialTask: string }) {
                 {item.editable && (
                   <CallTaskActions key={item.key} id={item.key.slice(5)} />
                 )}
-                {item.day ? (
+                {item.event ? (
+                  <MeetingBrief key={item.key} itemKey={item.key} />
+                ) : (
                   <details key={`notes:${item.key}`}>
                     <summary>Call notes</summary>
                     <MeetingBrief itemKey={item.key} showAttempts={false} />
                   </details>
-                ) : (
-                  <MeetingBrief key={item.key} itemKey={item.key} />
                 )}
                 <PublicationChoice enabled={enabled} onChange={setEnabled} />
                 {!item.contacts.length && (

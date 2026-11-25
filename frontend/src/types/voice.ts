@@ -399,6 +399,7 @@ export interface CallTask {
 
 export interface CalendarSnapshot {
   calls?: CallTask[];
+  calls_stale?: boolean;
   observed: string;
   events: CalendarEvent[];
 }

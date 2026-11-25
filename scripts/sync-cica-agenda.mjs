@@ -83,12 +83,12 @@ const stored = await readFile(cacheFile, "utf8")
 const cached =
   stored?.calendar === calendar.outlook_calendar_id ? stored : null;
 let calls = cached?.calls ?? null;
-let changed = false;
+let callsStale = false;
 if (!process.argv[2]) {
-  try { changed = await processCallChanges(calendar.outlook_calendar_id); }
+  try { await processCallChanges(calendar.outlook_calendar_id); }
   catch (error) { console.warn("Call changes pending:", error.message); }
 }
-if (changed || !cached || Date.now() - cached.observed > 300000) {
+if (!process.argv[2] || !cached || Date.now() - cached.observed > 300000) {
   try {
     calls = await assignedCalls("Chi Ejimofor");
     await mkdir(cacheDir, { recursive: true });
@@ -104,12 +104,13 @@ if (changed || !cached || Date.now() - cached.observed > 300000) {
     );
     await rename(temporary, cacheFile);
   } catch (error) {
+    callsStale = true;
     console.warn(error.message);
   }
 }
 const packet = {
   calendar: calendar.outlook_calendar_id,
-  snapshot: { observed: source.observed, events, calls: calls ?? [] },
+  snapshot: { observed: source.observed, events, calls: calls ?? [], calls_stale: callsStale },
 };
 // Run on the authenticated SSH user's PC. A disabled or different calendar gets no file.
 if (process.argv[2] === "--list") {

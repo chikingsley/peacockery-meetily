@@ -48,6 +48,8 @@ pub struct CalendarSnapshot {
     pub events: Vec<CalendarEvent>,
     #[serde(default)]
     pub calls: Vec<CallTask>,
+    #[serde(default)]
+    pub calls_stale: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

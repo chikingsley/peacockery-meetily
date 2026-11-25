@@ -2,6 +2,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { AgendaRow, agendaTime } from "@/components/AgendaRow";
 import { Button } from "@/components/ui/button";
 import { useCalendar } from "@/contexts/CalendarContext";
 import { useMeetings } from "@/contexts/MeetingContext";
@@ -132,53 +133,55 @@ export function RecordingSetup({
           const ended = phase === "ended";
 
           return (
-            <div
+            <AgendaRow
               key={item.id}
-              className={`flex items-center gap-3 rounded-md border px-3 py-2 ${ended ? "text-muted-foreground" : ""}`}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">{item.title}</div>
-                <div className="text-xs tabular-nums">
-                  {new Date(item.start).toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    timeZone: "America/Phoenix",
-                  })}
-                  {phase === "current" &&
-                    ` · ${calendarTimeLeft(item.end, now)}`}
-                  {ended && (recording ? " · Ended" : " · No linked recording")}
-                </div>
-              </div>
-              {recording && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    router.push(
-                      `/meeting-details?id=${encodeURIComponent(recording.id)}`
-                    )
-                  }
-                >
-                  View recording
-                </Button>
-              )}
-              {!ended && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={!canStart}
-                  onClick={() => {
-                    if (calendarPhase(item, Date.now()) !== "ended") {
-                      onEventChange(item);
-                    }
-                  }}
-                >
-                  Start
-                </Button>
-              )}
-            </div>
+              title={item.title}
+              time={agendaTime(item.start)}
+              muted={ended}
+              detail={item.location}
+              status={
+                phase === "current"
+                  ? calendarTimeLeft(item.end, now)
+                  : ended
+                    ? recording
+                      ? "Ended"
+                      : "No linked recording"
+                    : undefined
+              }
+              actions={
+                <>
+                  {recording && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        router.push(
+                          `/meeting-details?id=${encodeURIComponent(recording.id)}`
+                        )
+                      }
+                    >
+                      View recording
+                    </Button>
+                  )}
+                  {!ended && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={!canStart}
+                      onClick={() => {
+                        if (calendarPhase(item, Date.now()) !== "ended") {
+                          onEventChange(item);
+                        }
+                      }}
+                    >
+                      Start
+                    </Button>
+                  )}
+                </>
+              }
+            />
           );
         })}
         {error && (
