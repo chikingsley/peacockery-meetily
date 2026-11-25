@@ -168,7 +168,9 @@ impl RecordingManager {
         }
     }
     pub fn recording_progress(&self) -> serde_json::Value {
-        self.recording_saver.progress()
+        let mut progress = self.recording_saver.progress();
+        progress["mic_gap_seconds"] = self.state.mic_gap_seconds().into();
+        progress
     }
 
     pub fn target(&self) -> &MeetingTarget {

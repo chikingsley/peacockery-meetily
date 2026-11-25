@@ -88,6 +88,7 @@ export interface StopRecordingResult {
 
 /** Seconds of audio received from capture and written to the journal. */
 export interface LocalProgress {
+  mic_gap_seconds?: number;
   received: number;
   saved: number;
   write_failed: boolean;

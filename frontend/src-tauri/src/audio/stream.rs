@@ -55,7 +55,7 @@ impl AudioStream {
     fn build_stream(
         device: &Device,
         config: &SupportedStreamConfig,
-        capture: AudioCapture,
+        mut capture: AudioCapture,
     ) -> Result<Stream> {
         let config_copy = config.clone();
 
@@ -64,8 +64,8 @@ impl AudioStream {
                 let capture_clone = capture.clone();
                 device.build_input_stream(
                     &config_copy.into(),
-                    move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                        capture.process_audio_data(data);
+                    move |data: &[f32], info: &cpal::InputCallbackInfo| {
+                        capture.process_device_packet(data, info);
                     },
                     move |err| {
                         capture_clone.handle_stream_error(err);
@@ -77,12 +77,12 @@ impl AudioStream {
                 let capture_clone = capture.clone();
                 device.build_input_stream(
                     &config_copy.into(),
-                    move |data: &[i16], _: &cpal::InputCallbackInfo| {
+                    move |data: &[i16], info: &cpal::InputCallbackInfo| {
                         let f32_data: Vec<f32> = data
                             .iter()
                             .map(|&sample| sample as f32 / i16::MAX as f32)
                             .collect();
-                        capture.process_audio_data(&f32_data);
+                        capture.process_device_packet(&f32_data, info);
                     },
                     move |err| {
                         capture_clone.handle_stream_error(err);
@@ -94,12 +94,12 @@ impl AudioStream {
                 let capture_clone = capture.clone();
                 device.build_input_stream(
                     &config_copy.into(),
-                    move |data: &[i32], _: &cpal::InputCallbackInfo| {
+                    move |data: &[i32], info: &cpal::InputCallbackInfo| {
                         let f32_data: Vec<f32> = data
                             .iter()
                             .map(|&sample| sample as f32 / i32::MAX as f32)
                             .collect();
-                        capture.process_audio_data(&f32_data);
+                        capture.process_device_packet(&f32_data, info);
                     },
                     move |err| {
                         capture_clone.handle_stream_error(err);
@@ -111,12 +111,12 @@ impl AudioStream {
                 let capture_clone = capture.clone();
                 device.build_input_stream(
                     &config_copy.into(),
-                    move |data: &[i8], _: &cpal::InputCallbackInfo| {
+                    move |data: &[i8], info: &cpal::InputCallbackInfo| {
                         let f32_data: Vec<f32> = data
                             .iter()
                             .map(|&sample| sample as f32 / i8::MAX as f32)
                             .collect();
-                        capture.process_audio_data(&f32_data);
+                        capture.process_device_packet(&f32_data, info);
                     },
                     move |err| {
                         capture_clone.handle_stream_error(err);

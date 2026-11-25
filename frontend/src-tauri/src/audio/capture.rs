@@ -8,6 +8,7 @@ use rubato::{
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use super::audio_processing::{audio_to_mono, HighPassFilter, LoudnessNormalizer};
 use super::devices::AudioDevice;
@@ -47,9 +48,35 @@ fn build_resampler(from_rate: u32) -> Option<SincFixedIn<f32>> {
     }
 }
 
+/// Compare the first sample's device time with the end of the previous packet.
+#[derive(Clone, Default)]
+struct PacketClock {
+    epoch: u32,
+    next: Duration,
+}
+
+impl PacketClock {
+    fn observe(&mut self, epoch: u32, start: Duration, length: Duration) -> Option<Duration> {
+        let gap = start.saturating_sub(self.next);
+        let same_sequence = self.epoch == epoch && epoch != 0;
+        self.epoch = epoch;
+        let packet_end = start + length;
+        self.next = if same_sequence {
+            self.next.max(packet_end)
+        } else {
+            packet_end
+        };
+        // Ignore small timestamp jitter. Each packet becomes the next baseline,
+        // so a reported discontinuity counts once.
+        (same_sequence && gap >= Duration::from_millis(250)).then_some(gap)
+    }
+}
+
 /// Per-device capture processor, called from the cpal callback.
 #[derive(Clone)]
 pub struct AudioCapture {
+    clock: PacketClock,
+    clock_origin: Option<cpal::StreamInstant>,
     device: Arc<AudioDevice>,
     state: Arc<RecordingState>,
     sample_rate: u32,
@@ -107,6 +134,8 @@ impl AudioCapture {
         };
 
         Self {
+            clock: PacketClock::default(),
+            clock_origin: None,
             device,
             state,
             sample_rate,
@@ -163,6 +192,45 @@ impl AudioCapture {
             None
         } else {
             Some(output)
+        }
+    }
+
+    /// A microphone delivers continuously. Render loopback can omit silent packets by design.
+    pub fn process_device_packet(&mut self, data: &[f32], info: &cpal::InputCallbackInfo) {
+        if self.device_type == DeviceType::Microphone && !data.is_empty() {
+            self.observe_mic_packet(data.len() / usize::from(self.channels), info.timestamp());
+        }
+        self.process_audio_data(data);
+    }
+
+    fn observe_mic_packet(&mut self, frames: usize, timestamp: cpal::InputStreamTimestamp) {
+        let origin = self.clock_origin.get_or_insert(timestamp.capture);
+        let Some(start) = timestamp.capture.duration_since(origin) else {
+            self.clock_origin = None;
+            self.clock = PacketClock::default();
+            return;
+        };
+        let length = Duration::from_secs_f64(frames as f64 / f64::from(self.sample_rate));
+        let Some(gap) = self
+            .clock
+            .observe(self.state.capture_epoch(), start, length)
+        else {
+            return;
+        };
+        let latency = timestamp
+            .callback
+            .duration_since(&timestamp.capture)
+            .unwrap_or_default();
+        let end = self
+            .state
+            .get_active_recording_duration()
+            .unwrap_or_default()
+            - latency.as_secs_f64();
+        // A driver clock jump can exceed the entire recording. Only report intervals
+        // that fit inside active capture, allowing a packet of timing uncertainty.
+        if gap.as_secs_f64() <= end + length.as_secs_f64() {
+            self.state.record_mic_gap(gap);
+            warn!("Microphone capture gap: device={} duration={:.3}s estimated recording interval={:.3}..{:.3}s", self.device.name, gap.as_secs_f64(), (end - gap.as_secs_f64()).max(0.0), end);
         }
     }
 
@@ -253,5 +321,39 @@ impl AudioCapture {
     pub fn report_source_ended(&self, message: &str) {
         error!("Audio source '{}' ended: {}", self.device.name, message);
         self.state.report_error(AudioError::AppAudioEnded);
+    }
+}
+
+#[cfg(test)]
+mod packet_clock_tests {
+    use super::*;
+
+    #[test]
+    fn counts_a_hole_once_and_accepts_delayed_or_coalesced_packets() {
+        let mut clock = PacketClock::default();
+        let ms = Duration::from_millis;
+        // Identical hardware timeline for immediate or delayed delivery.
+        assert_eq!(clock.observe(1, ms(0), ms(10)), None);
+        assert_eq!(clock.observe(1, ms(10), ms(750)), None);
+        assert_eq!(clock.observe(1, ms(760), ms(10)), None);
+        assert_eq!(clock.observe(1, ms(1770), ms(10)), Some(ms(1000)));
+        assert_eq!(clock.observe(1, ms(1780), ms(10)), None);
+        assert_eq!(clock.observe(1, ms(1791), ms(10)), None);
+        assert_eq!(clock.observe(1, ms(770), ms(10)), None);
+        assert_eq!(clock.observe(1, ms(1801), ms(10)), None);
+    }
+
+    #[test]
+    fn prestart_pause_resume_and_device_swap_start_new_sequences() {
+        let mut clock = PacketClock::default();
+        let ms = Duration::from_millis;
+        assert_eq!(clock.observe(0, ms(0), ms(10)), None);
+        assert_eq!(clock.observe(1, ms(950), ms(10)), None);
+        assert_eq!(clock.observe(0, ms(960), ms(10)), None);
+        assert_eq!(clock.observe(2, ms(2900), ms(10)), None);
+        // A pause/resume may deliver no callbacks at all.
+        assert_eq!(clock.observe(3, ms(4500), ms(10)), None);
+        let mut replacement = PacketClock::default();
+        assert_eq!(replacement.observe(3, ms(9000), ms(10)), None);
     }
 }

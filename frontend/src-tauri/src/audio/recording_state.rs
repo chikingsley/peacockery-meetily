@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -70,6 +70,8 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 #[derive(Default)]
 pub struct RecordingState {
     is_recording: AtomicBool,
+    capture_epoch: AtomicU32,
+    mic_gap_ms: AtomicU64,
     is_paused: AtomicBool,
     /// Sender of the capture → pipeline channel; dropping it ends the pipeline.
     audio_sender: Mutex<Option<mpsc::UnboundedSender<AudioChunk>>>,
@@ -91,6 +93,7 @@ impl RecordingState {
         *lock(&self.recording_start) = Some(Instant::now());
         self.error_count.store(0, Ordering::SeqCst);
         self.recoverable_error_count.store(0, Ordering::SeqCst);
+        self.mic_gap_ms.store(0, Ordering::Relaxed);
         Ok(())
     }
 
@@ -130,6 +133,7 @@ impl RecordingState {
                 paused_for.as_secs_f64()
             );
         }
+        self.capture_epoch.fetch_add(1, Ordering::SeqCst);
         self.is_paused.store(false, Ordering::SeqCst);
         Ok(())
     }
@@ -151,6 +155,24 @@ impl RecordingState {
     pub fn set_audio_sender(&self, sender: mpsc::UnboundedSender<AudioChunk>) {
         *lock(&self.audio_sender) = Some(sender);
         *lock(&self.recording_start) = Some(Instant::now());
+        self.capture_epoch.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub fn capture_epoch(&self) -> u32 {
+        if self.is_active() {
+            self.capture_epoch.load(Ordering::SeqCst)
+        } else {
+            0
+        }
+    }
+
+    pub fn record_mic_gap(&self, gap: Duration) {
+        self.mic_gap_ms
+            .fetch_add(gap.as_millis() as u64, Ordering::Relaxed);
+    }
+
+    pub fn mic_gap_seconds(&self) -> f64 {
+        self.mic_gap_ms.load(Ordering::Relaxed) as f64 / 1000.0
     }
 
     /// Hand a capture chunk to the pipeline. Chunks are dropped while paused.
@@ -245,6 +267,25 @@ mod tests {
             data: vec![0.0; 4],
             device_type: DeviceType::Microphone,
         }
+    }
+
+    #[test]
+    fn mic_gap_measurement_follows_the_actual_capture_lifecycle() {
+        let state = RecordingState::new();
+        state.start_recording().unwrap();
+        assert_eq!(state.capture_epoch(), 0);
+        let (tx, _rx) = mpsc::unbounded_channel();
+        state.set_audio_sender(tx);
+        let initial = state.capture_epoch();
+        assert_ne!(initial, 0);
+        state.record_mic_gap(Duration::from_millis(1350));
+        state.pause_recording().unwrap();
+        assert_eq!(state.capture_epoch(), 0);
+        state.resume_recording().unwrap();
+        assert_ne!(state.capture_epoch(), initial);
+        assert_eq!(state.mic_gap_seconds(), 1.35);
+        state.stop_recording();
+        assert_eq!(state.capture_epoch(), 0);
     }
 
     #[test]

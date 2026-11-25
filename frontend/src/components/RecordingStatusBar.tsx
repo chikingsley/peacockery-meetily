@@ -44,6 +44,12 @@ export const RecordingStatusBar: React.FC<RecordingStatusBarProps> = ({
     health = "Local audio behind";
   }
 
+  const micGap = progress?.mic_gap_seconds ?? 0;
+
+  if (micGap > 0) {
+    health = `Microphone capture gap · ${micGap.toFixed(1)}s total`;
+  }
+
   if (progress?.write_failed) {
     health = "Audio save failed";
   }
@@ -51,6 +57,8 @@ export const RecordingStatusBar: React.FC<RecordingStatusBarProps> = ({
   if (isPaused) {
     health = "Paused";
   }
+
+  const warning = isPaused || micGap > 0 || behind || progress?.write_failed;
 
   return (
     <motion.div
@@ -61,10 +69,10 @@ export const RecordingStatusBar: React.FC<RecordingStatusBarProps> = ({
       className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-1.5"
     >
       <div
-        className={`h-2 w-2 rounded-full ${isPaused ? "bg-warning" : "animate-pulse bg-destructive"}`}
+        className={`h-2 w-2 rounded-full ${warning ? "bg-warning" : "animate-pulse bg-destructive"}`}
       />
       <span
-        className={`text-sm ${isPaused ? "text-warning" : "text-foreground"}`}
+        className={`text-sm ${warning ? "text-warning" : "text-foreground"}`}
       >
         {health} • {formatDuration(displaySeconds)}
         {progress && (
