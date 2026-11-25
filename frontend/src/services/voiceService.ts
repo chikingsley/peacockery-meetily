@@ -121,6 +121,9 @@ export const voiceService = {
   getRecordingState: () => invoke<RecordingState>("get_recording_state"),
 
   getTranscriptHistory: () => invoke<LiveLine[]>("get_transcript_history"),
+  meetingFocusEnabled: () => invoke<boolean>("meeting_focus_enabled"),
+  setMeetingFocus: (enabled: boolean) =>
+    invoke<void>("set_meeting_focus", { enabled }),
   getRecordingPreferences: () =>
     invoke<RecordingPreferences>("get_recording_preferences"),
   setRecordingPreferences: (preferences: RecordingPreferences) =>

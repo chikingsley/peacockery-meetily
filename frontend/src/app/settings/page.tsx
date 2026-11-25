@@ -28,7 +28,7 @@ function SettingsContent() {
             </TabsTrigger>
             <TabsTrigger value="recording">
               <Mic />
-              Audio
+              Recording
             </TabsTrigger>
             <TabsTrigger value="general">
               <Settings2 />
