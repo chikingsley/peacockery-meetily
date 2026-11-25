@@ -72,6 +72,8 @@ pub struct RecordingState {
     is_recording: AtomicBool,
     capture_epoch: AtomicU32,
     mic_gap_ms: AtomicU64,
+    system_expected: AtomicBool,
+    last_system_packet: Mutex<Option<Instant>>,
     is_paused: AtomicBool,
     /// Sender of the capture → pipeline channel; dropping it ends the pipeline.
     audio_sender: Mutex<Option<mpsc::UnboundedSender<AudioChunk>>>,
@@ -134,6 +136,7 @@ impl RecordingState {
             );
         }
         self.capture_epoch.fetch_add(1, Ordering::SeqCst);
+        *lock(&self.last_system_packet) = Some(Instant::now());
         self.is_paused.store(false, Ordering::SeqCst);
         Ok(())
     }
@@ -175,10 +178,25 @@ impl RecordingState {
         self.mic_gap_ms.load(Ordering::Relaxed) as f64 / 1000.0
     }
 
+    pub fn expect_system_audio(&self, expected: bool) {
+        self.system_expected.store(expected, Ordering::Relaxed);
+        *lock(&self.last_system_packet) = Some(Instant::now());
+    }
+
+    pub fn system_audio_idle(&self) -> bool {
+        self.is_active()
+            && self.system_expected.load(Ordering::Relaxed)
+            && lock(&self.last_system_packet)
+                .is_some_and(|t| t.elapsed() >= Duration::from_secs(15))
+    }
+
     /// Hand a capture chunk to the pipeline. Chunks are dropped while paused.
     pub fn send_audio_chunk(&self, chunk: AudioChunk) -> Result<()> {
         if self.is_paused() {
             return Ok(());
+        }
+        if chunk.device_type == DeviceType::System && !chunk.data.is_empty() {
+            *lock(&self.last_system_packet) = Some(Instant::now());
         }
         match lock(&self.audio_sender).as_ref() {
             Some(sender) => sender
@@ -267,6 +285,35 @@ mod tests {
             data: vec![0.0; 4],
             device_type: DeviceType::Microphone,
         }
+    }
+
+    #[test]
+    fn computer_audio_warning_tracks_only_active_expected_system_packets() {
+        let state = RecordingState::new();
+        let (tx, _rx) = mpsc::unbounded_channel();
+        state.set_audio_sender(tx);
+        state.start_recording().unwrap();
+        state.expect_system_audio(false);
+        let age =
+            || *lock(&state.last_system_packet) = Some(Instant::now() - Duration::from_secs(16));
+        age();
+        assert!(!state.system_audio_idle());
+        state.expect_system_audio(true);
+        age();
+        state.send_audio_chunk(chunk()).unwrap();
+        assert!(state.system_audio_idle());
+        state.pause_recording().unwrap();
+        assert!(!state.system_audio_idle());
+        state.resume_recording().unwrap();
+        assert!(!state.system_audio_idle());
+        age();
+        state
+            .send_audio_chunk(AudioChunk {
+                device_type: DeviceType::System,
+                ..chunk()
+            })
+            .unwrap();
+        assert!(!state.system_audio_idle());
     }
 
     #[test]

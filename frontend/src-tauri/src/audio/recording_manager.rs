@@ -169,6 +169,7 @@ impl RecordingManager {
     }
     pub fn recording_progress(&self) -> serde_json::Value {
         let mut progress = self.recording_saver.progress();
+        progress["system_audio_idle"] = self.state.system_audio_idle().into();
         progress["mic_gap_seconds"] = self.state.mic_gap_seconds().into();
         progress
     }

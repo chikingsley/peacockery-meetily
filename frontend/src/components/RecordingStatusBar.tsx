@@ -51,6 +51,10 @@ export const RecordingStatusBar: React.FC<RecordingStatusBarProps> = ({
     health = behind ? `${health} · ${gap}` : gap;
   }
 
+  if (progress?.system_audio_idle) {
+    health += " · Waiting for computer audio";
+  }
+
   if (progress?.write_failed) {
     health = "Audio save failed";
   }
@@ -59,7 +63,12 @@ export const RecordingStatusBar: React.FC<RecordingStatusBarProps> = ({
     health = "Paused";
   }
 
-  const warning = isPaused || micGap > 0 || behind || progress?.write_failed;
+  const warning =
+    isPaused ||
+    micGap > 0 ||
+    behind ||
+    progress?.system_audio_idle ||
+    progress?.write_failed;
 
   return (
     <motion.div

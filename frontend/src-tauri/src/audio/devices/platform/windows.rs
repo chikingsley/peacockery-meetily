@@ -119,7 +119,7 @@ pub fn get_windows_device(
                 if let Ok(name) = device.name() {
                     info!("Checking input device: {}", name);
                     // Check if the device name contains our base name
-                    if name == base_name || name.contains(base_name) {
+                    if name == base_name {
                         // info!("Found matching input device: {}", name);
 
                         // Try to get default input config with better error logging
@@ -173,21 +173,6 @@ pub fn get_windows_device(
                                     name
                                 ));
                             }
-                        }
-                    }
-                }
-            }
-
-            // If we didn't find a matching device, try the default input device as fallback
-            info!("No matching input device found, trying default input device");
-            if let Some(default_device) = wasapi_host.default_input_device() {
-                if let Ok(_name) = default_device.name() {
-                    // info!("Using default input device: {}", _name);
-                    if let Ok(config) = default_device.default_input_config() {
-                        return Ok((default_device, config));
-                    } else if let Ok(supported_configs) = default_device.supported_input_configs() {
-                        if let Some(config) = supported_configs.into_iter().next() {
-                            return Ok((default_device, config.with_max_sample_rate()));
                         }
                     }
                 }

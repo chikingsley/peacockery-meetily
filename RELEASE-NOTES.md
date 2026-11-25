@@ -1,1 +1,1 @@
-Scheduled Zoom, Teams, Google Meet and Webex calls capture microphone and computer audio when the invitation identifies the platform only in its location. Both meeting lists show the platform name for recognized meeting links.
+Meetily asks before switching to a replacement microphone. Online recordings flag a missing computer audio stream after 15 seconds. Scheduled meetings show a reminder one minute after their calendar end while recording continues.
