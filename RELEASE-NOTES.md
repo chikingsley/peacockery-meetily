@@ -1,1 +1,5 @@
-See English beneath Chinese speech during recording and when reopening a meeting. Mixed turns translate the Chinese sentences and keep spoken English on the original line. New installations detect the spoken language automatically. Existing language selections carry forward.
+Today's agenda follows the clock. See the time left in a scheduled meeting, revisit an earlier day, and open a linked recording when the meeting ends.
+
+Complete or reschedule an assigned Trello call from its detail pane. Meetily shows the queued change while GMK syncs it.
+
+Windows recording status requests run one at a time. CICA meeting focus can close and restore AI desktop windows around a recording.

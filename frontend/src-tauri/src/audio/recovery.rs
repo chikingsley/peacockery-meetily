@@ -47,6 +47,22 @@ pub async fn register_journals(pool: &sqlx::SqlitePool) -> Recovery {
             }
             continue;
         };
+        // Older builds only indexed the calendar link after successful model review.
+        if let Some(key) = crate::recording_context::RecordingContext::load(&folder)
+            .and_then(|context| {
+                context.brief_key.or_else(|| {
+                    context
+                        .calendar_event
+                        .map(|event| format!("event:{}", event.id))
+                })
+            })
+            .filter(|key| key.starts_with("event:"))
+        {
+            if let Err(error) = sqlx::query("INSERT INTO meeting_reviews(meeting_id,brief_key) VALUES(?,?) ON CONFLICT(meeting_id) DO UPDATE SET brief_key=excluded.brief_key WHERE brief_key IS NULL")
+                .bind(&meeting.id).bind(key).execute(pool).await {
+                warn!("Could not index saved calendar link: {error}");
+            }
+        }
         let audio = find_meeting_audio(&folder);
         if has_journal(&folder) && audio.is_some() {
             // `audio.*` is renamed in only once complete, so this encode finished and only

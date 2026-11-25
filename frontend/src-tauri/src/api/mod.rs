@@ -11,12 +11,13 @@ use crate::database::repositories::transcript::{
 use crate::state::AppState;
 
 /// Sidebar row.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct MeetingListItem {
     pub id: String,
     pub title: String,
     pub created_at: Option<String>,
     pub final_status: Option<String>,
+    pub brief_key: Option<String>,
 }
 
 /// Every meeting column plus the audio file and which transcript sources exist.
@@ -84,18 +85,8 @@ async fn require_meeting(pool: &sqlx::SqlitePool, meeting_id: &str) -> Result<Me
 
 #[tauri::command]
 pub async fn api_get_meetings(state: State<'_, AppState>) -> Result<Vec<MeetingListItem>, String> {
-    let meetings = MeetingsRepository::list(state.db_manager.pool())
-        .await
-        .map_err(|e| db_error("Failed to list meetings", e))?;
-    Ok(meetings
-        .into_iter()
-        .map(|m| MeetingListItem {
-            id: m.id,
-            title: m.title,
-            created_at: m.created_at,
-            final_status: m.final_status,
-        })
-        .collect())
+    sqlx::query_as("SELECT m.id,m.title,m.created_at,m.final_status,r.brief_key FROM meetings m LEFT JOIN meeting_reviews r ON r.meeting_id=m.id ORDER BY m.created_at DESC")
+        .fetch_all(state.db_manager.pool()).await.map_err(|e| db_error("Failed to list meetings", e))
 }
 
 #[tauri::command]

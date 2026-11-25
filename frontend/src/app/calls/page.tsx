@@ -5,6 +5,7 @@ import { useState, Suspense, Fragment } from "react";
 import { toast } from "sonner";
 
 import { CallAttempts } from "@/components/CallAttempts";
+import { CallTaskActions } from "@/components/CallTaskActions";
 import { MeetingBrief } from "@/components/MeetingBrief";
 import {
   PublicationChoice,
@@ -16,6 +17,7 @@ import { useCalendar } from "@/contexts/CalendarContext";
 import { useRecordingState } from "@/contexts/RecordingStateContext";
 import { useRecordingStart } from "@/hooks/useRecordingStart";
 import {
+  calendarPhase,
   callContacts,
   callPurpose,
   orderedCalls,
@@ -56,6 +58,7 @@ function CallsContent({ initialTask }: { initialTask: string }) {
 
   const calls = orderedCalls(snapshot?.calls ?? [], now).map((c) => ({
     key: `task:${c.id}`,
+    editable: c.editable,
     title: c.title,
     detail: callPurpose(c),
     company: c.company.split(" | ")[0],
@@ -86,6 +89,7 @@ function CallsContent({ initialTask }: { initialTask: string }) {
     .filter((e) => Date.parse(e.end) >= now)
     .map((e) => ({
       key: `event:${e.id}`,
+      editable: false,
       title: e.title,
       detail: new Date(e.start).toLocaleString(undefined, {
         weekday: "short",
@@ -106,7 +110,7 @@ function CallsContent({ initialTask }: { initialTask: string }) {
   const item = [...calls, ...meetings].find((x) => x.key === selected);
 
   async function start(contact?: CallContact) {
-    if (!item || enabled === null) {
+    if (!item || enabled === null || (item.event && calendarPhase(item.event, Date.now()) === "ended")) {
       return;
     }
 
@@ -245,6 +249,9 @@ function CallsContent({ initialTask }: { initialTask: string }) {
                     }
                     onCall={(c) => void start(c)}
                   />
+                )}
+                {item.editable && (
+                  <CallTaskActions key={item.key} id={item.key.slice(5)} />
                 )}
                 {item.day ? (
                   <details key={`notes:${item.key}`}>

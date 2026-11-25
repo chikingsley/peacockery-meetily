@@ -166,6 +166,10 @@ export const voiceService = {
     invoke<void>("open_meeting_folder", { meetingId }),
   setCallOutcome: (meetingId: string, outcome: string) =>
     invoke<void>("set_call_outcome", { meetingId, outcome }),
+  callChangeStatus: (taskId: string) =>
+    invoke<string | null>("call_change_status", { taskId }),
+  changeCallTask: (taskId: string, due: string | null) =>
+    invoke<void>("change_call_task", { taskId, due }),
   callAttempts: (key: string) =>
     invoke<
       {

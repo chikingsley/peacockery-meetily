@@ -331,6 +331,18 @@ async fn start_recording(
 
     if let Some(key) = context
         .brief_key
+        .as_ref()
+        .filter(|k| k.starts_with("event:"))
+    {
+        if let Err(error) = sqlx::query("INSERT INTO meeting_reviews(meeting_id,brief_key) VALUES(?,?) ON CONFLICT(meeting_id) DO UPDATE SET brief_key=excluded.brief_key")
+            .bind(&meeting_id).bind(key).execute(&pool).await {
+            let _ = MeetingsRepository::delete(&pool, &meeting_id).await;
+            remove_folder(&folder);
+            return Err(format!("Could not save calendar link: {error}"));
+        }
+    }
+    if let Some(key) = context
+        .brief_key
         .as_deref()
         .filter(|k| k.starts_with("task:"))
     {

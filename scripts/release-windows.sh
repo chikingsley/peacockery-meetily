@@ -7,7 +7,7 @@ cd "$repo"
 version="$(node -p 'require("./frontend/src-tauri/tauri.conf.json").version')"
 export TAURI_SIGNING_PRIVATE_KEY="${TAURI_SIGNING_PRIVATE_KEY:-$HOME/.local/share/peacockery-meetily/updater.key}"
 [ -f "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo 'Provide the established update signing key.'; exit 1; }
-node --test scripts/access.test.mjs services/activation/worker.test.mjs
+node --test scripts/access.test.mjs scripts/lib/call-changes.test.mjs services/activation/worker.test.mjs
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo xwin clippy --workspace --target x86_64-pc-windows-msvc -- -D warnings

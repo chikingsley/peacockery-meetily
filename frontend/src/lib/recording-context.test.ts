@@ -4,6 +4,8 @@ import type { CalendarEvent } from "@/types/voice";
 
 import {
   callContacts,
+  calendarPhase,
+  calendarTimeLeft,
   orderedCalls,
   eventsToday,
   suggestedMode,
@@ -21,6 +23,14 @@ const event: CalendarEvent = {
 };
 
 describe("calendar recording context", () => {
+  test("calendar rows change at the scheduled boundaries", () => {
+    expect(calendarPhase(event, Date.parse(event.start) - 1)).toBe("upcoming");
+    expect(calendarPhase(event, Date.parse(event.start))).toBe("current");
+    expect(calendarTimeLeft(event.end, Date.parse(event.end) - 1)).toBe(
+      "1 min left"
+    );
+    expect(calendarPhase(event, Date.parse(event.end))).toBe("ended");
+  });
   test("an automatically added Teams link does not override a physical room", () => {
     expect(suggestedMode(event)).toBe("in_person");
     expect(

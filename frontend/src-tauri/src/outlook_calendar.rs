@@ -547,7 +547,7 @@ pub async fn snapshot(app: &tauri::AppHandle) -> Result<Option<CalendarSnapshot>
     let Some(auth) = current_auth(app).await? else {
         return Ok(None);
     };
-    let start = (chrono::Utc::now() - chrono::Duration::days(1)).to_rfc3339();
+    let start = (chrono::Utc::now() - chrono::Duration::days(7)).to_rfc3339();
     let end = (chrono::Utc::now() + chrono::Duration::days(2)).to_rfc3339();
     let id: String = url::form_urlencoded::byte_serialize(s.calendar.as_bytes()).collect();
     let mut next = format!(
@@ -716,5 +716,63 @@ mod tests {
             None
         );
         assert_eq!(token_identity("malformed"), None);
+    }
+}
+
+/// Stage an edit for the authenticated GMK agenda publisher. The PC holds no Trello credential.
+#[tauri::command]
+pub async fn change_call_task(
+    app: tauri::AppHandle,
+    task_id: String,
+    due: Option<String>,
+) -> Result<(), String> {
+    let calendar = selection(&app).calendar;
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let bytes = std::fs::read(base.join("managed-agenda.json"))
+        .map_err(|_| "Managed agenda unavailable")?;
+    let task = managed_snapshot(&bytes, &calendar, chrono::Utc::now())
+        .and_then(|s| s.calls.into_iter().find(|t| t.id == task_id && t.editable))
+        .ok_or("Refresh the call list before editing this task")?;
+    if let Some(time) = &due {
+        let date =
+            chrono::DateTime::parse_from_rfc3339(time).map_err(|_| "Choose a valid due time")?;
+        if date <= chrono::Utc::now() {
+            return Err("Choose a future due time".into());
+        }
+    }
+    let id = uuid::Uuid::parse_str(&task.id).map_err(|_| "Invalid task ID")?;
+    let dir = base.join("call-changes");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(format!("{id}.json"));
+    let mut temp = tempfile::NamedTempFile::new_in(&dir).map_err(|e| e.to_string())?;
+    serde_json::to_writer(&mut temp, &json!({"calendar":calendar,"id":task.id,"title":task.title,"before":task.due,"due":due,"request":uuid::Uuid::new_v4().to_string()})).map_err(|e|e.to_string())?;
+    temp.persist_noclobber(path)
+        .map_err(|_| "A change is already queued for this task")?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn call_change_status(
+    app: tauri::AppHandle,
+    task_id: String,
+) -> Result<Option<String>, String> {
+    let id = uuid::Uuid::parse_str(&task_id).map_err(|_| "Invalid task ID")?;
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("call-changes");
+    if dir.join(format!("{id}.json")).exists() {
+        return Ok(Some("Queued for Trello".into()));
+    }
+    let file = dir.join(format!("{id}.json.result"));
+    match std::fs::read(file) {
+        Ok(bytes) => Ok(
+            serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?["status"]
+                .as_str()
+                .map(str::to_owned),
+        ),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e.to_string()),
     }
 }

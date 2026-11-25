@@ -128,6 +128,7 @@ export type MeetingStatus =
   | "imported";
 
 export interface MeetingListItem {
+  brief_key?: string | null;
   id: string;
   title: string;
   created_at: string | null;
@@ -385,6 +386,7 @@ export interface CallContact {
 }
 
 export interface CallTask {
+  editable?: boolean;
   highPriority?: boolean;
   id: string;
   title: string;

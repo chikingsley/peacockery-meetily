@@ -52,6 +52,8 @@ pub struct CalendarSnapshot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CallTask {
+    #[serde(default)]
+    pub editable: bool,
     pub id: String,
     pub title: String,
     pub number: String,

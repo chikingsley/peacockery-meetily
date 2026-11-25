@@ -87,6 +87,7 @@ export function RecordingStateProvider({
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Bumped by every lifecycle event, so a poll answered after one cannot overwrite it.
+  const pollInFlight = useRef(false);
   const lifecycleEpochRef = useRef(0);
   const isRecordingRef = useRef(false);
   useEffect(() => {
@@ -150,7 +151,15 @@ export function RecordingStateProvider({
       clearInterval(pollingRef.current);
     }
 
-    pollingRef.current = setInterval(() => void syncWithBackend(), POLL_MS);
+    pollingRef.current = setInterval(() => {
+      if (pollInFlight.current) {
+        return;
+      }
+      pollInFlight.current = true;
+      void syncWithBackend().finally(() => {
+        pollInFlight.current = false;
+      });
+    }, POLL_MS);
   }, [syncWithBackend]);
 
   const stopPolling = useCallback(() => {

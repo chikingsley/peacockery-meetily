@@ -46,9 +46,11 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
       isStartingRef.current = true;
 
       try {
+        setStatus(RecordingStatus.STARTING, "Preparing recording…");
         const keyStatus = await refreshKeyStatus();
 
         if (!keyStatus?.configured) {
+          setStatus(RecordingStatus.IDLE);
           onVoiceNotConfigured();
 
           return;

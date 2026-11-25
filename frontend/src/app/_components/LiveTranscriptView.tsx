@@ -5,7 +5,9 @@ import { EnglishCaption } from "@/components/EnglishCaption";
 import { MeetingBrief } from "@/components/MeetingBrief";
 import { SpeakerRenameDialog } from "@/components/MeetingDetails/SpeakerRenameDialog";
 import { SpeakerChip } from "@/components/SpeakerChip";
+import { useCalendar } from "@/contexts/CalendarContext";
 import { useMeetingReview } from "@/hooks/useMeetingReview";
+import { calendarTimeLeft } from "@/lib/recording-context";
 import { formatRecordingTime } from "@/lib/transcript-format";
 import { voiceService } from "@/services/voiceService";
 import type { LiveLine, TranscriptInterim } from "@/types/voice";
@@ -69,11 +71,22 @@ export function LiveTranscriptView({
   liveEnabled,
 }: LiveTranscriptViewProps) {
   const { review, refresh } = useMeetingReview(meetingId);
+  const { now, snapshot } = useCalendar();
+
+  const event = snapshot?.events.find(
+    (e) => `event:${e.id}` === review.brief_key
+  );
+
   const [renaming, setRenaming] = useState<string | null>(null);
   const empty = lines.length === 0 && interims.length === 0;
 
   return (
     <div className="px-4 py-2">
+      {event && now > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {calendarTimeLeft(event.end, now)}
+        </p>
+      )}
       {review.brief_key && (
         <details className="my-3 rounded-md border p-3">
           <summary className="cursor-pointer text-sm">Meeting prep</summary>

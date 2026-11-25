@@ -1,8 +1,16 @@
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useCalendar } from "@/contexts/CalendarContext";
-import { eventsToday, RECORDING_MODES } from "@/lib/recording-context";
+import { useMeetings } from "@/contexts/MeetingContext";
+import {
+  calendarPhase,
+  calendarTimeLeft,
+  eventsToday,
+  RECORDING_MODES,
+} from "@/lib/recording-context";
 import type { CalendarEvent, RecordingMode } from "@/types/voice";
 
 export function RecordingSetup({
@@ -17,7 +25,21 @@ export function RecordingSetup({
   onEventChange: (event: CalendarEvent) => void;
 }) {
   const { snapshot, error, now, checked } = useCalendar();
-  const events = eventsToday(snapshot?.events ?? [], new Date(now));
+  const router = useRouter();
+  const { meetings } = useMeetings();
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const days = 86_400_000;
+  const displayDay = selectedDay ?? now;
+  const events = eventsToday(snapshot?.events ?? [], new Date(displayDay));
+  const formatDay = (value: number) =>
+    new Date(value).toLocaleDateString("en-US", {
+      timeZone: "America/Phoenix",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  const selectedToday = formatDay(displayDay) === formatDay(now);
+  const scheduled = snapshot?.events ?? [];
 
   return (
     <div className="space-y-4">
@@ -41,30 +63,115 @@ export function RecordingSetup({
         </p>
       </fieldset>
       <section className="space-y-2">
-        <h2 className="flex items-center gap-2 text-sm font-medium">
-          <CalendarDays className="size-4" />
-          Today’s meetings
-        </h2>
-        {events.map((item) => (
-          <Button
-            className="h-auto w-full justify-between text-left whitespace-normal"
-            type="button"
-            variant="outline"
-            disabled={!canStart}
-            key={item.id}
-            onClick={() => onEventChange(item)}
-          >
-            <span>
-              {new Date(item.start).toLocaleTimeString("en-US", {
-                hour: "numeric",
-                minute: "2-digit",
-                timeZone: "America/Phoenix",
-              })}{" "}
-              · {item.title}
-            </span>
-            <span>Start</span>
-          </Button>
-        ))}
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-medium">
+            <CalendarDays className="size-4" />
+            {selectedToday ? "Today’s meetings" : formatDay(displayDay)}
+          </h2>
+          <div className="flex items-center">
+            {!selectedToday && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedDay(null)}
+              >
+                Today
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label="Previous day"
+              disabled={
+                !scheduled.some(
+                  (e) =>
+                    Date.parse(e.start) < displayDay &&
+                    formatDay(Date.parse(e.start)) !== formatDay(displayDay)
+                )
+              }
+              onClick={() => setSelectedDay(displayDay - days)}
+            >
+              <ChevronLeft />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label="Next day"
+              disabled={
+                !scheduled.some(
+                  (e) =>
+                    Date.parse(e.start) > displayDay &&
+                    formatDay(Date.parse(e.start)) !== formatDay(displayDay)
+                )
+              }
+              onClick={() => setSelectedDay(displayDay + days)}
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+        </div>
+        {events.map((item) => {
+          const phase = calendarPhase(item, now);
+
+          const recording = meetings.find(
+            (m) => m.brief_key === `event:${item.id}`
+          );
+
+          const ended = phase === "ended";
+
+          return (
+            <div
+              key={item.id}
+              className={`flex items-center gap-3 rounded-md border px-3 py-2 ${ended ? "text-muted-foreground" : ""}`}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">{item.title}</div>
+                <div className="text-xs tabular-nums">
+                  {new Date(item.start).toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    timeZone: "America/Phoenix",
+                  })}
+                  {phase === "current" &&
+                    ` · ${calendarTimeLeft(item.end, now)}`}
+                  {ended && (recording ? " · Ended" : " · No linked recording")}
+                </div>
+              </div>
+              {recording && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    router.push(
+                      `/meeting-details?id=${encodeURIComponent(recording.id)}`
+                    )
+                  }
+                >
+                  View recording
+                </Button>
+              )}
+              {!ended && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!canStart}
+                  onClick={() => {
+                    if (calendarPhase(item, Date.now()) !== "ended") {
+                      onEventChange(item);
+                    }
+                  }}
+                >
+                  Start
+                </Button>
+              )}
+            </div>
+          );
+        })}
         {error && (
           <p role="status" className="text-xs text-muted-foreground">
             {snapshot ? "Showing saved calendar. " : ""}
@@ -74,7 +181,7 @@ export function RecordingSetup({
         {checked && !error && !events.length && (
           <p className="text-xs text-muted-foreground">
             {snapshot
-              ? "No meetings scheduled today."
+              ? "No meetings scheduled for this day."
               : "Connect Outlook in Settings to see scheduled meetings."}
           </p>
         )}

@@ -40,6 +40,20 @@ export function suggestedMode(event: CalendarEvent): RecordingMode {
       : "in_person";
 }
 
+export function calendarPhase(event: CalendarEvent, now: number) {
+  if (now >= Date.parse(event.end)) {
+    return "ended";
+  }
+
+  return now >= Date.parse(event.start) ? "current" : "upcoming";
+}
+
+export function calendarTimeLeft(end: string, now: number) {
+  const minutes = Math.ceil((Date.parse(end) - now) / 60_000);
+
+  return minutes > 0 ? `${minutes} min left` : "Scheduled time ended";
+}
+
 export function eventsToday(events: CalendarEvent[], now = new Date()) {
   const day = (date: Date) =>
     new Intl.DateTimeFormat("en-CA", {

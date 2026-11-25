@@ -6,6 +6,8 @@ mod briefs;
 pub mod database;
 pub mod final_transcript;
 pub mod live;
+#[cfg(windows)]
+mod meeting_focus;
 mod outlook_calendar;
 mod outlook_secret;
 pub mod publication;
@@ -50,6 +52,8 @@ fn log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
 }
 
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(windows)]
+    meeting_focus::start(app.path().app_data_dir()?);
     let _ = rustls::crypto::ring::default_provider().install_default();
     log::info!("Peacockery Meetily {} starting", app.package_info().version);
 
@@ -127,6 +131,8 @@ pub fn run() {
             api::rename_speaker,
             summary::review::meeting_review,
             briefs::meeting_brief,
+            outlook_calendar::change_call_task,
+            outlook_calendar::call_change_status,
             briefs::save_meeting_brief,
             briefs::dial_phone,
             briefs::call_attempts,

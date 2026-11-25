@@ -4,7 +4,7 @@ import { readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export async function assignedCalls(memberName) {
+export async function assignedCalls(memberName, includeClosed = false) {
   const key = (
     await readFile(join(homedir(), "github/cica/crm/.agent-api-key"), "utf8")
   ).trim();
@@ -43,7 +43,7 @@ export async function assignedCalls(memberName) {
   for (const card of JSON.parse(board.stdout)) {
     const highPriority = card.labels.some((label) => label.name === "P1");
     for (const list of card.checklists) {
-      for (const item of list.checkItems) items.set(item.id, { ...item, highPriority });
+      for (const item of list.checkItems) items.set(item.id, { ...item, highPriority, cardId: card.id });
     }
   }
   return tasks
@@ -51,9 +51,9 @@ export async function assignedCalls(memberName) {
       (t) =>
         t.assigneeId === members[0].id &&
         t.taskType === "CALL" &&
-        t.status !== "DONE" &&
+        (includeClosed || t.status !== "DONE") &&
         !t.deletedAt &&
-        (!t.trelloItemId || items.get(t.trelloItemId)?.state === "incomplete")
+        (includeClosed || !t.trelloItemId || items.get(t.trelloItemId)?.state === "incomplete")
     )
     .map((t) => {
       const item = items.get(t.trelloItemId);
@@ -61,6 +61,8 @@ export async function assignedCalls(memberName) {
       const digits = (phone.primaryPhoneNumber ?? "").replace(/\D/g, "");
       return {
         id: t.id,
+        editable: Boolean(item),
+        ...(includeClosed && item ? { cardId: item.cardId, itemId: item.id, state: item.state } : {}),
         title: item?.name ?? t.title,
         company: t.trelloCard?.primaryLinkLabel ?? "",
         source: t.trelloCard?.primaryLinkUrl ?? "",

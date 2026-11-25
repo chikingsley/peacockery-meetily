@@ -1,3 +1,4 @@
+import { processCallChanges } from "./lib/call-changes.mjs";
 import { spawnSync } from "node:child_process";
 // GMK operator command. Deliver only the selected CICA calendar to Simon's CICA PC.
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -44,7 +45,7 @@ const day = (date) =>
     month: "2-digit",
     day: "2-digit",
   }).format(date);
-const today = day(Date.now());
+const since = day(Date.now() - 7 * 86_400_000);
 const through = day(Date.now() + 7 * 86_400_000);
 const person = (p) => ({
   name: p?.EmailAddress?.Name ?? "",
@@ -55,7 +56,7 @@ const events = source.events
     (e) =>
       !e.cancelled &&
       !e.all_day &&
-      day(new Date(e.end)) >= today &&
+      day(new Date(e.end)) >= since &&
       day(new Date(e.start)) <= through
   )
   .map((e) => ({
@@ -82,7 +83,12 @@ const stored = await readFile(cacheFile, "utf8")
 const cached =
   stored?.calendar === calendar.outlook_calendar_id ? stored : null;
 let calls = cached?.calls ?? null;
-if (!cached || Date.now() - cached.observed > 300000) {
+let changed = false;
+if (!process.argv[2]) {
+  try { changed = await processCallChanges(calendar.outlook_calendar_id); }
+  catch (error) { console.warn("Call changes pending:", error.message); }
+}
+if (changed || !cached || Date.now() - cached.observed > 300000) {
   try {
     calls = await assignedCalls("Chi Ejimofor");
     await mkdir(cacheDir, { recursive: true });
