@@ -60,11 +60,11 @@ export function useRecordingStart(onVoiceNotConfigured: () => void) {
         setStatus(RecordingStatus.STARTING, "Starting recording...");
         clearTranscripts();
 
-        // A selected device that is not connected now records on the Windows default.
+        // Keep an explicit microphone selection through device discovery and startup.
         const connected = await voiceService.getAudioDevices();
 
         const result = await voiceService.startRecording(
-          connectedSelection(selectedDevices.micDevice, connected),
+          selectedDevices.micDevice,
           connectedSelection(selectedDevices.systemDevice, connected),
           title,
           recordingMode,
