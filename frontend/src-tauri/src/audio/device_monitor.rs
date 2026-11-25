@@ -1,6 +1,7 @@
 //! Watches the recording microphone and reports when it disappears, which drives the mic
 //! fallback to the system default input (`recording_commands`).
 use log::{debug, error, info, warn};
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -79,7 +80,6 @@ type MicUpdateMailbox = Arc<std::sync::Mutex<Option<String>>>;
 pub struct AudioDeviceMonitor {
     monitor_handle: Option<JoinHandle<()>>,
     event_sender: mpsc::UnboundedSender<MicDisconnected>,
-    stop_signal: Arc<tokio::sync::Notify>,
     mic_update_mailbox: MicUpdateMailbox,
 }
 
@@ -90,7 +90,6 @@ impl AudioDeviceMonitor {
             Self {
                 monitor_handle: None,
                 event_sender,
-                stop_signal: Arc::new(tokio::sync::Notify::new()),
                 mic_update_mailbox: Arc::default(),
             },
             event_receiver,
@@ -115,34 +114,38 @@ impl AudioDeviceMonitor {
             mic.name, mic.is_bluetooth
         );
         let event_sender = self.event_sender.clone();
-        let stop_signal = self.stop_signal.clone();
         let mailbox = self.mic_update_mailbox.clone();
         self.monitor_handle = Some(tokio::spawn(async move {
-            Self::monitor_loop(mic, event_sender, stop_signal, mailbox).await;
+            Self::monitor_loop(
+                mic,
+                event_sender,
+                mailbox,
+                POLL_INTERVAL,
+                list_audio_devices,
+            )
+            .await;
         }));
     }
 
     pub async fn stop_monitoring(&mut self) {
-        self.stop_signal.notify_one();
         if let Some(handle) = self.monitor_handle.take() {
+            handle.abort();
             let _ = handle.await;
             info!("Device monitor stopped");
         }
     }
 
-    async fn monitor_loop(
+    async fn monitor_loop<F: Future<Output = anyhow::Result<Vec<AudioDevice>>>>(
         mut mic: MonitoredMic,
         event_sender: mpsc::UnboundedSender<MicDisconnected>,
-        stop_signal: Arc<tokio::sync::Notify>,
         mailbox: MicUpdateMailbox,
+        interval: Duration,
+        list_devices: impl Fn() -> F,
     ) {
         loop {
-            tokio::select! {
-                _ = stop_signal.notified() => break,
-                _ = tokio::time::sleep(POLL_INTERVAL) => {}
-            }
+            tokio::time::sleep(interval).await;
 
-            let current_devices = match list_audio_devices().await {
+            let current_devices = match list_devices().await {
                 Ok(devices) => devices,
                 Err(e) => {
                     error!("Failed to list audio devices: {}", e);
@@ -172,7 +175,9 @@ impl AudioDeviceMonitor {
 
 impl Drop for AudioDeviceMonitor {
     fn drop(&mut self) {
-        self.stop_signal.notify_one();
+        if let Some(handle) = &self.monitor_handle {
+            handle.abort();
+        }
     }
 }
 
@@ -202,6 +207,26 @@ mod tests {
         assert!(!mic.observe(true));
         assert_eq!(mic.consecutive_missing, 0);
         assert!(!mic.observe(false), "a returned mic starts counting again");
+    }
+
+    #[tokio::test]
+    async fn stop_finishes_while_device_discovery_is_stalled() {
+        let (mut monitor, _events) = AudioDeviceMonitor::new();
+        let (started, mut scanning) = mpsc::unbounded_channel();
+        monitor.monitor_handle = Some(tokio::spawn(AudioDeviceMonitor::monitor_loop(
+            MonitoredMic::new("USB".into()),
+            monitor.event_sender.clone(),
+            monitor.mic_update_mailbox.clone(),
+            Duration::ZERO,
+            move || {
+                started.send(()).unwrap();
+                std::future::pending()
+            },
+        )));
+        scanning.recv().await.unwrap();
+        tokio::time::timeout(Duration::from_secs(1), monitor.stop_monitoring())
+            .await
+            .expect("recorder shutdown waited for device enumeration");
     }
 
     #[tokio::test]
