@@ -243,17 +243,25 @@ async fn review_one(
     tx.commit().await.map_err(|e| e.to_string())
 }
 
-async fn next(app: &AppHandle, pool: &SqlitePool) -> Result<bool, String> {
-    // A new source or a replaced final changes its last row ID even at the same length.
-    let due:Option<(String,String)>=sqlx::query_as("WITH candidates AS (
-    SELECT m.id,m.status,m.created_at,CASE WHEN m.status='recording' THEN 'live:'||CASE WHEN MAX(t.audio_start_time)>=300 THEN 1 ELSE 0 END
-    ELSE 'end:'||COUNT(*)||':'||MAX(t.rowid) END AS revision
-    FROM meetings m JOIN transcripts t ON t.meeting_id=m.id GROUP BY m.id)
+const DUE_REVIEW: &str = "WITH candidates AS MATERIALIZED (
+    SELECT m.id,m.status,m.created_at,CASE WHEN m.status='recording' THEN
+        CASE WHEN EXISTS (SELECT 1 FROM transcripts t WHERE t.meeting_id=m.id
+            AND t.source IN ('live','final') AND t.audio_start_time>=300) THEN 'live:1' ELSE 'live:0' END
+        ELSE 'end:'||m.review_transcript_count||':'||(
+            SELECT MAX(t.rowid) FROM transcripts t WHERE t.meeting_id=m.id
+        ) END AS revision
+    FROM meetings m WHERE m.review_transcript_count>0)
     SELECT c.id,c.revision FROM candidates c LEFT JOIN meeting_reviews r ON r.meeting_id=c.id
     WHERE coalesce(r.revision,'')!=c.revision AND c.revision!='live:0' AND (coalesce(r.attempted_revision,'')!=c.revision OR r.attempts<2)
     AND (coalesce(r.attempted_revision,'')!=c.revision OR coalesce(r.retry_at,0)<=unixepoch())
     AND (c.status!='recording' OR coalesce(r.revision,'') NOT LIKE 'live:%')
-    ORDER BY (c.status='recording') DESC,c.created_at DESC LIMIT 1").fetch_optional(pool).await.map_err(|e|e.to_string())?;
+    ORDER BY (c.status='recording') DESC,c.created_at DESC LIMIT 1";
+
+async fn next(app: &AppHandle, pool: &SqlitePool) -> Result<bool, String> {
+    let due: Option<(String, String)> = sqlx::query_as(DUE_REVIEW)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| e.to_string())?;
     let Some((id, revision)) = due else {
         return Ok(false);
     };
@@ -282,6 +290,42 @@ pub fn start(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn due_review_preserves_live_threshold_receipts_and_moved_turns() {
+        let pool = crate::database::test_pool().await;
+        let due = || sqlx::query_as::<_, (String, String)>(DUE_REVIEW).fetch_optional(&pool);
+        sqlx::raw_sql("INSERT INTO meetings(id,title,status) VALUES ('a','A','recording'),('b','B','stopped');
+            INSERT INTO transcripts(id,meeting_id,source,transcript,audio_start_time) VALUES ('1','a','live','one',299);")
+            .execute(&pool).await.unwrap();
+        assert_eq!(due().await.unwrap(), None);
+        sqlx::query("UPDATE transcripts SET audio_start_time=300 WHERE id='1'")
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert_eq!(due().await.unwrap(), Some(("a".into(), "live:1".into())));
+        sqlx::raw_sql(
+            "INSERT INTO meeting_reviews(meeting_id,revision) VALUES ('a','live:1');
+            UPDATE transcripts SET meeting_id='b' WHERE id='1';",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        assert_eq!(due().await.unwrap(), Some(("b".into(), "end:1:1".into())));
+        sqlx::query("INSERT INTO meeting_reviews(meeting_id,revision) VALUES ('b','end:1:1')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert_eq!(due().await.unwrap(), None);
+        sqlx::raw_sql("INSERT INTO transcripts(id,meeting_id,source,transcript) VALUES ('2','b','final','two');
+            DELETE FROM transcripts WHERE id='1';").execute(&pool).await.unwrap();
+        assert_eq!(due().await.unwrap(), Some(("b".into(), "end:1:2".into())));
+        sqlx::query("DELETE FROM transcripts WHERE id='2'")
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert_eq!(due().await.unwrap(), None);
+    }
+
     #[test]
     fn merged_diarization_keeps_original_label() {
         assert!(conflicting_introductions(

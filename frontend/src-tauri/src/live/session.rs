@@ -11,14 +11,14 @@ use peacockery_voice::{
 };
 use tokio::sync::mpsc;
 
-use super::taps::LiveFrame;
+use super::taps::{LiveFrame, TAP_CHANNEL_FRAMES};
 use super::{diarize_for_model, LiveState, Shared};
 use crate::voice::describe_error;
 
 /// Waits before reconnect attempts 1…5.
 const BACKOFF_SECONDS: [u64; 5] = [1, 2, 5, 10, 10];
-/// Audio kept while (re)connecting: 10 s of 100 ms frames, oldest dropped first.
-const BACKLOG_FRAMES: usize = 100;
+/// Preserve the same capture window across reconnects.
+const BACKLOG_FRAMES: usize = TAP_CHANNEL_FRAMES;
 /// With no audio frame for this long (pause, idle sources) silence frames keep the session alive.
 const KEEPALIVE_AFTER: Duration = Duration::from_millis(300);
 const TICK: Duration = Duration::from_millis(100);
@@ -273,11 +273,12 @@ async fn stream(
         );
         input.backlog.dropped = 0;
     }
-    while let Some(frame) = input.backlog.frames.pop_front() {
+    while let Some(frame) = input.backlog.frames.front() {
         if let Err(error) = sender.send_pcm(&frame.samples).await {
             return lose(shared, sender, events, builder, sent, error).await;
         }
         sent = frame.end;
+        input.backlog.frames.pop_front();
     }
     if !input.open {
         return finish(shared, channel, sender, events, builder, sent).await;
@@ -426,9 +427,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn backlog_keeps_the_newest_ten_seconds() {
+    fn backlog_keeps_the_newest_minute() {
         let mut backlog = Backlog::default();
-        for i in 0..150 {
+        for i in 0..(BACKLOG_FRAMES + 50) {
             backlog.push(LiveFrame {
                 samples: vec![0; FRAME_SAMPLES],
                 end: i as f64 * 0.1,

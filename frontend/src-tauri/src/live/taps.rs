@@ -11,8 +11,8 @@ use tokio::sync::mpsc;
 
 use crate::audio::pipeline::PIPELINE_SAMPLE_RATE;
 
-/// Frames buffered between the pipeline and a session task (5 s).
-pub const TAP_CHANNEL_FRAMES: usize = 50;
+/// Up to one minute of 100 ms PCM frames (1.92 MB per lane) for capture catch-up bursts.
+pub const TAP_CHANNEL_FRAMES: usize = 600;
 /// Input block for the 48 → 16 kHz resampler (100 ms).
 const RESAMPLER_INPUT: usize = 4800;
 
@@ -213,6 +213,28 @@ mod tests {
             peak
         );
         assert!(frames.windows(2).all(|w| w[0].end <= w[1].end));
+    }
+
+    #[test]
+    fn stalled_session_preserves_a_capture_catch_up_burst_on_both_lanes() {
+        let (mic_tx, mut mic) = mpsc::channel(TAP_CHANNEL_FRAMES);
+        let (sys_tx, mut system) = mpsc::channel(TAP_CHANNEL_FRAMES);
+        let incomplete = Arc::new(AtomicBool::new(false));
+        let mut taps = LiveTaps::new(
+            vec![(Channel::Mic, mic_tx), (Channel::System, sys_tx)],
+            incomplete.clone(),
+        );
+        let window = [0.0; RESAMPLER_INPUT];
+        for frame in 1..=570 {
+            taps.push(&window, &window, &window, f64::from(frame) / 10.0);
+        }
+        taps.close();
+        for rx in [&mut mic, &mut system] {
+            for frame in 1..=570 {
+                assert_eq!(rx.try_recv().unwrap().end, f64::from(frame) / 10.0);
+            }
+        }
+        assert!(!incomplete.load(Ordering::SeqCst));
     }
 
     #[test]

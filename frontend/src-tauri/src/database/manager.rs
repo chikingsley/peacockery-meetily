@@ -23,6 +23,7 @@ impl DatabaseManager {
             .foreign_keys(true)
             .journal_mode(SqliteJournalMode::Wal);
         let pool = SqlitePoolOptions::new()
+            .min_connections(2)
             .connect_with(options)
             .await
             .map_err(|e| format!("Failed to open database {}: {}", path.display(), e))?;

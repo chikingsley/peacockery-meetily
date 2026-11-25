@@ -351,10 +351,17 @@ type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 /// Write half of a realtime session.
 pub struct RealtimeSender {
     sink: SplitSink<Socket, Message>,
+    reader: tokio::task::JoinHandle<()>,
     terminal: Option<oneshot::Receiver<Result<RealtimeTerminal>>>,
     /// Terminal outcome picked up early (after a failed send), handed out by `finish`.
     ended: Option<Result<RealtimeTerminal>>,
     bytes_sent: u64,
+}
+
+impl Drop for RealtimeSender {
+    fn drop(&mut self) {
+        self.reader.abort();
+    }
 }
 
 impl std::fmt::Debug for RealtimeSender {
@@ -401,10 +408,11 @@ impl RealtimeSession {
         let (sink, stream) = socket.split();
         let (events_tx, events_rx) = mpsc::channel(EVENT_BUFFER);
         let (terminal_tx, terminal_rx) = oneshot::channel();
-        tokio::spawn(read_loop(stream, events_tx, terminal_tx));
+        let reader = tokio::spawn(read_loop(stream, events_tx, terminal_tx));
         Ok((
             RealtimeSender {
                 sink,
+                reader,
                 terminal: Some(terminal_rx),
                 ended: None,
                 bytes_sent: 0,
@@ -503,7 +511,12 @@ impl RealtimeSender {
             bytes.extend_from_slice(&s.to_le_bytes());
         }
         let len = bytes.len() as u64;
-        match self.sink.send(Message::Binary(bytes.into())).await {
+        // A half-open TCP connection can keep a write pending while capture continues.
+        let write = self.sink.send(Message::Binary(bytes.into()));
+        match tokio::time::timeout(Duration::from_secs(5), write)
+            .await
+            .map_err(|_| Error::Timeout("realtime audio write".into()))?
+        {
             Ok(()) => {
                 self.bytes_sent += len;
                 Ok(())
@@ -551,34 +564,39 @@ impl RealtimeSender {
     /// The server closes the socket afterwards; the event stream ends.
     /// A session that already ended returns its terminal outcome without sending anything.
     pub async fn finish(mut self, timeout: Duration) -> Result<RealtimeTerminal> {
-        if let Some(ended) = self.ended.take() {
-            let _ = self.sink.close().await;
-            return ended;
-        }
-        let terminal = self
-            .terminal
-            .take()
-            .ok_or_else(|| Error::RealtimeClosed("reader stopped".into()))?;
-        // If the socket already died, the terminal channel carries the reason.
-        let sent = self
-            .sink
-            .send(Message::Text(r#"{"type":"close"}"#.into()))
-            .await;
-        let outcome = tokio::time::timeout(timeout, terminal).await;
-        let result = match outcome {
-            Ok(Ok(result)) => result,
-            Ok(Err(_)) => Err(Error::RealtimeClosed("reader stopped".into())),
-            Err(_) => Err(Error::Timeout(format!(
-                "no session.completed within {} s",
-                timeout.as_secs_f32()
-            ))),
+        let deadline = tokio::time::Instant::now() + timeout;
+        let result = if let Some(ended) = self.ended.take() {
+            ended
+        } else {
+            let terminal = self
+                .terminal
+                .take()
+                .ok_or_else(|| Error::RealtimeClosed("reader stopped".into()))?;
+            let closing = async {
+                let sent = self
+                    .sink
+                    .send(Message::Text(r#"{"type":"close"}"#.into()))
+                    .await;
+                match terminal.await {
+                    Ok(Ok(done)) => Ok(done),
+                    outcome => match sent {
+                        Err(err) => Err(ws_error(err)),
+                        Ok(()) => outcome.unwrap_or_else(|_| {
+                            Err(Error::RealtimeClosed("reader stopped".into()))
+                        }),
+                    },
+                }
+            };
+            tokio::time::timeout_at(deadline, closing)
+                .await
+                .map_err(|_| {
+                    Error::Timeout(format!(
+                        "realtime finish exceeded {} s",
+                        timeout.as_secs_f32()
+                    ))
+                })?
         };
-        if result.is_err() {
-            if let Err(err) = sent {
-                return Err(ws_error(err));
-            }
-        }
-        let _ = self.sink.close().await;
+        let _ = tokio::time::timeout_at(deadline, self.sink.close()).await;
         result
     }
 }
@@ -602,6 +620,47 @@ mod tests {
             .into_iter()
             .map(|(k, v)| format!("{k}={v}"))
             .collect()
+    }
+
+    #[tokio::test]
+    async fn stalled_peer_bounds_audio_write_and_entire_finish() {
+        use tokio::net::TcpListener;
+        use tokio_tungstenite::tungstenite::protocol::Role;
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let socket = TcpStream::connect(listener.local_addr().unwrap())
+            .await
+            .unwrap();
+        let (_stalled_peer, _) = listener.accept().await.unwrap();
+        let ws =
+            WebSocketStream::from_raw_socket(MaybeTlsStream::Plain(socket), Role::Client, None)
+                .await;
+        let (sink, stream) = ws.split();
+        let (events, _rx) = mpsc::channel(1);
+        let (tx, terminal) = oneshot::channel();
+        let reader = tokio::spawn(read_loop(stream, events, tx));
+        let handle = reader.abort_handle();
+        let mut sender = RealtimeSender {
+            sink,
+            terminal: Some(terminal),
+            reader,
+            ended: None,
+            bytes_sent: 0,
+        };
+        let audio = vec![0; 8 * 1024 * 1024];
+        let write = tokio::time::timeout(Duration::from_secs(10), sender.send_pcm(&audio))
+            .await
+            .unwrap();
+        assert!(matches!(write, Err(Error::Timeout(_))));
+        let finish = tokio::time::timeout(
+            Duration::from_secs(1),
+            sender.finish(Duration::from_millis(25)),
+        )
+        .await
+        .unwrap();
+        assert!(matches!(finish, Err(Error::Timeout(_))));
+        tokio::task::yield_now().await;
+        assert!(handle.is_finished());
     }
 
     #[test]
