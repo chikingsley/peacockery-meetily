@@ -155,6 +155,7 @@ export function RecordingStateProvider({
       if (pollInFlight.current) {
         return;
       }
+
       pollInFlight.current = true;
       void syncWithBackend().finally(() => {
         pollInFlight.current = false;

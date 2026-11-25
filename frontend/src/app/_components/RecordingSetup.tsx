@@ -31,6 +31,7 @@ export function RecordingSetup({
   const days = 86_400_000;
   const displayDay = selectedDay ?? now;
   const events = eventsToday(snapshot?.events ?? [], new Date(displayDay));
+
   const formatDay = (value: number) =>
     new Date(value).toLocaleDateString("en-US", {
       timeZone: "America/Phoenix",
@@ -38,6 +39,7 @@ export function RecordingSetup({
       month: "short",
       day: "numeric",
     });
+
   const selectedToday = formatDay(displayDay) === formatDay(now);
   const scheduled = snapshot?.events ?? [];
 
