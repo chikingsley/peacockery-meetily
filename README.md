@@ -28,6 +28,8 @@ Chosen in **Settings → Voice**. A model is greyed out when the API does not li
 | Final transcript | ElevenLabs Scribe v3, with diarization | Voxtral Small Transcribe 3, Voxtral Mini Transcribe 3, Deepgram Nova-3, Cohere Transcribe (GMK) |
 | Summary          | Gemini 3.8 Flash                       | Claude Sonnet 5.5, DeepSeek V4 Flash, Gemini 3.1 Flash Lite, GPT-5.4 mini                       |
 
+Meetily displays the original speech and an English caption beneath each finalized Chinese turn, including during recording. Japanese kana and Korean script also trigger captions. Translation uses Meta M2M100 on Cloudflare through Peacockery Voice. Saved meetings reuse this PC’s translation cache. New installations detect the spoken language automatically.
+
 Other settings: live transcript on or off, language, key terms, recognition corrections for the final transcript, final speaker labels, when the final transcript runs after stop (by default only when the live transcript was incomplete or not on Scribe v3; or always, or never), and automatic summary. Live labels number the voices on each channel. A microphone is not a person, and invitations do not establish speaker identity.
 
 ## Where things are

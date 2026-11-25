@@ -57,7 +57,7 @@ impl Default for VoiceSettings {
             final_model: "elevenlabs-scribe_v3".to_string(),
             final_diarize: true,
             auto_final: AutoFinal::WhenLiveIncomplete,
-            language: "en".to_string(),
+            language: "auto".to_string(),
             keyterms: Vec::new(),
             transcript_corrections: Vec::new(),
             me_label: "Me".to_string(),
@@ -291,7 +291,7 @@ mod tests {
         let settings = VoiceSettings::from_stored(Some(&stored));
         assert!(!settings.live_enabled);
         assert_eq!(settings.final_model, "elevenlabs-scribe_v3");
-        assert_eq!(settings.language, "en");
+        assert_eq!(settings.language, "auto");
         assert!(settings.auto_summary);
         assert_eq!(settings.me_label, "Simon");
         assert_eq!(VoiceSettings::from_stored(None), VoiceSettings::default());

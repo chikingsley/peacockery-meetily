@@ -37,7 +37,7 @@ Identity: productName `Peacockery Meetily`, identifier `studio.peacockery.meetil
   "final_model": "elevenlabs-scribe_v3",
   "final_diarize": true,
   "auto_final": "when_live_incomplete", // or "always" / "never": the final transcript after stop (§6)
-  "language": "en",              // ISO-639-1, or "auto"
+  "language": "auto",              // ISO-639-1, or "auto"
   "keyterms": [],                // vocabulary hints (names, companies); sent where the model supports them
   "transcript_corrections": [],  // [{heard, replacement}]: whole-word replacements in final transcript text
   "me_label": "Me",

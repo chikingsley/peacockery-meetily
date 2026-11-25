@@ -1,1 +1,1 @@
-Chinese speech now has English captions beneath each finalized line during recording and in saved transcripts. The original wording, speaker, timestamp and audio remain available. Meetily also recognizes Korean script and Japanese kana. Translations are cached on this PC.
+See English beneath Chinese speech during recording and when reopening a meeting. Mixed turns translate the Chinese sentences and keep spoken English on the original line. New installations detect the spoken language automatically. Existing language selections carry forward.

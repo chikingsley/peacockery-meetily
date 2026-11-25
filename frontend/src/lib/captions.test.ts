@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 import { mockIPC, clearMocks } from "@tauri-apps/api/mocks";
 
-import { captionLanguage, englishCaption } from "./captions";
+import { captionLanguage, captionSource, englishCaption } from "./captions";
 
 test("Chinese turns keep Latin part numbers and share one translation across views", async () => {
   const text = "Schedule 40 的配件。";
@@ -39,4 +39,12 @@ test("Chinese turns keep Latin part numbers and share one translation across vie
       Reflect.deleteProperty(globalThis, "window");
     }
   }
+});
+
+test("mixed turns translate the Chinese sentences and keep embedded part numbers", () => {
+  expect(captionSource("[软件铃声] Hello, Jerry.")).toBe("[软件铃声]");
+  expect(captionSource("你好。You're muted.")).toBe("你好。");
+  expect(captionSource("Hello! 请确认 Schedule 40 的配件。")).toBe(
+    "请确认 Schedule 40 的配件。"
+  );
 });

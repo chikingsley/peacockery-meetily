@@ -20,6 +20,28 @@ export function captionLanguage(text: string) {
   return null;
 }
 
+const sentenceSegments = new Intl.Segmenter("zh", { granularity: "sentence" });
+const stageDirection = /(\[[^\]]+\])/u;
+const latinText = /[A-Za-z]/u;
+
+// ASR turns can contain whole English sentences or a Chinese sound cue
+// immediately followed by English. Keep English sentences in the source
+// line and translate the foreign speech and cues beneath it.
+export function captionSource(text: string) {
+  if (!latinText.test(text)) {
+    return text;
+  }
+
+  return text
+    .split(stageDirection)
+    .flatMap((part) =>
+      Array.from(sentenceSegments.segment(part), ({ segment }) =>
+        segment.trim()
+      ).filter((segment) => captionLanguage(segment))
+    )
+    .join(" ");
+}
+
 interface Job {
   run: () => Promise<void>;
   live: boolean;
@@ -80,7 +102,7 @@ export function englishCaption(
         try {
           const english = await invoke<string>("translate_caption", {
             language,
-            text,
+            text: captionSource(text),
           });
 
           completed.add(text);
