@@ -34,6 +34,13 @@ Run `node --test scripts/access.test.mjs services/activation/worker.test.mjs` fo
 2. Run `scripts/release-windows.sh`. It checks the project, builds the signed Windows installer, pushes main, stages a GitHub draft with installer, signature, checksum and latest.json, then publishes it.
 3. Open App updates on an older installation. Verify download, installation, restart and retained recordings/settings.
 
+For changes to recording or Windows process handling, use `scripts/release-windows.sh --verify-on-cica` with the PC idle. It installs the signed candidate and waits before publishing the same installer bytes. Start Meetily in the interactive desktop session.
+
+1. Record process IDs, process creation times and private memory for the running supported AI apps, and the process IDs of Teams, Chrome and Raycast. Enable Meeting Focus in Settings → Recording.
+2. Start a uniquely titled in-person recording with a silent microphone and portal publishing off. Verify the target trees reach zero for at least five consecutive seconds, capture continues and protected processes survive.
+3. Stop recording. Check the previously running apps reopen and the restore receipt clears. Decode the saved audio, check the duration and remove the test recording using its sidebar entry. Restore the original microphone state.
+4. Exercise rapid stop and restart, then idle startup with a pending restore receipt. Enter `publish` at the release prompt after verifying the candidate.
+
 The established signing key lives in the operator's private `~/.local/share/peacockery-meetily/updater.key`, or a path supplied through TAURI_SIGNING_PRIVATE_KEY. Keep a secure backup. The public key is embedded in the application. Every release uses the same private key. These update signatures are separate from Windows Authenticode publisher signing; the installer currently remains unsigned from Windows' publisher perspective.
 
 A startup notice links to Settings > General > App updates. Check for updates and Install and restart show progress and errors. The Windows installer shows progress and relaunches the app. Downloads and signatures are verified before installation. Recording, final transcription and summary jobs defer installation until they finish.
