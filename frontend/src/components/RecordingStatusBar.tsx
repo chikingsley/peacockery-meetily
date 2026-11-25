@@ -47,7 +47,8 @@ export const RecordingStatusBar: React.FC<RecordingStatusBarProps> = ({
   const micGap = progress?.mic_gap_seconds ?? 0;
 
   if (micGap > 0) {
-    health = `Microphone capture gap · ${micGap.toFixed(1)}s total`;
+    const gap = `Microphone capture gap · ${micGap.toFixed(1)}s total`;
+    health = behind ? `${health} · ${gap}` : gap;
   }
 
   if (progress?.write_failed) {
