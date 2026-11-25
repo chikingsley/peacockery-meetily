@@ -376,7 +376,7 @@ async fn start_recording(
         meeting_name: title,
         folder: folder.clone(),
     };
-    let live = live_setup(app, &meeting_id, &pool, mode);
+    let live = live_setup(app, &meeting_id, &pool, &context);
     let app_for_levels = app.clone();
     let levels = Box::new(move |levels: super::levels::AudioLevels| {
         let _ = app_for_levels.emit("audio-levels", levels);
@@ -428,7 +428,7 @@ fn live_setup(
     app: &AppHandle,
     meeting_id: &str,
     pool: &sqlx::SqlitePool,
-    mode: RecordingMode,
+    context: &RecordingContext,
 ) -> Option<LiveSetup> {
     let service = app.state::<VoiceService>();
     let settings = service.settings();
@@ -436,8 +436,10 @@ fn live_setup(
         info!("Live transcription is off");
         return None;
     }
+    let mut config = LiveConfig::from_settings(meeting_id, &settings, context.mode.live_mode());
+    context.add_event_names(&mut config.keyterms);
     Some(LiveSetup {
-        config: LiveConfig::from_settings(meeting_id, &settings, mode.live_mode()),
+        config,
         client: service.client(),
         sink: Arc::new(TauriLiveSink::new(app.clone())),
         pool: Some(pool.clone()),

@@ -73,6 +73,21 @@ pub struct RecordingContext {
 }
 
 impl RecordingContext {
+    pub fn add_event_names(&self, terms: &mut Vec<String>) {
+        let Some(event) = &self.calendar_event else {
+            return;
+        };
+        for person in event.organizer.iter().chain(&event.invitees).take(12) {
+            let name = person.name.trim();
+            if !name.is_empty()
+                && !name.contains('@')
+                && name.chars().count() <= 50
+                && !terms.iter().any(|term| term.eq_ignore_ascii_case(name))
+            {
+                terms.push(name.to_owned());
+            }
+        }
+    }
     pub fn save(&self, folder: &Path) -> Result<(), String> {
         let bytes = serde_json::to_vec_pretty(self).map_err(|e| e.to_string())?;
         std::fs::write(folder.join("recording-context.json"), bytes).map_err(|e| e.to_string())

@@ -70,6 +70,9 @@ impl FinalJob {
         options.diarize = settings.final_diarize && ModelFamily::of(model) != ModelFamily::Cohere;
         options.language = Some(settings.language.clone());
         options.keyterms = settings.keyterms.clone();
+        if let Some(context) = crate::recording_context::RecordingContext::load(&folder) {
+            context.add_event_names(&mut options.keyterms);
+        }
         let recorded_at = (meeting.status != meeting_status::IMPORTED)
             .then_some(meeting.created_at.as_deref())
             .flatten()

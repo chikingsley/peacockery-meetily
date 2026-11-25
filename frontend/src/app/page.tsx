@@ -20,7 +20,7 @@ import { suggestedMode } from "@/lib/recording-context";
 import type { RecordingMode } from "@/types/voice";
 
 import { LiveQuickSettings } from "./_components/LiveQuickSettings";
-import { RecordingSetup } from "./_components/RecordingSetup";
+import { RecordingSetup, RecordingType } from "./_components/RecordingSetup";
 import { TranscriptPanel } from "./_components/TranscriptPanel";
 import { VoiceNotConfiguredDialog } from "./_components/VoiceNotConfiguredDialog";
 
@@ -82,23 +82,7 @@ export default function Home() {
                 }
               }}
             >
-              <RecordingSetup
-                mode={mode}
-                onModeChange={setMode}
-                canStart={
-                  desktop && devicesReady && publishToCica !== null && !active
-                }
-                onEventChange={(item) => {
-                  if (publishToCica !== null) {
-                    void startRecording(
-                      item.title,
-                      suggestedMode(item),
-                      item,
-                      publishToCica
-                    );
-                  }
-                }}
-              />
+              <RecordingType mode={mode} onModeChange={setMode} />
               <div className="space-y-2">
                 <Label htmlFor="meeting-title">Meeting title (optional)</Label>
                 <Input
@@ -144,6 +128,24 @@ export default function Home() {
                 </div>
               </details>
             </form>
+            <div className="mt-5">
+              {" "}
+              <RecordingSetup
+                canStart={
+                  desktop && devicesReady && publishToCica !== null && !active
+                }
+                onEventChange={(item) => {
+                  if (publishToCica !== null) {
+                    void startRecording(
+                      item.title,
+                      suggestedMode(item),
+                      item,
+                      publishToCica
+                    );
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
       )}

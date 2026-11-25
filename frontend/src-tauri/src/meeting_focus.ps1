@@ -9,7 +9,7 @@ $file = Join-Path $env:MEETILY_FOCUS_DIR 'meeting-focus-apps.json'
 $session = (Get-Process -Id $PID).SessionId
 if ($env:MEETILY_FOCUS_ACTION -eq 'restore') {
     if (!(Test-Path -LiteralPath $file)) { return }
-    $targets = @(Get-Content -Raw -LiteralPath $file | ConvertFrom-Json)
+    $targets = Get-Content -Raw -LiteralPath $file | ConvertFrom-Json
     foreach ($app in $apps) {
         if ($targets -contains $app.id) {
             Start-Process explorer.exe -ArgumentList ("shell:AppsFolder\" + $app.id)

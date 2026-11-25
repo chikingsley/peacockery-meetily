@@ -13,14 +13,40 @@ import {
 } from "@/lib/recording-context";
 import type { CalendarEvent, RecordingMode } from "@/types/voice";
 
-export function RecordingSetup({
+export function RecordingType({
   mode,
   onModeChange,
-  canStart,
-  onEventChange,
 }: {
   mode: RecordingMode;
   onModeChange: (mode: RecordingMode) => void;
+}) {
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">Recording type</legend>
+      <div className="flex flex-wrap gap-2">
+        {RECORDING_MODES.map((option) => (
+          <Button
+            key={option.value}
+            type="button"
+            variant={mode === option.value ? "default" : "outline"}
+            aria-pressed={mode === option.value}
+            onClick={() => onModeChange(option.value)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {RECORDING_MODES.find((option) => option.value === mode)?.description}
+      </p>
+    </fieldset>
+  );
+}
+
+export function RecordingSetup({
+  canStart,
+  onEventChange,
+}: {
   canStart: boolean;
   onEventChange: (event: CalendarEvent) => void;
 }) {
@@ -45,25 +71,6 @@ export function RecordingSetup({
 
   return (
     <div className="space-y-4">
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Recording type</legend>
-        <div className="flex flex-wrap gap-2">
-          {RECORDING_MODES.map((option) => (
-            <Button
-              key={option.value}
-              type="button"
-              variant={mode === option.value ? "default" : "outline"}
-              aria-pressed={mode === option.value}
-              onClick={() => onModeChange(option.value)}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {RECORDING_MODES.find((option) => option.value === mode)?.description}
-        </p>
-      </fieldset>
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-sm font-medium">
