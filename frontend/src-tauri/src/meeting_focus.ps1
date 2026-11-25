@@ -12,13 +12,21 @@ if (Test-Path -LiteralPath $file) {
     $receipt = @(ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($file)) | ForEach-Object { $_ })
 }
 function Save-Receipt($ids) {
-    if (!$ids.Count) {
-        if ([IO.File]::Exists($file)) { [IO.File]::Delete($file) }
-        return
+    if ($ids.Count) {
+        [IO.File]::WriteAllText("$file.tmp", (ConvertTo-Json -InputObject @($ids) -Compress))
     }
-    [IO.File]::WriteAllText("$file.tmp", (ConvertTo-Json -InputObject @($ids) -Compress))
-    if ([IO.File]::Exists($file)) { [IO.File]::Replace("$file.tmp", $file, [System.Management.Automation.Language.NullString]::Value) }
-    else { [IO.File]::Move("$file.tmp", $file) }
+    # A concurrent reader or scanner can briefly deny delete-sharing on Windows.
+    for ($attempt = 0; ; $attempt++) {
+        try {
+            if (!$ids.Count) { [IO.File]::Delete($file) }
+            elseif ([IO.File]::Exists($file)) { [IO.File]::Replace("$file.tmp", $file, [System.Management.Automation.Language.NullString]::Value) }
+            else { [IO.File]::Move("$file.tmp", $file) }
+            return
+        } catch [IO.IOException] {
+            if ($attempt -ge 10) { throw }
+            Start-Sleep -Milliseconds 100
+        }
+    }
 }
 foreach ($app in $apps) {
     if ($app.family) {

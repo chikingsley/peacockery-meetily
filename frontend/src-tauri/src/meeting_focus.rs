@@ -52,7 +52,13 @@ async fn reconcile(dir: &Path, restore_only: bool) -> Result<(), String> {
         .flat_map(u16::to_le_bytes)
         .collect();
     command
-        .args(["-NoProfile", "-NonInteractive", "-EncodedCommand"])
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-OutputFormat",
+            "Text",
+            "-EncodedCommand",
+        ])
         .arg(STANDARD.encode(script))
         .env("MEETILY_FOCUS_DIR", dir)
         .env("MEETILY_FOCUS_ACTION", action)
