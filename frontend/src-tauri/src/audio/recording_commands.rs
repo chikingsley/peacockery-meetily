@@ -409,6 +409,7 @@ async fn start_recording(
     let session = manager.get_state().clone();
     *lock_manager() = Some(manager);
     IS_RECORDING.store(true, Ordering::SeqCst);
+    crate::meeting_focus::changed(app);
     MIC_FALLBACK_FAILED_ATTEMPTS.store(0, Ordering::SeqCst);
     if let Some(receiver) = device_event_receiver {
         spawn_device_event_processor(app.clone(), receiver, session);
@@ -498,6 +499,7 @@ pub async fn stop_recording(app: AppHandle) -> Result<RecordingStopped, String> 
 
     let folder_path = target.folder.to_string_lossy().to_string();
     drop(stopping);
+    crate::meeting_focus::changed(&app);
     let _ = app.emit(
         "recording-stopped",
         serde_json::json!({

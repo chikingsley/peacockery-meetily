@@ -6,7 +6,6 @@ mod briefs;
 pub mod database;
 pub mod final_transcript;
 pub mod live;
-#[cfg(windows)]
 mod meeting_focus;
 mod outlook_calendar;
 mod outlook_secret;
@@ -52,8 +51,7 @@ fn log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
 }
 
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(windows)]
-    meeting_focus::start(app.path().app_data_dir()?);
+    meeting_focus::changed(app.handle());
     let _ = rustls::crypto::ring::default_provider().install_default();
     log::info!("Peacockery Meetily {} starting", app.package_info().version);
 
@@ -133,6 +131,8 @@ pub fn run() {
             briefs::meeting_brief,
             outlook_calendar::change_call_task,
             outlook_calendar::call_change_status,
+            meeting_focus::meeting_focus_enabled,
+            meeting_focus::set_meeting_focus,
             briefs::save_meeting_brief,
             briefs::dial_phone,
             briefs::call_attempts,
@@ -183,6 +183,11 @@ pub fn run() {
                 tray::quit(app_handle);
             }
             tauri::RunEvent::Exit => {
+                if let Err(error) =
+                    tauri::async_runtime::block_on(meeting_focus::restore(app_handle))
+                {
+                    log::warn!("Meeting focus exit: {error}");
+                }
                 if let Some(app_state) = app_handle.try_state::<AppState>() {
                     tauri::async_runtime::block_on(app_state.db_manager.cleanup());
                 }

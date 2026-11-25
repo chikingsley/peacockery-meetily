@@ -5,7 +5,7 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-installer="$(ls -t "$repo"/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe | head -1)"
+installer="${1:-$(ls -t "$repo"/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe | head -1)}"
 echo "Installing $(basename "$installer")"
 
 scp -q "$installer" cica:peacockery-meetily-setup.exe

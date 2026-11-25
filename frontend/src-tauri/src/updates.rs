@@ -114,6 +114,9 @@ pub async fn install_app_update(
         total: Some(downloaded),
         installing: true,
     });
+    if let Err(error) = crate::meeting_focus::restore(&app).await {
+        log::warn!("Meeting focus pending recovery after update: {error}");
+    }
     update
         .install(bytes)
         .map_err(|e| format!("Installation failed: {e}"))?;
