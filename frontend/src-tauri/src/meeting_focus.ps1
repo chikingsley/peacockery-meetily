@@ -65,7 +65,12 @@ $failures = @()
 if ($env:MEETILY_FOCUS_ACTION -eq 'restore') {
     foreach ($id in @($receipt)) {
         $app = $apps | Where-Object { $_.id -eq $id }
-        if (!$app) { throw 'Unrecognized app in meeting focus restore list' }
+        if (!$app) {
+            $receipt = @($receipt | Where-Object { $_ -ne $id })
+            Save-Receipt $receipt
+            Write-Output 'Removed retired meeting focus app from restore list'
+            continue
+        }
         try {
             if ($app.root -and (Test-Path -LiteralPath $app.root) -and !(Roots $app (Snapshot))) {
                 Start-Process explorer.exe -ArgumentList ("shell:AppsFolder\" + $app.id)
