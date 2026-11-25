@@ -219,6 +219,14 @@ impl TranscriptsRepository {
                 }
             }
         }
+        // SQLite can reuse the same rowids after deleting a whole source. Fence
+        // any provider response that was based on the previous speaker clusters.
+        sqlx::query(
+            "UPDATE meetings SET review_source_generation=review_source_generation+1 WHERE id=?",
+        )
+        .bind(meeting_id)
+        .execute(&mut *tx)
+        .await?;
         // Provider clusters can be renumbered on a rerun. A fresh source gets a fresh review.
         sqlx::query("DELETE FROM speaker_names WHERE meeting_id=? AND source=?")
             .bind(meeting_id)

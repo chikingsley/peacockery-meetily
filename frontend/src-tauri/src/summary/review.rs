@@ -178,7 +178,30 @@ async fn review_one(
     };
     let result = generate(app, request).await?;
     let review = parse_review(&result.text)?;
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+    apply_review(pool, id, revision, &rows, &review, &result.model, brief_key).await
+}
+
+async fn apply_review(
+    pool: &SqlitePool,
+    id: &str,
+    revision: &str,
+    rows: &[TranscriptRow],
+    review: &Review,
+    model: &str,
+    brief_key: Option<&str>,
+) -> Result<(), String> {
+    let mut tx = pool
+        .begin_with("BEGIN IMMEDIATE")
+        .await
+        .map_err(|e| e.to_string())?;
+    let current: Option<String> = sqlx::query_scalar(
+        "SELECT c.revision FROM meeting_review_candidates c JOIN meeting_reviews r ON r.meeting_id=c.id
+         WHERE c.id=? AND r.attempted_revision=c.revision",
+    ).bind(id).fetch_optional(&mut *tx).await.map_err(|e| e.to_string())?;
+    if current.as_deref() != Some(revision) {
+        log::info!("Discarded superseded review for {id} at {revision}");
+        return tx.rollback().await.map_err(|e| e.to_string());
+    }
     sqlx::query("DELETE FROM speaker_names WHERE meeting_id=? AND manual=0")
         .bind(id)
         .execute(&mut *tx)
@@ -186,7 +209,7 @@ async fn review_one(
         .map_err(|e| e.to_string())?;
     let mut names = BTreeMap::<(&str, &str), Vec<(&str, &str)>>::new();
     for identity in &review.identities {
-        let Some(row) = supported(&rows, identity.turn, &identity.quote) else {
+        let Some(row) = supported(rows, identity.turn, &identity.quote) else {
             continue;
         };
         let Some(label) = row.speaker.as_deref().filter(|l| automatic(l)) else {
@@ -225,7 +248,7 @@ async fn review_one(
             )
         })
         .filter_map(|o| {
-            supported(&rows, o.turn, &o.quote)
+            supported(rows, o.turn, &o.quote)
                 .map(|r| json!({"kind":o.kind,"seconds":r.audio_start_time,"quote":o.quote}))
         })
         .collect();
@@ -234,7 +257,7 @@ async fn review_one(
     )
     .bind(revision)
     .bind(json!(outcomes).to_string())
-    .bind(result.model)
+    .bind(model)
     .bind(brief_key)
     .bind(id)
     .execute(&mut *tx)
@@ -244,15 +267,9 @@ async fn review_one(
 }
 
 const DUE_REVIEW: &str = "WITH candidates AS MATERIALIZED (
-    SELECT m.id,m.status,m.created_at,CASE WHEN m.status='recording' THEN
-        CASE WHEN EXISTS (SELECT 1 FROM transcripts t WHERE t.meeting_id=m.id
-            AND t.source IN ('live','final') AND t.audio_start_time>=300) THEN 'live:1' ELSE 'live:0' END
-        ELSE 'end:'||m.review_transcript_count||':'||(
-            SELECT MAX(t.rowid) FROM transcripts t WHERE t.meeting_id=m.id
-        ) END AS revision
-    FROM meetings m WHERE m.review_transcript_count>0)
+    SELECT * FROM meeting_review_candidates)
     SELECT c.id,c.revision FROM candidates c LEFT JOIN meeting_reviews r ON r.meeting_id=c.id
-    WHERE coalesce(r.revision,'')!=c.revision AND c.revision!='live:0' AND (coalesce(r.attempted_revision,'')!=c.revision OR r.attempts<2)
+    WHERE coalesce(r.revision,'')!=c.revision AND c.revision NOT GLOB 'live:0*' AND (coalesce(r.attempted_revision,'')!=c.revision OR r.attempts<2)
     AND (coalesce(r.attempted_revision,'')!=c.revision OR coalesce(r.retry_at,0)<=unixepoch())
     AND (c.status!='recording' OR coalesce(r.revision,'') NOT LIKE 'live:%')
     ORDER BY (c.status='recording') DESC,c.created_at DESC LIMIT 1";
@@ -324,6 +341,78 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(due().await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn late_review_cannot_overwrite_same_length_replacement_with_reused_rowids() {
+        use crate::database::models::NewTranscript;
+        use crate::database::repositories::transcript::TranscriptsRepository;
+
+        let pool = crate::database::test_pool().await;
+        sqlx::raw_sql("INSERT INTO meetings(id,title,status) VALUES ('a','A','stopped');
+            INSERT INTO transcripts(id,meeting_id,source,transcript) VALUES ('old','a','final','old speech');
+            INSERT INTO meeting_reviews(meeting_id,attempted_revision,attempts) VALUES ('a','end:1:1',2);")
+            .execute(&pool).await.unwrap();
+        let fresh = NewTranscript {
+            text: "new speech".into(),
+            speaker: None,
+            timestamp: None,
+            audio_start_time: None,
+            audio_end_time: None,
+            duration: None,
+            sequence: None,
+        };
+        TranscriptsRepository::replace_source(&pool, "a", "final", &[fresh])
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO speaker_names(meeting_id,source,label,name,evidence) VALUES ('a','live','A','Chi','existing')")
+            .execute(&pool).await.unwrap();
+        let review = Review {
+            identities: vec![],
+            outcomes: vec![],
+        };
+        apply_review(&pool, "a", "end:1:1", &[], &review, "stale-model", None)
+            .await
+            .unwrap();
+
+        let receipt: (String, Option<String>, i64) = sqlx::query_as(
+            "SELECT revision,model,attempts FROM meeting_reviews WHERE meeting_id='a'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(receipt, ("".into(), None, 2));
+        let name: String =
+            sqlx::query_scalar("SELECT name FROM speaker_names WHERE meeting_id='a'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(name, "Chi");
+        let due: (String, String) = sqlx::query_as(DUE_REVIEW).fetch_one(&pool).await.unwrap();
+        assert_eq!(due, ("a".into(), "end:1:1:r1".into()));
+    }
+
+    #[tokio::test]
+    async fn appended_live_turns_keep_the_inflight_five_minute_review_eligible() {
+        let pool = crate::database::test_pool().await;
+        sqlx::raw_sql("INSERT INTO meetings(id,title,status) VALUES ('a','A','recording');
+            INSERT INTO transcripts(id,meeting_id,source,transcript,audio_start_time) VALUES ('t1','a','live','intro',300);
+            INSERT INTO meeting_reviews(meeting_id,attempted_revision,attempts) VALUES ('a','live:1',1);
+            INSERT INTO transcripts(id,meeting_id,source,transcript,audio_start_time) VALUES ('t2','a','live','next',315);")
+            .execute(&pool).await.unwrap();
+        let review = Review {
+            identities: vec![],
+            outcomes: vec![],
+        };
+        apply_review(&pool, "a", "live:1", &[], &review, "live-model", None)
+            .await
+            .unwrap();
+        let receipt: (String, String) =
+            sqlx::query_as("SELECT revision,model FROM meeting_reviews WHERE meeting_id='a'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(receipt, ("live:1".into(), "live-model".into()));
     }
 
     #[test]
